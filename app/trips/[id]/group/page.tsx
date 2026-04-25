@@ -4,13 +4,13 @@ import { Badge } from "@/components/ui/badge"
 import { InviteMemberForm } from "@/components/trip/group/invite-member-form"
 import { createClient } from "@/lib/supabase/server"
 import { daysBetween, formatDayLabel } from "@/lib/dates"
-import type { Activity, Trip } from "@/lib/types"
+import { normalizeMembers, type Activity, type Trip } from "@/lib/types"
 
 export default async function GroupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: trip }, { data: members }, { data: activities }] = await Promise.all([
+  const [{ data: trip }, { data: membersRaw }, { data: activities }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle<Trip>(),
     supabase
       .from("trip_members")
@@ -20,6 +20,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   ])
 
   if (!trip) return null
+  const members = normalizeMembers(membersRaw)
 
   const days = daysBetween(trip.start_date, trip.end_date)
   const freeBlocks: Array<{ day: string; block: string }> = []
@@ -39,7 +40,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
           <p className="text-sm text-muted-foreground">Who&apos;s on this trip.</p>
         </div>
         <ul className="divide-y divide-border">
-          {(members ?? []).map((m) => {
+          {members.map((m) => {
             const name = m.profile?.full_name ?? "Unnamed traveler"
             return (
               <li key={m.user_id} className="flex items-center justify-between gap-4 p-5">
@@ -68,7 +69,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
               </li>
             )
           })}
-          {(members ?? []).length === 0 ? (
+          {members.length === 0 ? (
             <li className="p-5 text-sm text-muted-foreground">No members yet.</li>
           ) : null}
         </ul>

@@ -26,6 +26,17 @@ export type Profile = {
   created_at: string
 }
 
+// Supabase returns embedded relations as arrays. Normalize to a single object.
+export function normalizeMembers<
+  T extends { profile: unknown } & Record<string, unknown>,
+>(rows: T[] | null | undefined): Array<Omit<T, "profile"> & { profile: Profile | null }> {
+  return (rows ?? []).map((row) => {
+    const raw = (row as { profile: unknown }).profile
+    const profile = Array.isArray(raw) ? ((raw[0] ?? null) as Profile | null) : ((raw ?? null) as Profile | null)
+    return { ...(row as object), profile } as Omit<T, "profile"> & { profile: Profile | null }
+  })
+}
+
 export type Activity = {
   id: string
   trip_id: string

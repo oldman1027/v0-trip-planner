@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { TripCard } from "@/components/trips/trip-card"
 import { TripsEmpty } from "@/components/trips/trips-empty"
 import { createClient } from "@/lib/supabase/server"
-import type { Trip } from "@/lib/types"
+import { normalizeMembers, type Trip } from "@/lib/types"
 
 export default async function TripsPage() {
   const supabase = await createClient()
@@ -22,12 +22,15 @@ export default async function TripsPage() {
 
   // Fetch members per trip (small N, simple loop)
   const tripIds = (trips ?? []).map((t) => t.id)
-  const { data: members } = tripIds.length
-    ? await supabase
-        .from("trip_members")
-        .select("trip_id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, created_at)")
-        .in("trip_id", tripIds)
-    : { data: [] as never[] }
+  const membersRaw = tripIds.length
+    ? (
+        await supabase
+          .from("trip_members")
+          .select("trip_id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, created_at)")
+          .in("trip_id", tripIds)
+      ).data
+    : []
+  const members = normalizeMembers(membersRaw)
 
   return (
     <div className="min-h-svh">
