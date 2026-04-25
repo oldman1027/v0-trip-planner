@@ -9,6 +9,7 @@ export type Trip = {
   cover_image_url: string | null
   created_by: string
   created_at: string
+  is_sample?: boolean
 }
 
 export type TripMember = {

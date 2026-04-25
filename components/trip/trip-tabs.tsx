@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils"
 const TABS = [
   { label: "Itinerary", slug: "" },
   { label: "Overview", slug: "overview" },
-  { label: "Group", slug: "group" },
   { label: "Bookings", slug: "bookings" },
   { label: "Costs", slug: "costs" },
 ]

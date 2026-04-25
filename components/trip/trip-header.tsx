@@ -1,18 +1,11 @@
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, MapPin, UserPlus } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { ChevronLeft, MapPin } from "lucide-react"
 import { formatRange } from "@/lib/dates"
+import { TripActionsMenu } from "./trip-actions-menu"
 import type { Trip } from "@/lib/types"
 
-type Member = {
-  user_id: string
-  role: "owner" | "editor" | "viewer"
-  profile: { full_name: string | null; avatar_url: string | null } | null
-}
-
-export function TripHeader({ trip, members }: { trip: Trip; members: Member[] }) {
+export function TripHeader({ trip }: { trip: Trip }) {
   const cover =
     trip.cover_image_url ??
     "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1600&q=80"
@@ -34,7 +27,10 @@ export function TripHeader({ trip, members }: { trip: Trip; members: Member[] })
               <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
               All trips
             </Link>
-            <h1 className="font-serif text-3xl tracking-tight md:text-4xl">{trip.name}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-serif text-3xl tracking-tight md:text-4xl">{trip.name}</h1>
+              {trip.is_sample ? <SampleBadge /> : null}
+            </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {trip.destination ? (
                 <span className="inline-flex items-center gap-1">
@@ -46,40 +42,17 @@ export function TripHeader({ trip, members }: { trip: Trip; members: Member[] })
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <MemberStack members={members} />
-            <Button className="rounded-xl">
-              <UserPlus className="mr-2 h-4 w-4" aria-hidden />
-              Invite
-            </Button>
-          </div>
+          <TripActionsMenu tripId={trip.id} isSample={trip.is_sample} />
         </div>
       </div>
     </section>
   )
 }
 
-function MemberStack({ members }: { members: Member[] }) {
-  const visible = members.slice(0, 4)
-  const extra = members.length - visible.length
+function SampleBadge() {
   return (
-    <div className="flex -space-x-2">
-      {visible.map((m, i) => {
-        const name = m.profile?.full_name ?? "?"
-        return (
-          <Avatar key={m.user_id} className="h-8 w-8 border-2 border-card" style={{ zIndex: visible.length - i }}>
-            {m.profile?.avatar_url ? <AvatarImage src={m.profile.avatar_url || "/placeholder.svg"} alt={name} /> : null}
-            <AvatarFallback className="bg-secondary text-xs text-secondary-foreground">
-              {name.slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        )
-      })}
-      {extra > 0 ? (
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs text-muted-foreground">
-          +{extra}
-        </span>
-      ) : null}
-    </div>
+    <span className="inline-flex items-center rounded-full bg-secondary/50 px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
+      Sample trip
+    </span>
   )
 }
