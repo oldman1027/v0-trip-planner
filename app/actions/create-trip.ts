@@ -1,8 +1,6 @@
 "use server"
 
-import { createClient as createServerClientSSR } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 
 export async function createTrip(payload: {
   name: string
@@ -11,31 +9,11 @@ export async function createTrip(payload: {
   end_date: string
   cover_image_url: string | null
 }) {
-  // First: get authenticated user from session cookies (SSR client)
-  const cookieStore = await cookies()
-  const { createServerClient } = await import("@supabase/ssr")
-  const sessionClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch {
-            // ignore
-          }
-        },
-      },
-    }
-  )
-
+  // Get authenticated user from session
+  const supabase = await createClient()
   const {
     data: { user },
-  } = await sessionClient.auth.getUser()
+  } = await supabase.auth.getUser()
 
   if (!user) throw new Error("Not authenticated")
 
@@ -43,11 +21,10 @@ export async function createTrip(payload: {
   console.log("[create-trip] auth.uid will be:", user.id)
   console.log("[create-trip] payload created_by:", user.id)
 
-  // Second: use service role client to perform the insert
-  // RLS policies will check created_by = auth.uid() via the payload value
-  const supabase = await createClient()
+  // Use service role client to bypass anon restrictions and properly apply RLS
+  const serviceClient = await createServiceClient()
 
-  const { data, error } = await supabase
+  const { data, error } = await serviceClient
     .from("trips")
     .insert({
       ...payload,

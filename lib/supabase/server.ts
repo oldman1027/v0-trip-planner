@@ -1,20 +1,34 @@
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
+
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+        } catch {
+          // The "setAll" method was called from a Server Component.
+          // Safe to ignore when proxy refreshes user sessions.
+        }
+      },
+    },
+  })
+}
 
 /**
- * Server-side Supabase client using the SERVICE ROLE key.
- * This allows authenticated requests to bypass anon role restrictions
- * and properly use auth.uid() in RLS policies.
- * 
- * For cookie-based session auth, this client uses the authenticated user's
- * session from cookies when available.
+ * Get a service-role authenticated Supabase client.
+ * This is used when we need to perform operations that require elevated privileges.
+ * Use sparingly and only when necessary.
  */
-export async function createClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set")
-  }
-
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
+export async function createServiceClient() {
+  const { createClient: createJsClient } = await import("@supabase/supabase-js")
+  return createJsClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
