@@ -61,10 +61,15 @@ export function NewTripForm() {
       toast.success("Trip created", { description: name })
       router.push(`/trips/${data.id}`)
       router.refresh()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error"
-      setError(msg)
-      toast.error("Could not create trip", { description: msg })
+    } catch (err: unknown) {
+      console.error("[v0] Create trip error:", err)
+      // Surface Supabase error details
+      const supaErr = err as { message?: string; code?: string; details?: string; hint?: string }
+      const msg = supaErr.message ?? (err instanceof Error ? err.message : "Unknown error")
+      const details = [supaErr.code, supaErr.details, supaErr.hint].filter(Boolean).join(" | ")
+      const fullMsg = details ? `${msg} (${details})` : msg
+      setError(fullMsg)
+      toast.error("Could not create trip", { description: fullMsg })
     } finally {
       setLoading(false)
     }

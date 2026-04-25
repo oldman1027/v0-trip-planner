@@ -56,10 +56,14 @@ export function TripsEmpty() {
       toast.success("Sample trip created", { description: "Tokyo Family Trip is ready to explore." })
       router.push(`/trips/${tripId}`)
       router.refresh()
-    } catch (err) {
-      toast.error("Could not create sample trip", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      })
+    } catch (err: unknown) {
+      console.error("[v0] Create sample trip error:", err)
+      // Surface Supabase error details
+      const supaErr = err as { message?: string; code?: string; details?: string; hint?: string }
+      const msg = supaErr.message ?? (err instanceof Error ? err.message : "Unknown error")
+      const details = [supaErr.code, supaErr.details, supaErr.hint].filter(Boolean).join(" | ")
+      const fullMsg = details ? `${msg} (${details})` : msg
+      toast.error("Could not create sample trip", { description: fullMsg })
     } finally {
       setLoading(false)
     }
