@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, MapPin, Clock } from "lucide-react"
+import { GripVertical, MapPin, Clock, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Activity } from "@/lib/types"
 
@@ -11,10 +11,14 @@ export function ActivityCard({
   activity,
   dragging,
   onClick,
+  hasConflict,
+  conflictCount,
 }: {
   activity: Activity
   dragging?: boolean
   onClick?: () => void
+  hasConflict?: boolean
+  conflictCount?: number
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
@@ -34,6 +38,7 @@ export function ActivityCard({
       style={dragging ? undefined : style}
       className={cn(
         "group/card relative flex items-stretch gap-3 rounded-xl border border-border bg-card p-3 transition-shadow",
+        hasConflict && "border-yellow-500/50 bg-yellow-50/20 dark:bg-yellow-900/10",
         isDragging && !dragging && "opacity-40",
         dragging && "shadow-md ring-1 ring-primary/30",
       )}
@@ -61,6 +66,12 @@ export function ActivityCard({
           ) : null}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {hasConflict ? (
+            <span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+              <AlertCircle className="h-3 w-3" aria-hidden />
+              {conflictCount} conflict{conflictCount !== 1 ? "s" : ""}
+            </span>
+          ) : null}
           {activity.location ? (
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3 w-3" aria-hidden />
@@ -87,6 +98,7 @@ export function ActivityCard({
       </button>
     </div>
   )
+}
 }
 
 function formatTimeRange(start: string | null, end: string | null) {

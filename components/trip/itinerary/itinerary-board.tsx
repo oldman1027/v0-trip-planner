@@ -22,6 +22,7 @@ import { ActivityCard } from "./activity-card"
 import { ActivityDrawer } from "./activity-drawer"
 import { createClient } from "@/lib/supabase/client"
 import { daysBetween } from "@/lib/dates"
+import { detectTimeConflicts } from "@/lib/time-conflicts"
 import type { Activity, TimeBlock, Trip } from "@/lib/types"
 import { toast } from "sonner"
 
@@ -46,6 +47,8 @@ export function ItineraryBoard({
     | { mode: "edit"; activity: Activity }
     | null
   >(null)
+
+  const conflicts = useMemo(() => detectTimeConflicts(activities), [activities])
 
   const stripRef = useRef<HTMLDivElement | null>(null)
 
