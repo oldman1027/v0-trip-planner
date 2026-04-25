@@ -99,7 +99,6 @@ export function ActivityCard({
     </div>
   )
 }
-}
 
 function formatTimeRange(start: string | null, end: string | null) {
   if (!start && !end) return null
