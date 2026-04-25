@@ -57,7 +57,7 @@ export function ItineraryBoard({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  // Group activities into block buckets keyed by `${day}::${block}`
+  // Group activities into block buckets keyed by `${day}::${block}` (exclude wishlist items)
   const buckets = useMemo(() => {
     const out = new Map<BlockKey, Activity[]>()
     for (const day of days) {
@@ -66,9 +66,11 @@ export function ItineraryBoard({
       }
     }
     for (const a of activities) {
-      const key = `${a.day_date}::${a.time_block}` as BlockKey
-      const list = out.get(key)
-      if (list) list.push(a)
+      if (!a.is_wishlist && a.day_date && a.time_block) {
+        const key = `${a.day_date}::${a.time_block}` as BlockKey
+        const list = out.get(key)
+        if (list) list.push(a)
+      }
     }
     for (const list of out.values()) list.sort((a, b) => a.position - b.position)
     return out
@@ -77,7 +79,9 @@ export function ItineraryBoard({
   const dayCounts = useMemo(() => {
     const c = new Map<string, number>()
     for (const day of days) c.set(day, 0)
-    for (const a of activities) c.set(a.day_date, (c.get(a.day_date) ?? 0) + 1)
+    for (const a of activities) {
+      if (a.day_date && !a.is_wishlist) c.set(a.day_date, (c.get(a.day_date) ?? 0) + 1)
+    }
     return c
   }, [activities, days])
 

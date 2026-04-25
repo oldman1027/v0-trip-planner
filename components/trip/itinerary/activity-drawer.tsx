@@ -71,8 +71,8 @@ export function ActivityDrawer({
     } else {
       const a = state.activity
       setTitle(a.title)
-      setDay(a.day_date)
-      setBlock(a.time_block)
+      setDay(a.day_date ?? days[0] ?? "")
+      setBlock(a.time_block ?? "morning")
       setLocation(a.location ?? "")
       setStart((a.start_time ?? "").slice(0, 5))
       setEnd((a.end_time ?? "").slice(0, 5))

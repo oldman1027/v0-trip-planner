@@ -1,5 +1,6 @@
 import { Map } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { WeatherForecast } from "@/components/trip/overview/weather-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { daysBetween, formatDayLabel, tripDuration } from "@/lib/dates"
 import type { Activity, Trip } from "@/lib/types"
@@ -31,6 +32,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="flex flex-col gap-8">
+      <WeatherForecast destination={trip.destination} startDate={trip.start_date} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label} className="rounded-2xl border-border p-5">
