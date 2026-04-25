@@ -22,12 +22,7 @@ export default async function HomePage() {
           <span className="font-serif text-xl tracking-tight">Trip Planner</span>
         </Link>
         <nav className="flex items-center gap-2">
-          <Button asChild variant="ghost" className="rounded-xl">
-            <Link href="/login">Sign in</Link>
-          </Button>
-          <Button asChild className="rounded-xl">
-            <Link href="/login">Get started</Link>
-          </Button>
+          {/* AUTH DISABLED FOR DEV: Sign in buttons hidden */}
         </nav>
       </header>
 
@@ -47,14 +42,9 @@ export default async function HomePage() {
             members, and budget — without scrolling through 300 messages.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
+            {/* AUTH DISABLED FOR DEV: CTA buttons redirected to /trips */}
             <Button asChild size="lg" className="rounded-xl">
-              <Link href="/login">
-                Start your first trip
-                <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost" className="rounded-xl">
-              <Link href="/login">See how it works</Link>
+              <Link href="/trips">Get started</Link>
             </Button>
           </div>
           <dl className="grid grid-cols-3 gap-6 pt-4">

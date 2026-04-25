@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter, Fraunces } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/sonner"
+import { DevAutoSignInWrapper } from "@/components/dev-auto-signin-wrapper"
 import "./globals.css"
 
 const inter = Inter({
@@ -32,7 +33,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${fraunces.variable} bg-background`}>
       <body className="font-sans antialiased">
-        {children}
+        <DevAutoSignInWrapper>
+          {children}
+        </DevAutoSignInWrapper>
         <Toaster />
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
