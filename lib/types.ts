@@ -41,8 +41,8 @@ export function normalizeMembers<
 export type Activity = {
   id: string
   trip_id: string
-  day_date: string
-  time_block: TimeBlock
+  day_date: string | null
+  time_block: TimeBlock | null
   position: number
   title: string
   location: string | null
@@ -52,6 +52,8 @@ export type Activity = {
   cost_amount: number | null
   cost_currency: string | null
   photo_url: string | null
+  category: "food" | "sightseeing" | "transport" | "hotel" | "activity" | "other"
+  is_wishlist: boolean
   created_at: string
 }
 
