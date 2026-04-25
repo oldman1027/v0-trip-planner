@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
-import { createClient } from "@/lib/supabase/client"
+import { createTrip } from "@/app/actions/create-trip"
 import { toast } from "sonner"
 
 const SUGGESTED_COVERS = [
@@ -38,28 +38,16 @@ export function NewTripForm() {
 
     setLoading(true)
     try {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not signed in")
+      const { trip } = await createTrip({
+        name,
+        destination: destination || null,
+        start_date: start,
+        end_date: end,
+        cover_image_url: cover || null,
+      })
 
-      const { data, error: insertError } = await supabase
-        .from("trips")
-        .insert({
-          name,
-          destination: destination || null,
-          start_date: start,
-          end_date: end,
-          cover_image_url: cover || null,
-          created_by: user.id,
-        })
-        .select()
-        .single()
-
-      if (insertError) throw insertError
       toast.success("Trip created", { description: name })
-      router.push(`/trips/${data.id}`)
+      router.push(`/trips/${trip.id}`)
       router.refresh()
     } catch (err: unknown) {
       console.error("[v0] Create trip error:", err)
