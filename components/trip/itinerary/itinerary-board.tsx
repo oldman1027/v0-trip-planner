@@ -21,7 +21,7 @@ import { TimeBlockColumn } from "./time-block-column"
 import { ActivityCard } from "./activity-card"
 import { ActivityDrawer } from "./activity-drawer"
 import { createClient } from "@/lib/supabase/client"
-import { createServiceClient } from "@/lib/supabase/server"
+import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
 import { daysBetween } from "@/lib/dates"
 import { detectTimeConflicts } from "@/lib/time-conflicts"
 import type { Activity, TimeBlock, Trip } from "@/lib/types"
@@ -208,17 +208,10 @@ export function ItineraryBoard({
       )
     })
 
-    // Persist using service role client
+    // Persist using server action
     try {
-      const supabase = await createServiceClient()
-      // Re-read latest state by waiting a tick so we use updated positions
-      await new Promise((r) => setTimeout(r, 0))
       // Update the moved activity itself
-      const { error } = await supabase
-        .from("activities")
-        .update({ day_date: day, time_block: block, position: targetIndex })
-        .eq("id", activityId)
-      if (error) throw error
+      await moveActivity(activityId, day, block, targetIndex)
 
       // Renumber the bucket positions for stability
       setActivities((latest) => {
@@ -226,11 +219,7 @@ export function ItineraryBoard({
           .filter((a) => a.day_date === day && a.time_block === block)
           .sort((a, b) => a.position - b.position)
         // Fire-and-forget renumber for the bucket
-        Promise.all(
-          bucket.map((a, idx) =>
-            supabase.from("activities").update({ position: idx }).eq("id", a.id).then(() => null),
-          ),
-        ).catch(() => null)
+        reorderActivities(bucket.map((a, idx) => ({ id: a.id, position: idx }))).catch(() => null)
         return latest
       })
     } catch (err) {
