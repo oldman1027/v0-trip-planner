@@ -45,7 +45,7 @@ export function TripHeader({ trip }: { trip: Trip }) {
                   {trip.is_sample ? <SampleBadge /> : null}
                 </div>
               </div>
-              <TripActionsMenu tripId={trip.id} isSample={trip.is_sample} />
+              <TripActionsMenu trip={trip} isSample={trip.is_sample} />
             </div>
 
             <div className="flex flex-col gap-2 text-sm md:flex-row md:gap-6">

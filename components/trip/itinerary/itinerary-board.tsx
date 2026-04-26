@@ -21,6 +21,7 @@ import { TimeBlockColumn } from "./time-block-column"
 import { ActivityCard } from "./activity-card"
 import { ActivityDrawer } from "./activity-drawer"
 import { createClient } from "@/lib/supabase/client"
+import { createServiceClient } from "@/lib/supabase/server"
 import { daysBetween } from "@/lib/dates"
 import { detectTimeConflicts } from "@/lib/time-conflicts"
 import type { Activity, TimeBlock, Trip } from "@/lib/types"
@@ -207,9 +208,9 @@ export function ItineraryBoard({
       )
     })
 
-    // Persist
+    // Persist using service role client
     try {
-      const supabase = createClient()
+      const supabase = await createServiceClient()
       // Re-read latest state by waiting a tick so we use updated positions
       await new Promise((r) => setTimeout(r, 0))
       // Update the moved activity itself
