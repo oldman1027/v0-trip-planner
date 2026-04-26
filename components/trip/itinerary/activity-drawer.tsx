@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { LocationAutocomplete } from "./location-autocomplete"
 import { Spinner } from "@/components/ui/spinner"
 import { formatDayLabel } from "@/lib/dates"
 import type { Activity, TimeBlock } from "@/lib/types"
@@ -199,11 +200,10 @@ export function ActivityDrawer({
 
               <Field>
                 <FieldLabel htmlFor="location">Location</FieldLabel>
-                <Input
+                <LocationAutocomplete
                   id="location"
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="rounded-xl"
+                  onChange={setLocation}
                   placeholder="Asakusa, Tokyo"
                 />
               </Field>

@@ -153,8 +153,8 @@ export function ItineraryBoard({
     if (overIdStr.startsWith("day::")) {
       const day = overIdStr.replace("day::", "")
       if (day !== moved.day_date || moved.time_block !== "morning") {
-        await applyMove(activeIdStr, day, "morning", 0)
         setSelectedDay(day)
+        await applyMove(activeIdStr, day, "morning", 0)
       }
       return
     }
