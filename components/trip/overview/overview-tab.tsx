@@ -110,11 +110,6 @@ export function OverviewTab({
         </p>
       </div>
 
-      {/* Trip Readiness */}
-      <div className="print:hidden">
-        <TripReadiness stats={readinessStats} />
-      </div>
-
       {/* Toolbar */}
       <div className="flex items-center justify-end print:hidden">
         <Button

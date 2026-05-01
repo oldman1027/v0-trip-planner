@@ -189,7 +189,7 @@ export function BookingsList({
           type="single"
           value={filter}
           onValueChange={(v) => v && setFilter(v)}
-          className="flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1"
+          className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-1"
         >
           {[
             { v: "all",        l: "All" },
