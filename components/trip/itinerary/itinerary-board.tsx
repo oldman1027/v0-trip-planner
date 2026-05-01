@@ -25,6 +25,7 @@ import { ActivityDrawer } from "./activity-drawer"
 import { CalendarView } from "./calendar-view"
 import { HotelBanner } from "./hotel-banner"
 import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
+import { TriplettoAI } from "@/components/trip/TriplettoAI"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
 import { daysBetween } from "@/lib/dates"
@@ -557,6 +558,12 @@ export function ItineraryBoard({
 
   return (
     <div className="flex flex-col gap-4">
+      <TriplettoAI
+        trip={trip}
+        activities={activities}
+        onActivitiesAdded={(added) => setActivities((prev) => [...prev, ...added])}
+      />
+
       {/* Category filter + view mode toggle */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1">
