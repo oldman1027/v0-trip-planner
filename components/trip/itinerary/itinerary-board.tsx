@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   DndContext,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   DragOverlay,
@@ -10,53 +11,121 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCorners,
+  pointerWithin,
   useSensor,
   useSensors,
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { Plus } from "lucide-react"
+import { Calendar, LayoutGrid, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DayStrip } from "./day-strip"
+import { DaySidebar } from "./day-sidebar"
 import { TimeBlockColumn } from "./time-block-column"
 import { ActivityCard } from "./activity-card"
 import { ActivityDrawer } from "./activity-drawer"
+import { CalendarView } from "./calendar-view"
+import { HotelBanner } from "./hotel-banner"
+import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
 import { daysBetween } from "@/lib/dates"
-import { detectTimeConflicts } from "@/lib/time-conflicts"
-import type { Activity, TimeBlock, Trip } from "@/lib/types"
+import { detectConflicts } from "@/lib/time-conflicts"
+import { geocodeDestination, fetchWeatherForecast } from "@/lib/weather"
+import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 type BlockKey = `${string}::${TimeBlock}`
+type ViewMode = "board" | "calendar"
+
+const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
+  { value: "food",          label: "Food & Dining" },
+  { value: "attraction",    label: "Attraction" },
+  { value: "transport",     label: "Transport" },
+  { value: "accommodation", label: "Accommodation" },
+  { value: "shopping",      label: "Shopping" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "other",         label: "Other" },
+]
+
+function categoryToBookingType(cat: Activity["category"]): Booking["type"] {
+  if (cat === "food") return "restaurant"
+  if (cat === "accommodation") return "hotel"
+  if (cat === "transport") return "transport"
+  if (cat === "attraction" || cat === "entertainment" || cat === "shopping") return "experience"
+  return "other"
+}
 
 const TIME_BLOCKS: TimeBlock[] = ["morning", "afternoon", "night"]
 
 export function ItineraryBoard({
   trip,
   initialActivities,
+  initialBookings,
 }: {
   trip: Trip
   initialActivities: Activity[]
+  initialBookings: Booking[]
 }) {
   const days = useMemo(() => daysBetween(trip.start_date, trip.end_date), [trip.start_date, trip.end_date])
 
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings)
   const [selectedDay, setSelectedDay] = useState<string>(days[0])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>("board")
+  const [activeCategories, setActiveCategories] = useState<Set<Activity["category"]>>(new Set())
   const [drawerState, setDrawerState] = useState<
     | { mode: "create"; day_date: string; time_block: TimeBlock }
     | { mode: "edit"; activity: Activity }
     | null
   >(null)
+  const [bookingOpen, setBookingOpen] = useState<Booking | null>(null)
 
-  const conflicts = useMemo(() => detectTimeConflicts(activities), [activities])
+  const conflicts = useMemo(() => detectConflicts(activities), [activities])
 
-  const stripRef = useRef<HTMLDivElement | null>(null)
+  // Weather per day for sidebar chips
+  const [weatherByDay, setWeatherByDay] = useState<Map<string, { icon: string; high: number }>>(new Map())
+  useEffect(() => {
+    if (!trip.destination) return
+    let cancelled = false
+    async function load() {
+      const coords = await geocodeDestination(trip.destination!)
+      if (!coords || cancelled) return
+      const data = await fetchWeatherForecast(coords.latitude, coords.longitude, trip.destination!)
+      if (!data || cancelled) return
+      const map = new Map<string, { icon: string; high: number }>()
+      for (const d of data.forecast) map.set(d.date, { icon: d.icon, high: d.high })
+      setWeatherByDay(map)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [trip.destination])
+
+  // Map activity_id → booking for cross-referencing the "Booked" badge
+  const activityBookingMap = useMemo(() => {
+    const m = new Map<string, Booking>()
+    for (const b of bookings) {
+      const aid = (b.details as Record<string, unknown> | null)?.activity_id
+      if (typeof aid === "string") m.set(aid, b)
+    }
+    return m
+  }, [bookings])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  // Prefer day cards when the pointer is physically inside them, fall back to
+  // closestCorners for same-day block movement. This fixes cross-day drag:
+  // closestCorners alone picks time-block columns (large panels) over the small
+  // day-strip buttons because the dragged card body overlaps the columns.
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const pointerCollisions = pointerWithin(args)
+    const dayCard = pointerCollisions.find(({ id }) => String(id).startsWith("day::"))
+    if (dayCard) return [dayCard]
+    return closestCorners(args)
+  }, [])
 
   // Group activities into block buckets keyed by `${day}::${block}` (exclude wishlist items)
   const buckets = useMemo(() => {
@@ -68,6 +137,7 @@ export function ItineraryBoard({
     }
     for (const a of activities) {
       if (!a.is_wishlist && a.day_date && a.time_block) {
+        if (activeCategories.size > 0 && !activeCategories.has(a.category)) continue
         const key = `${a.day_date}::${a.time_block}` as BlockKey
         const list = out.get(key)
         if (list) list.push(a)
@@ -75,7 +145,7 @@ export function ItineraryBoard({
     }
     for (const list of out.values()) list.sort((a, b) => a.position - b.position)
     return out
-  }, [activities, days])
+  }, [activities, days, activeCategories])
 
   const dayCounts = useMemo(() => {
     const c = new Map<string, number>()
@@ -86,15 +156,26 @@ export function ItineraryBoard({
     return c
   }, [activities, days])
 
+  // Hotel activity per day for the banner shown above time-block columns
+  const hotelByDay = useMemo(() => {
+    const m = new Map<string, { activity: Activity; booking: Booking | undefined }>()
+    for (const a of activities) {
+      if (a.category === "accommodation" && !a.is_wishlist && a.day_date && !m.has(a.day_date)) {
+        m.set(a.day_date, { activity: a, booking: activityBookingMap.get(a.id) })
+      }
+    }
+    return m
+  }, [activities, activityBookingMap])
+
   // Keyboard navigation for day strip
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.target as HTMLElement)?.closest("input, textarea, [contenteditable]")) return
       const idx = days.indexOf(selectedDay)
-      if (e.key === "ArrowRight" && idx < days.length - 1) {
+      if ((e.key === "ArrowRight" || e.key === "ArrowDown") && idx < days.length - 1) {
         e.preventDefault()
         setSelectedDay(days[idx + 1])
-      } else if (e.key === "ArrowLeft" && idx > 0) {
+      } else if ((e.key === "ArrowLeft" || e.key === "ArrowUp") && idx > 0) {
         e.preventDefault()
         setSelectedDay(days[idx - 1])
       }
@@ -238,10 +319,15 @@ export function ItineraryBoard({
     notes: string | null
     cost_amount: number | null
     photo_url: string | null
+    category: Activity["category"]
+    needs_booking: boolean
   }) {
+    if (input.day_date < trip.start_date || input.day_date > trip.end_date) {
+      throw new Error("Invalid activity date: outside trip range")
+    }
     const supabase = createClient()
     if (input.id) {
-      // Edit
+      // Edit existing activity
       const { error } = await supabase
         .from("activities")
         .update({
@@ -254,21 +340,91 @@ export function ItineraryBoard({
           notes: input.notes,
           cost_amount: input.cost_amount,
           photo_url: input.photo_url,
+          category: input.category,
         })
         .eq("id", input.id)
       if (error) throw error
+
+      // Sync linked booking if it exists
+      const existingBooking = activityBookingMap.get(input.id)
+      let resolvedBookingId: string | null = existingBooking?.id ?? null
+      if (input.needs_booking) {
+        if (existingBooking) {
+          if (existingBooking.type === "restaurant") {
+            // Sync restaurant-specific fields back to the booking
+            const existingDetails = (existingBooking.details ?? {}) as Record<string, unknown>
+            const newDatetime =
+              input.day_date && input.start_time
+                ? `${input.day_date}T${input.start_time}`
+                : (existingDetails.datetime as string | undefined) ?? null
+            const newDetails: Record<string, unknown> = {
+              ...existingDetails,
+              restaurant_name: input.title,
+              location: input.location,
+              datetime: newDatetime,
+            }
+            await supabase
+              .from("bookings")
+              .update({ title: input.title, details: newDetails })
+              .eq("id", existingBooking.id)
+            setBookings((prev) =>
+              prev.map((b) =>
+                b.id === existingBooking.id ? { ...b, title: input.title, details: newDetails } : b,
+              ),
+            )
+          } else {
+            // Update the linked booking
+            await supabase
+              .from("bookings")
+              .update({
+                title: input.title,
+                amount: input.cost_amount,
+                type: categoryToBookingType(input.category),
+              })
+              .eq("id", existingBooking.id)
+            setBookings((prev) =>
+              prev.map((b) =>
+                b.id === existingBooking.id
+                  ? { ...b, title: input.title, amount: input.cost_amount, type: categoryToBookingType(input.category) }
+                  : b,
+              ),
+            )
+          }
+        } else {
+          // Create new linked booking
+          const { data: newBooking } = await supabase
+            .from("bookings")
+            .insert({
+              trip_id: trip.id,
+              type: categoryToBookingType(input.category),
+              title: input.title,
+              amount: input.cost_amount,
+              currency: trip.default_currency ?? "USD",
+              payment_status: "pending",
+              details: { activity_id: input.id },
+            })
+            .select()
+            .single()
+          if (newBooking) {
+            resolvedBookingId = (newBooking as Booking).id
+            await supabase.from("activities").update({ booking_id: resolvedBookingId }).eq("id", input.id!)
+            setBookings((prev) => [newBooking as Booking, ...prev])
+          }
+        }
+      } else if (existingBooking) {
+        // User unchecked "needs booking" — delete the linked booking and clear activity.booking_id
+        resolvedBookingId = null
+        await supabase.from("bookings").delete().eq("id", existingBooking.id)
+        await supabase.from("activities").update({ booking_id: null }).eq("id", input.id!)
+        setBookings((prev) => prev.filter((b) => b.id !== existingBooking.id))
+      }
+
       setActivities((prev) =>
-        prev.map((a) =>
-          a.id === input.id
-            ? {
-                ...a,
-                ...input,
-              }
-            : a,
-        ),
+        prev.map((a) => (a.id === input.id ? { ...a, ...input, booking_id: resolvedBookingId } : a)),
       )
       toast.success("Activity updated")
     } else {
+      // Create new activity
       const targetIndex = (buckets.get(`${input.day_date}::${input.time_block}` as BlockKey) ?? []).length
       const { data, error } = await supabase
         .from("activities")
@@ -283,13 +439,42 @@ export function ItineraryBoard({
           end_time: input.end_time,
           notes: input.notes,
           cost_amount: input.cost_amount,
-          cost_currency: "USD",
+          cost_currency: trip.default_currency ?? "USD",
           photo_url: input.photo_url,
+          category: input.category,
         })
         .select()
         .single()
       if (error || !data) throw error ?? new Error("Insert failed")
-      setActivities((prev) => [...prev, data as Activity])
+      const newActivity = data as Activity
+      setActivities((prev) => [...prev, newActivity])
+
+      // Auto-create booking if requested
+      if (input.needs_booking) {
+        const { data: newBooking } = await supabase
+          .from("bookings")
+          .insert({
+            trip_id: trip.id,
+            type: categoryToBookingType(input.category),
+            title: input.title,
+            amount: input.cost_amount,
+            currency: trip.default_currency ?? "USD",
+            payment_status: "pending",
+            details: { activity_id: newActivity.id },
+            booking_date: input.day_date,
+          })
+          .select()
+          .single()
+        if (newBooking) {
+          // Link the activity back to the booking
+          await supabase.from("activities").update({ booking_id: (newBooking as Booking).id }).eq("id", newActivity.id)
+          setActivities((prev) =>
+            prev.map((a) => (a.id === newActivity.id ? { ...a, booking_id: (newBooking as Booking).id } : a)),
+          )
+          setBookings((prev) => [newBooking as Booking, ...prev])
+        }
+      }
+
       toast.success("Activity added")
     }
   }
@@ -297,6 +482,7 @@ export function ItineraryBoard({
   async function handleDelete(id: string) {
     const supabase = createClient()
     const prev = activities
+    const linkedBooking = activityBookingMap.get(id)
     setActivities((p) => p.filter((a) => a.id !== id))
     const { error } = await supabase.from("activities").delete().eq("id", id)
     if (error) {
@@ -304,75 +490,241 @@ export function ItineraryBoard({
       toast.error("Could not delete")
       throw error
     }
+    if (linkedBooking) {
+      await supabase.from("bookings").delete().eq("id", linkedBooking.id)
+      setBookings((prev) => prev.filter((b) => b.id !== linkedBooking.id))
+    }
     toast.success("Activity removed")
+  }
+
+  async function handleBookingSave(input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string }) {
+    const supabase = createClient()
+    if (!input.id) return
+    // All bookings opened from the itinerary board are activity-linked;
+    // the trigger auto-corrects their booking_date. Still validate standalone ones.
+    const isLinked = !!(input.details as Record<string, unknown> | null)?.activity_id
+    if (!isLinked && input.booking_date) {
+      if (input.booking_date < trip.start_date || input.booking_date > trip.end_date) {
+        throw new Error("Invalid booking date: outside trip range")
+      }
+    }
+    const { error } = await supabase
+      .from("bookings")
+      .update({
+        type: input.type,
+        title: input.title,
+        details: input.details,
+        amount: input.amount,
+        currency: input.currency,
+        payment_status: input.payment_status,
+        cancellation_deadline: input.cancellation_deadline,
+        booking_date: input.booking_date,
+      })
+      .eq("id", input.id)
+    if (error) throw error
+    // Sync title/amount back to the linked activity
+    const d = (input.details ?? {}) as Record<string, unknown>
+    const linkedActivityId = d.activity_id as string | undefined
+    if (linkedActivityId) {
+      await supabase
+        .from("activities")
+        .update({ title: input.title, cost_amount: input.amount })
+        .eq("id", linkedActivityId)
+      setActivities((prev) =>
+        prev.map((a) => (a.id === linkedActivityId ? { ...a, title: input.title, cost_amount: input.amount } : a)),
+      )
+    }
+    setBookings((prev) => prev.map((b) => (b.id === input.id ? ({ ...b, ...input, id: input.id! } as Booking) : b)))
+    toast.success("Booking updated")
+  }
+
+  async function handleBookingDelete(id: string) {
+    const supabase = createClient()
+    const deletedBooking = bookings.find((b) => b.id === id)
+    const linkedActivityId = (deletedBooking?.details as Record<string, unknown> | null)?.activity_id as
+      | string
+      | undefined
+    await supabase.from("bookings").delete().eq("id", id)
+    setBookings((prev) => prev.filter((b) => b.id !== id))
+    if (linkedActivityId) {
+      await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
+      setActivities((prev) => prev.map((a) => (a.id === linkedActivityId ? { ...a, booking_id: null } : a)))
+    }
+    toast.success("Booking removed")
   }
 
   const dragging = activeId ? findActivity(activeId) : null
 
   return (
-    <div className="flex flex-col gap-6">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
-      >
-        <DayStrip
-          ref={stripRef}
-          days={days}
-          counts={dayCounts}
-          selected={selectedDay}
-          onSelect={setSelectedDay}
-          activeDragId={activeId}
-        />
-
-        <div className="grid gap-4">
-          {TIME_BLOCKS.map((block) => {
-            const key = `${selectedDay}::${block}` as BlockKey
-            const items = buckets.get(key) ?? []
+    <div className="flex flex-col gap-4">
+      {/* Category filter + view mode toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1">
+          {activeCategories.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveCategories(new Set())}
+              className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+            >
+              All
+            </button>
+          )}
+          {CATEGORY_FILTERS.map((f) => {
+            const active = activeCategories.has(f.value)
             return (
-              <TimeBlockColumn
-                key={key}
-                id={key}
-                block={block}
-                items={items}
-                onAdd={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: block })}
+              <button
+                key={f.value}
+                type="button"
+                onClick={() =>
+                  setActiveCategories((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(f.value)) next.delete(f.value)
+                    else next.add(f.value)
+                    return next
+                  })
+                }
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground",
+                )}
               >
-                <SortableContext items={items.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-                  {items.map((a) => (
-                    <ActivityCard
-                      key={a.id}
-                      activity={a}
-                      onClick={() => setDrawerState({ mode: "edit", activity: a })}
-                    />
-                  ))}
-                </SortableContext>
-              </TimeBlockColumn>
+                {f.label}
+              </button>
             )
           })}
         </div>
-
         <div className="flex justify-end">
-          <Button
-            variant="outline"
-            className="rounded-xl bg-transparent"
-            onClick={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: "morning" })}
-          >
-            <Plus className="mr-2 h-4 w-4" aria-hidden />
-            Add activity
-          </Button>
+        <div className="flex gap-0.5 rounded-xl border border-border bg-card p-0.5">
+          {(["board", "calendar"] as ViewMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {mode === "board" ? (
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <Calendar className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {mode}
+            </button>
+          ))}
         </div>
+        </div>
+      </div>
 
-        <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
-      </DndContext>
+      {viewMode === "board" ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={collisionDetection}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragEnd={onDragEnd}
+        >
+          <div className="flex gap-6 items-start">
+            {/* Day navigation sidebar — 30% */}
+            <aside className="sticky top-6 w-[28%] shrink-0 h-[calc(100vh-12rem)] rounded-2xl border border-border bg-card p-3">
+              <DaySidebar
+                days={days}
+                counts={dayCounts}
+                selected={selectedDay}
+                onSelect={setSelectedDay}
+                activeDragId={activeId}
+                weatherByDay={weatherByDay}
+              />
+            </aside>
+
+            {/* Activity columns — 70% */}
+            <div className="flex-1 min-w-0 flex flex-col gap-4">
+              {hotelByDay.has(selectedDay) && (
+                <HotelBanner
+                  activity={hotelByDay.get(selectedDay)!.activity}
+                  booking={hotelByDay.get(selectedDay)!.booking}
+                />
+              )}
+              {TIME_BLOCKS.map((block) => {
+                const key = `${selectedDay}::${block}` as BlockKey
+                const items = buckets.get(key) ?? []
+                return (
+                  <TimeBlockColumn
+                    key={key}
+                    id={key}
+                    block={block}
+                    items={items}
+                    onAdd={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: block })}
+                  >
+                    <SortableContext items={items.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                      {items.map((a) => {
+                        const linkedBooking = activityBookingMap.get(a.id)
+                        return (
+                          <ActivityCard
+                            key={a.id}
+                            activity={a}
+                            conflicts={conflicts.get(a.id)}
+                            hasBooking={!!linkedBooking}
+                            onClick={() => setDrawerState({ mode: "edit", activity: a })}
+                            onBookingClick={linkedBooking ? () => setBookingOpen(linkedBooking) : undefined}
+                          />
+                        )
+                      })}
+                    </SortableContext>
+                  </TimeBlockColumn>
+                )
+              })}
+
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  className="rounded-xl bg-transparent"
+                  onClick={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: "morning" })}
+                >
+                  <Plus className="mr-2 h-4 w-4" aria-hidden />
+                  Add activity
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
+        </DndContext>
+      ) : (
+        <CalendarView
+          days={days}
+          activities={activities}
+          activeCategories={activeCategories}
+          destination={trip.destination}
+          onActivityClick={(a) => setDrawerState({ mode: "edit", activity: a })}
+        />
+      )}
 
       <ActivityDrawer
         state={drawerState}
         days={days}
+        currency={trip.default_currency ?? "USD"}
+        tripStart={trip.start_date}
+        tripEnd={trip.end_date}
         onClose={() => setDrawerState(null)}
         onSave={handleSave}
         onDelete={handleDelete}
+      />
+
+      <BookingDrawer
+        open={bookingOpen !== null}
+        booking={bookingOpen}
+        currency={trip.default_currency ?? "USD"}
+        tripStart={trip.start_date}
+        tripEnd={trip.end_date}
+        onClose={() => setBookingOpen(null)}
+        onSave={handleBookingSave}
+        onDelete={handleBookingDelete}
       />
     </div>
   )

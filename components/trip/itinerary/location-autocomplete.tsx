@@ -9,11 +9,12 @@ type Props = {
   id?: string
   value: string
   onChange: (value: string) => void
+  onPhotoUrl?: (url: string | null) => void
   placeholder?: string
   className?: string
 }
 
-export function LocationAutocomplete({ id, value, onChange, placeholder, className }: Props) {
+export function LocationAutocomplete({ id, value, onChange, onPhotoUrl, placeholder, className }: Props) {
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompleteSuggestion[]>([])
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -54,13 +55,25 @@ export function LocationAutocomplete({ id, value, onChange, placeholder, classNa
     debounceRef.current = setTimeout(() => fetchSuggestions(e.target.value), 300)
   }
 
-  function select(suggestion: google.maps.places.AutocompleteSuggestion) {
+  async function select(suggestion: google.maps.places.AutocompleteSuggestion) {
     const pred = suggestion.placePrediction
     if (!pred) return
     onChange(pred.text.text)
     setSuggestions([])
     setOpen(false)
     sessionTokenRef.current = null
+
+    if (onPhotoUrl) {
+      try {
+        const place = pred.toPlace()
+        await place.fetchFields({ fields: ["photos"] })
+        const photos = place.photos
+        const uri = photos && photos.length > 0 ? photos[0].getURI({ maxWidth: 800 }) : null
+        onPhotoUrl(uri)
+      } catch {
+        onPhotoUrl(null)
+      }
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

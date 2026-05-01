@@ -13,7 +13,18 @@ import { LocationAutocomplete } from "./location-autocomplete"
 import { Spinner } from "@/components/ui/spinner"
 import { formatDayLabel } from "@/lib/dates"
 import type { Activity, TimeBlock } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+
+const CATEGORIES: { value: Activity["category"]; label: string }[] = [
+  { value: "food",          label: "Food & Dining" },
+  { value: "attraction",    label: "Attraction" },
+  { value: "transport",     label: "Transport" },
+  { value: "accommodation", label: "Accommodation" },
+  { value: "shopping",      label: "Shopping" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "other",         label: "Other" },
+]
 
 type State =
   | { mode: "create"; day_date: string; time_block: TimeBlock }
@@ -23,12 +34,18 @@ type State =
 export function ActivityDrawer({
   state,
   days,
+  currency,
+  tripStart,
+  tripEnd,
   onClose,
   onSave,
   onDelete,
 }: {
   state: State
   days: string[]
+  currency: string
+  tripStart: string
+  tripEnd: string
   onClose: () => void
   onSave: (input: {
     id?: string
@@ -41,6 +58,8 @@ export function ActivityDrawer({
     notes: string | null
     cost_amount: number | null
     photo_url: string | null
+    category: Activity["category"]
+    needs_booking: boolean
   }) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
@@ -54,8 +73,15 @@ export function ActivityDrawer({
   const [notes, setNotes] = useState("")
   const [cost, setCost] = useState("")
   const [photo, setPhoto] = useState("")
+  const [category, setCategory] = useState<Activity["category"]>("other")
+  const [needsBooking, setNeedsBooking] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const dateError =
+    day && (day < tripStart || day > tripEnd)
+      ? "Activity must be within trip dates"
+      : null
 
   useEffect(() => {
     if (!state) return
@@ -69,6 +95,8 @@ export function ActivityDrawer({
       setNotes("")
       setCost("")
       setPhoto("")
+      setCategory("other")
+      setNeedsBooking(false)
     } else {
       const a = state.activity
       setTitle(a.title)
@@ -80,6 +108,8 @@ export function ActivityDrawer({
       setNotes(a.notes ?? "")
       setCost(a.cost_amount != null ? String(a.cost_amount) : "")
       setPhoto(a.photo_url ?? "")
+      setCategory(a.category ?? "other")
+      setNeedsBooking(!!a.booking_id)
     }
   }, [state])
 
@@ -99,6 +129,8 @@ export function ActivityDrawer({
         notes: notes.trim() || null,
         cost_amount: cost ? Number(cost) : null,
         photo_url: photo.trim() || null,
+        category,
+        needs_booking: needsBooking,
       })
       onClose()
     } catch (err) {
@@ -148,7 +180,7 @@ export function ActivityDrawer({
                 <Field>
                   <FieldLabel htmlFor="day">Day</FieldLabel>
                   <Select value={day} onValueChange={setDay}>
-                    <SelectTrigger id="day" className="rounded-xl">
+                    <SelectTrigger id="day" className={cn("rounded-xl", dateError && "border-destructive")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -159,6 +191,9 @@ export function ActivityDrawer({
                       ))}
                     </SelectContent>
                   </Select>
+                  {dateError && (
+                    <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>
+                  )}
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="block">Time of day</FieldLabel>
@@ -204,12 +239,27 @@ export function ActivityDrawer({
                   id="location"
                   value={location}
                   onChange={setLocation}
+                  onPhotoUrl={(url) => { if (url && !photo) setPhoto(url) }}
                   placeholder="Asakusa, Tokyo"
                 />
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="cost">Cost (USD)</FieldLabel>
+                <FieldLabel htmlFor="category">Category</FieldLabel>
+                <Select value={category} onValueChange={(v) => setCategory(v as Activity["category"])}>
+                  <SelectTrigger id="category" className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="cost">Cost ({currency})</FieldLabel>
                 <Input
                   id="cost"
                   type="number"
@@ -231,6 +281,23 @@ export function ActivityDrawer({
                   className="rounded-xl"
                   placeholder="https://images.unsplash.com/..."
                 />
+              </Field>
+
+              <Field>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card/50 p-3 transition-colors hover:bg-secondary/40">
+                  <input
+                    type="checkbox"
+                    checked={needsBooking}
+                    onChange={(e) => setNeedsBooking(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded accent-primary"
+                  />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">Requires a booking / reservation</span>
+                    <span className="text-xs text-muted-foreground">
+                      Auto-creates a linked entry in the Bookings tab
+                    </span>
+                  </div>
+                </label>
               </Field>
 
               <Field>
@@ -266,7 +333,7 @@ export function ActivityDrawer({
               <Button type="button" variant="ghost" className="rounded-xl" onClick={onClose} disabled={saving}>
                 Cancel
               </Button>
-              <Button type="submit" className="rounded-xl" disabled={saving || !title.trim()}>
+              <Button type="submit" className="rounded-xl" disabled={saving || !title.trim() || !!dateError}>
                 {saving ? (
                   <>
                     <Spinner className="mr-2 size-4" /> Saving...

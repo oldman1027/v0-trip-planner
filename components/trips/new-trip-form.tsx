@@ -6,8 +6,11 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { LocationAutocomplete } from "@/components/trip/itinerary/location-autocomplete"
 import { createTrip } from "@/app/actions/create-trip"
+import { detectCurrencyFromDestination, COMMON_CURRENCIES } from "@/lib/currency"
 import { toast } from "sonner"
 
 const SUGGESTED_COVERS = [
@@ -21,11 +24,18 @@ export function NewTripForm() {
   const router = useRouter()
   const [name, setName] = useState("")
   const [destination, setDestination] = useState("")
+  const [currency, setCurrency] = useState("USD")
   const [start, setStart] = useState("")
   const [end, setEnd] = useState("")
   const [cover, setCover] = useState(SUGGESTED_COVERS[0])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function handleDestinationChange(value: string) {
+    setDestination(value)
+    const detected = detectCurrencyFromDestination(value)
+    setCurrency(detected)
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,6 +54,7 @@ export function NewTripForm() {
         start_date: start,
         end_date: end,
         cover_image_url: cover || null,
+        default_currency: currency,
       })
 
       toast.success("Trip created", { description: name })
@@ -51,7 +62,6 @@ export function NewTripForm() {
       router.refresh()
     } catch (err: unknown) {
       console.error("[v0] Create trip error:", err)
-      // Surface Supabase error details
       const supaErr = err as { message?: string; code?: string; details?: string; hint?: string }
       const msg = supaErr.message ?? (err instanceof Error ? err.message : "Unknown error")
       const details = [supaErr.code, supaErr.details, supaErr.hint].filter(Boolean).join(" | ")
@@ -81,13 +91,29 @@ export function NewTripForm() {
 
           <Field>
             <FieldLabel htmlFor="destination">Destination</FieldLabel>
-            <Input
+            <LocationAutocomplete
               id="destination"
               value={destination}
-              onChange={(e) => setDestination(e.target.value)}
+              onChange={handleDestinationChange}
               placeholder="Tokyo, Japan"
-              className="rounded-xl"
             />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="currency">Currency</FieldLabel>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger id="currency" className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COMMON_CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>Auto-detected from destination. You can override it.</FieldDescription>
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">

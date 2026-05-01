@@ -8,6 +8,7 @@ export async function createTrip(payload: {
   start_date: string
   end_date: string
   cover_image_url: string | null
+  default_currency: string
 }) {
   // Get authenticated user from session
   const supabase = await createClient()

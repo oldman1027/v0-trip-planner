@@ -6,8 +6,11 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { LocationAutocomplete } from "@/components/trip/itinerary/location-autocomplete"
 import { updateTrip } from "@/app/actions/update-trip"
+import { detectCurrencyFromDestination, COMMON_CURRENCIES } from "@/lib/currency"
 import { toast } from "sonner"
 import type { Trip } from "@/lib/types"
 
@@ -25,9 +28,16 @@ export function EditTripDrawer({
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState(trip.name)
   const [destination, setDestination] = useState(trip.destination ?? "")
+  const [currency, setCurrency] = useState(trip.default_currency ?? "USD")
   const [start, setStart] = useState(trip.start_date)
   const [end, setEnd] = useState(trip.end_date)
   const [cover, setCover] = useState(trip.cover_image_url ?? "")
+
+  function handleDestinationChange(value: string) {
+    setDestination(value)
+    const detected = detectCurrencyFromDestination(value)
+    setCurrency(detected)
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,12 +50,13 @@ export function EditTripDrawer({
 
     setLoading(true)
     try {
-      const { trip: updated } = await updateTrip(trip.id, {
+      await updateTrip(trip.id, {
         name,
         destination: destination || null,
         start_date: start,
         end_date: end,
         cover_image_url: cover || null,
+        default_currency: currency,
       })
 
       toast.success("Trip updated", { description: name })
@@ -66,13 +77,15 @@ export function EditTripDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="sm:max-w-[512px]">
-        <DrawerHeader>
+      <DrawerContent className="flex max-h-[90svh] flex-col sm:max-w-[512px]">
+        <DrawerHeader className="shrink-0">
           <DrawerTitle>Edit trip</DrawerTitle>
           <DrawerDescription>Update your trip details</DrawerDescription>
         </DrawerHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-6 px-6 pb-6">
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+        <div className="flex-1 overflow-y-auto px-6 pb-2">
+          <div className="flex flex-col gap-6 pb-4">
           <FieldGroup>
             <FieldLabel htmlFor="name">Trip name</FieldLabel>
             <Input
@@ -83,19 +96,34 @@ export function EditTripDrawer({
               onChange={(e) => setName(e.target.value)}
               required
             />
-            <FieldDescription>What&apos;s the name of your trip?</FieldDescription>
           </FieldGroup>
 
           <FieldGroup>
             <FieldLabel htmlFor="destination">Destination</FieldLabel>
-            <Input
+            <LocationAutocomplete
               id="destination"
-              type="text"
-              placeholder="e.g., Tokyo, Japan"
               value={destination}
-              onChange={(e) => setDestination(e.target.value)}
+              onChange={handleDestinationChange}
+              placeholder="e.g., Tokyo, Japan"
             />
             <FieldDescription>Where are you going?</FieldDescription>
+          </FieldGroup>
+
+          <FieldGroup>
+            <FieldLabel htmlFor="currency">Currency</FieldLabel>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger id="currency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COMMON_CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>Auto-detected from destination. You can override it.</FieldDescription>
           </FieldGroup>
 
           <div className="grid grid-cols-2 gap-4">
@@ -134,9 +162,16 @@ export function EditTripDrawer({
             <FieldDescription>Link to a cover photo for your trip</FieldDescription>
           </FieldGroup>
 
-          {error && <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>}
+          {error && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+          </div>
+        </div>
 
-          <Button type="submit" disabled={loading} className="rounded-xl">
+        <div className="shrink-0 border-t border-border px-6 py-4">
+          <Button type="submit" disabled={loading} className="w-full rounded-xl">
             {loading ? (
               <>
                 <Spinner className="mr-2 size-4" /> Saving...
@@ -145,6 +180,7 @@ export function EditTripDrawer({
               "Save changes"
             )}
           </Button>
+        </div>
         </form>
       </DrawerContent>
     </Drawer>

@@ -7,9 +7,12 @@ export type Trip = {
   start_date: string
   end_date: string
   cover_image_url: string | null
+  default_currency: string
   created_by: string
   created_at: string
   is_sample?: boolean
+  share_token: string | null
+  is_public: boolean
 }
 
 export type TripMember = {
@@ -52,7 +55,8 @@ export type Activity = {
   cost_amount: number | null
   cost_currency: string | null
   photo_url: string | null
-  category: "food" | "sightseeing" | "transport" | "hotel" | "activity" | "other"
+  category: "food" | "attraction" | "transport" | "accommodation" | "shopping" | "entertainment" | "other"
+  booking_id: string | null
   is_wishlist: boolean
   created_at: string
 }
@@ -60,12 +64,13 @@ export type Activity = {
 export type Booking = {
   id: string
   trip_id: string
-  type: "hotel" | "flight" | "transport" | "other"
+  type: "hotel" | "flight" | "transport" | "other" | "restaurant" | "experience"
   title: string
   details: Record<string, unknown> | null
   amount: number | null
   currency: string | null
-  payment_status: "pending" | "paid" | "partial"
+  payment_status: "pending" | "paid" | "partial" | "confirmed" | "cancelled"
   cancellation_deadline: string | null
+  booking_date: string | null
   created_at: string
 }
