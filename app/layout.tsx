@@ -1,49 +1,47 @@
-import type { Metadata } from "next"
-import { Inter, Fraunces } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import { Toaster } from "@/components/ui/sonner"
-import Script from "next/script"
-import "./globals.css"
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { Toaster } from "sonner";
+import Script from "next/script";
+import { Analytics } from "@vercel/analytics/react";
 
-const inter = Inter({
+const geist = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-})
+});
 
-const fraunces = Fraunces({
+const geist_mono = Geist_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
-  variable: "--font-fraunces",
-  display: "swap",
-  axes: ["SOFT", "opsz"],
-})
+});
 
 export const metadata: Metadata = {
-  title: "Trip Planner — Plan trips together, not in WhatsApp",
-  description:
-    "A visual, shared travel-planning app for families and groups. Replace WhatsApp coordination with one timeline-centric view.",
-  generator: "v0.app",
-}
+  title: "Tripletto - Plan Your Journey",
+  description: "Smart group travel planning with maps and bookings",
+};
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" className={`${inter.variable} ${fraunces.variable} bg-background`}>
-      <body className="font-sans antialiased">
-        {children}
+    <html lang="en">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body className={`${geist.variable} ${geist_mono.variable}`}>
         <Toaster />
-        {process.env.NODE_ENV === "production" && <Analytics />}
-        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+        {process.env.NODE_ENV === "production" && (
           <Script
             id="google-maps"
-            src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
-            strategy="afterInteractive"
+            src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+            strategy="beforeInteractive"
           />
         )}
+        {children}
+        <Analytics />
       </body>
     </html>
-  )
+  );
 }
