@@ -10,6 +10,10 @@ next.user-config.*
 # Environment variables
 .env*.local
 
+# Secrets / key files
+*.rtf
+*.backup
+
 # Common ignores
 node_modules
 .next/

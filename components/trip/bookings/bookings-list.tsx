@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BookingDrawer } from "./booking-drawer"
+import { TransportDrawer } from "./transport-drawer"
 import { createClient } from "@/lib/supabase/client"
 import { deadlineUrgency, deadlineLabel, daysUntilBooking } from "@/lib/booking-urgency"
 import type { Booking } from "@/lib/types"
@@ -46,6 +47,18 @@ export function BookingsList({
   const [bookings, setBookings] = useState(initialBookings)
   const [filter, setFilter] = useState<string>("all")
   const [open, setOpen] = useState<Booking | "new" | null>(null)
+
+  const isTransportOpen =
+    open !== null &&
+    (open === "new"
+      ? filter === "transport" || filter === "flight"
+      : open.type === "transport" || open.type === "flight")
+
+  const defaultTransportType: "transport" | "flight" =
+    open === "new" && filter === "flight" ? "flight" : "transport"
+
+  const transportBooking =
+    open !== null && open !== "new" && isTransportOpen ? open : null
 
   const filtered = useMemo(
     () => (filter === "all" ? bookings : bookings.filter((b) => b.type === filter)),
@@ -338,8 +351,20 @@ export function BookingsList({
       )}
 
       <BookingDrawer
-        open={open !== null}
-        booking={open === "new" ? null : open}
+        open={open !== null && !isTransportOpen}
+        booking={open === "new" || isTransportOpen ? null : open}
+        currency={currency}
+        tripStart={tripStart}
+        tripEnd={tripEnd}
+        onClose={() => setOpen(null)}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
+
+      <TransportDrawer
+        open={isTransportOpen}
+        booking={transportBooking}
+        defaultType={defaultTransportType}
         currency={currency}
         tripStart={tripStart}
         tripEnd={tripEnd}
