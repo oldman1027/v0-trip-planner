@@ -13,49 +13,102 @@ type RouteMode = "DRIVING" | "WALKING" | null
 type PinColor = { bg: string; border: string }
 type MarkerEntry = {
   marker: google.maps.marker.AdvancedMarkerElement
-  el: HTMLElement
+  el: HTMLElement      // wrapper element (transform target)
+  pinEl: HTMLElement   // inner circle (box-shadow target)
   dayDate: string | null
 }
 
-// ── Colour palette — one hue per trip day, cycling ─────────────────────────
+// ── Tropical colour palette — one hue per trip day, cycling ────────────────
 
 const PIN_PALETTE: PinColor[] = [
-  { bg: "#F28B82", border: "#C5221F" },
-  { bg: "#FBBC04", border: "#E37400" },
-  { bg: "#FDD663", border: "#BF8700" },
-  { bg: "#81C995", border: "#137333" },
-  { bg: "#78C4F9", border: "#1967D2" },
-  { bg: "#AF8FEF", border: "#681DA8" },
-  { bg: "#FF8BCB", border: "#B80672" },
-  { bg: "#A8B4BE", border: "#4A5568" },
-  { bg: "#E06060", border: "#9B1C1C" },
-  { bg: "#F09030", border: "#92400E" },
-  { bg: "#D4A844", border: "#7B6114" },
-  { bg: "#52A870", border: "#1A5C38" },
-  { bg: "#4A85C8", border: "#1C3F78" },
-  { bg: "#8060C0", border: "#3C1878" },
-  { bg: "#C05080", border: "#701038" },
+  { bg: "#8AD0C0", border: "#369383" },
+  { bg: "#F7A59E", border: "#de4a66" },
+  { bg: "#f9d157", border: "#fd7a56" },
+  { bg: "#27ba76", border: "#1a8053" },
+  { bg: "#fd7a56", border: "#C44A20" },
+  { bg: "#80d8dd", border: "#369383" },
+  { bg: "#fca9a9", border: "#F2686C" },
+  { bg: "#B1DDC6", border: "#27ba76" },
+  { bg: "#F2686C", border: "#de4a66" },
+  { bg: "#369383", border: "#1a5c4a" },
+  { bg: "#de4a66", border: "#9B2335" },
+  { bg: "#f9d157", border: "#C89A00" },
+  { bg: "#8AD0C0", border: "#27ba76" },
+  { bg: "#fd7a56", border: "#de4a66" },
+  { bg: "#B1DDC6", border: "#369383" },
 ]
 
 function pinColor(dayIndex: number): PinColor {
   return PIN_PALETTE[Math.max(dayIndex, 0) % PIN_PALETTE.length]
 }
 
-function makePinElement(label: string, color: PinColor): HTMLElement {
+function makePinElement(
+  label: string,
+  color: PinColor,
+  locationName: string,
+  dayLabel: string,
+): { el: HTMLElement; pinEl: HTMLElement } {
+  // Wrapper holds day chip + circle + location label
   const el = document.createElement("div")
   el.style.cssText = [
+    "display:flex", "flex-direction:column", "align-items:center",
+    "cursor:pointer", "user-select:none",
+    "transition:transform 0.15s ease",
+  ].join(";")
+
+  // Day chip above the circle
+  const dayChip = document.createElement("div")
+  dayChip.style.cssText = [
+    `background:${color.bg}`,
+    `border:1.5px solid ${color.border}`,
+    "color:white",
+    "font-size:9px", "font-weight:800",
+    "font-family:ui-sans-serif,system-ui,sans-serif",
+    "padding:1px 7px", "border-radius:99px",
+    "margin-bottom:3px",
+    "white-space:nowrap",
+    "text-shadow:0 1px 2px rgba(0,0,0,0.35)",
+    "box-shadow:0 1px 3px rgba(0,0,0,0.2)",
+    "line-height:1.5",
+  ].join(";")
+  dayChip.textContent = dayLabel
+
+  // Main numbered circle
+  const pinEl = document.createElement("div")
+  pinEl.style.cssText = [
     "width:34px", "height:34px", "border-radius:50%",
     `background:${color.bg}`, `border:2.5px solid ${color.border}`,
     "display:flex", "align-items:center", "justify-content:center",
     "color:white", "font-weight:700", "font-size:13px",
     "font-family:ui-sans-serif,system-ui,sans-serif",
     "box-shadow:0 2px 6px rgba(0,0,0,0.3)",
-    "cursor:pointer", "user-select:none",
     "text-shadow:0 1px 2px rgba(0,0,0,0.4)",
-    "transition:transform 0.15s ease, box-shadow 0.15s ease",
   ].join(";")
-  el.textContent = label
-  return el
+  pinEl.textContent = label
+
+  // Location label below the circle
+  const short = locationName.length > 20 ? locationName.slice(0, 18) + "…" : locationName
+  const locLabel = document.createElement("div")
+  locLabel.style.cssText = [
+    "margin-top:4px",
+    "background:rgba(255,255,255,0.95)",
+    "border:1px solid rgba(0,0,0,0.08)",
+    "color:#111827",
+    "font-size:10px", "font-weight:600",
+    "font-family:ui-sans-serif,system-ui,sans-serif",
+    "padding:2px 7px", "border-radius:6px",
+    "white-space:nowrap", "max-width:140px",
+    "overflow:hidden", "text-overflow:ellipsis",
+    "box-shadow:0 1px 4px rgba(0,0,0,0.12)",
+    "text-align:center", "pointer-events:none",
+  ].join(";")
+  locLabel.textContent = short
+
+  el.appendChild(dayChip)
+  el.appendChild(pinEl)
+  el.appendChild(locLabel)
+
+  return { el, pinEl }
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -115,8 +168,8 @@ export function TripMap({
       if (!visible) return
 
       const sel = id === selectedIdRef.current
-      entry.el.style.transform   = sel ? "scale(1.3)" : ""
-      entry.el.style.boxShadow   = sel
+      entry.el.style.transform = sel ? "scale(1.2)" : ""
+      entry.pinEl.style.boxShadow = sel
         ? "0 0 0 3px white, 0 4px 14px rgba(0,0,0,0.45)"
         : "0 2px 6px rgba(0,0,0,0.3)"
       entry.marker.zIndex = sel ? 100 : 0
@@ -241,10 +294,12 @@ export function TripMap({
         })
 
         pins.forEach(({ activity: a, lat, lng, color }, index) => {
-          const el     = makePinElement(String(index + 1), color)
+          const dayIndex = days.indexOf(a.day_date ?? "")
+          const dayLabel = dayIndex >= 0 ? `Day ${dayIndex + 1}` : "Day —"
+          const { el, pinEl } = makePinElement(String(index + 1), color, a.location ?? a.title, dayLabel)
           const marker = new AdvancedMarkerElement({ map, position: { lat, lng }, title: a.title, content: el })
 
-          markersRef.current.set(a.id, { marker, el, dayDate: a.day_date })
+          markersRef.current.set(a.id, { marker, el, pinEl, dayDate: a.day_date })
 
           marker.addEventListener("click", () => {
             setSelectedId(a.id)

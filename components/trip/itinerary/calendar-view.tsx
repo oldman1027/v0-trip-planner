@@ -10,6 +10,20 @@ import { TripMap } from "@/components/trip/overview/trip-map"
 import type { Activity, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 
+// ── Tropical colour palette per activity category ──────────────────────────
+const CATEGORY_STYLE: Record<
+  Activity["category"],
+  { bg: string; border: string; text: string; badge: string }
+> = {
+  food:          { bg: "#fde8e6", border: "#F7A59E", text: "#7a1a27", badge: "#F2686C" },
+  attraction:    { bg: "#d4f0eb", border: "#8AD0C0", text: "#1a5c4a", badge: "#369383" },
+  transport:     { bg: "#fef9e0", border: "#f9d157", text: "#6b4c00", badge: "#fd7a56" },
+  accommodation: { bg: "#e3f5ee", border: "#B1DDC6", text: "#1a5c38", badge: "#27ba76" },
+  shopping:      { bg: "#fff0e8", border: "#fca9a9", text: "#7a1a27", badge: "#de4a66" },
+  entertainment: { bg: "#fff0e8", border: "#fd7a56", text: "#6b2a00", badge: "#fd7a56" },
+  other:         { bg: "#f0f9f5", border: "#80d8dd", text: "#1a4a50", badge: "#8AD0C0" },
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
 const HOUR_START = 6
 const HOUR_END = 23
@@ -137,6 +151,21 @@ export function CalendarView({
     }
     return m
   }, [days, activities, activeCategories])
+
+  // Sequential pin numbers matching TripMap's ordering (by day_date then start_time)
+  const pinNumberMap = useMemo(() => {
+    const m = new Map<string, number>()
+    const sorted = [...activities]
+      .filter((a) => a.location && !a.is_wishlist)
+      .sort((a, b) => {
+        const dayA = a.day_date ?? "", dayB = b.day_date ?? ""
+        if (dayA !== dayB) return dayA < dayB ? -1 : 1
+        const tA = a.start_time ?? "99:99", tB = b.start_time ?? "99:99"
+        return tA < tB ? -1 : tA > tB ? 1 : 0
+      })
+    sorted.forEach((a, i) => m.set(a.id, i + 1))
+    return m
+  }, [activities])
 
   const totalH = HOURS.length * SLOT_H
 
@@ -362,32 +391,67 @@ export function CalendarView({
                   const leftPct  = (col / totalCols) * 100
                   const widthPct = (1  / totalCols) * 100
 
+                  const cat = CATEGORY_STYLE[a.category] ?? CATEGORY_STYLE.other
+                  const pinNum = pinNumberMap.get(a.id)
+                  const blockH = Math.max(height, SLOT_H * 0.5)
+
                   return (
                     <div
                       key={a.id}
                       className={cn(
-                        "absolute overflow-hidden rounded-lg border border-primary/30 bg-primary/10 text-xs select-none group/block",
+                        "absolute overflow-hidden rounded-lg border text-xs select-none group/block",
                         isGhost && "opacity-25",
-                        isLive  && "z-30 shadow-lg ring-1 ring-primary/40",
+                        isLive  && "z-30 shadow-lg",
                       )}
                       style={{
                         top,
-                        height: Math.max(height, SLOT_H * 0.5),
+                        height: blockH,
                         left:  `calc(${leftPct}%  + 2px)`,
                         width: `calc(${widthPct}% - 4px)`,
+                        backgroundColor: cat.bg,
+                        borderColor: cat.border,
                       }}
                     >
                       {/* Move handle — whole block except the resize strip */}
                       <div
-                        className="h-full cursor-grab px-1.5 py-1 active:cursor-grabbing"
+                        className="relative h-full cursor-grab px-1.5 py-1 active:cursor-grabbing"
                         style={{ paddingBottom: 8, touchAction: "none" }}
                         onPointerDown={(e) => startDrag(e, a.id, "move")}
                       >
-                        <div className="truncate text-[11px] font-semibold leading-tight text-primary">
+                        {/* Numbered pin badge */}
+                        {pinNum && blockH >= 20 && (
+                          <div
+                            className="absolute top-0.5 left-0.5 flex items-center justify-center rounded-full"
+                            style={{
+                              width: 15, height: 15,
+                              background: cat.badge,
+                              color: "white",
+                              fontSize: 8,
+                              fontWeight: 700,
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                              lineHeight: 1,
+                              flexShrink: 0,
+                              zIndex: 2,
+                            }}
+                          >
+                            {pinNum}
+                          </div>
+                        )}
+
+                        <div
+                          className="truncate text-[11px] font-semibold leading-tight"
+                          style={{
+                            color: cat.text,
+                            marginLeft: pinNum && blockH >= 20 ? 17 : 0,
+                          }}
+                        >
                           {a.title}
                         </div>
                         {a.start_time && (
-                          <div className="mt-0.5 text-[9px] leading-none tabular-nums text-primary/70">
+                          <div
+                            className="mt-0.5 text-[9px] leading-none tabular-nums"
+                            style={{ color: cat.text, opacity: 0.7 }}
+                          >
                             {a.start_time.slice(0, 5)}
                             {a.end_time ? ` – ${a.end_time.slice(0, 5)}` : ""}
                           </div>
@@ -400,7 +464,7 @@ export function CalendarView({
                         style={{ touchAction: "none" }}
                         onPointerDown={(e) => { e.stopPropagation(); startDrag(e, a.id, "resize") }}
                       >
-                        <div className="h-0.5 w-5 rounded-full bg-primary/50" />
+                        <div className="h-0.5 w-5 rounded-full" style={{ backgroundColor: cat.badge }} />
                       </div>
                     </div>
                   )
