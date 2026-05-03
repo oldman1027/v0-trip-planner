@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { format } from "date-fns"
-import { Map as MapIcon } from "lucide-react"
+import { Map as MapIcon, CalendarPlus, Ticket, Bus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseDateOnly } from "@/lib/dates"
 import { createClient } from "@/lib/supabase/client"
@@ -10,18 +10,18 @@ import { TripMap } from "@/components/trip/overview/trip-map"
 import type { Activity, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 
-// ── Tropical colour palette per activity category ──────────────────────────
+// ── Green / turquoise palette — all categories stay in the same hue family ─
 const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  food:          { bg: "#fde8e6", border: "#F7A59E", text: "#7a1a27", badge: "#F2686C" },
-  attraction:    { bg: "#d4f0eb", border: "#8AD0C0", text: "#1a5c4a", badge: "#369383" },
-  transport:     { bg: "#fef9e0", border: "#f9d157", text: "#6b4c00", badge: "#fd7a56" },
-  accommodation: { bg: "#e3f5ee", border: "#B1DDC6", text: "#1a5c38", badge: "#27ba76" },
-  shopping:      { bg: "#fff0e8", border: "#fca9a9", text: "#7a1a27", badge: "#de4a66" },
-  entertainment: { bg: "#fff0e8", border: "#fd7a56", text: "#6b2a00", badge: "#fd7a56" },
-  other:         { bg: "#f0f9f5", border: "#80d8dd", text: "#1a4a50", badge: "#8AD0C0" },
+  food:          { bg: "#cdeee7", border: "#8AD0C0", text: "#1a5048", badge: "#369383" },
+  attraction:    { bg: "#d4f0eb", border: "#80d8dd", text: "#1a4a50", badge: "#27ba76" },
+  transport:     { bg: "#dcf2ec", border: "#27ba76", text: "#1a5c38", badge: "#1a8053" },
+  accommodation: { bg: "#e8f5f0", border: "#B1DDC6", text: "#1a5c38", badge: "#27ba76" },
+  shopping:      { bg: "#d0ece7", border: "#369383", text: "#1a4a46", badge: "#8AD0C0" },
+  entertainment: { bg: "#e2f6f2", border: "#80d8dd", text: "#1a4a50", badge: "#369383" },
+  other:         { bg: "#f0faf7", border: "#B1DDC6", text: "#1a5c38", badge: "#8AD0C0" },
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -49,6 +49,14 @@ type DragState = {
   currentDayIdx: number
 }
 type Laid = { activity: Activity; col: number; totalCols: number }
+type ClickMenu = {
+  clientX: number
+  clientY: number
+  top: number
+  day_date: string
+  start_time: string
+  time_block: TimeBlock
+}
 
 // ── Pure helpers ───────────────────────────────────────────────────────────
 function timeToMins(t: string | null | undefined): number {
@@ -126,12 +134,18 @@ export function CalendarView({
   activeCategories,
   destination,
   onActivityClick,
+  onAddActivity,
+  onAddBooking,
+  onAddTransport,
 }: {
   days: string[]
   activities: Activity[]
   activeCategories?: Set<Activity["category"]>
   destination?: string | null
   onActivityClick: (activity: Activity) => void
+  onAddActivity?: (day_date: string, start_time: string, time_block: TimeBlock) => void
+  onAddBooking?: (day_date: string) => void
+  onAddTransport?: (day_date: string) => void
 }) {
   // Local copy — initialised once on mount (views are mutually exclusive so
   // CalendarView always remounts with fresh data when switching back to it).
@@ -175,6 +189,21 @@ export function CalendarView({
     sorted.forEach((a, i) => m.set(a.id, i + 1))
     return m
   }, [activities])
+
+  const [clickMenu, setClickMenu] = useState<ClickMenu | null>(null)
+
+  function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, day: string) {
+    // Ignore if a drag just completed (dragRef is already cleared by pointerup, so
+    // check a tiny movement threshold via the event's detail — detail=0 means synthetic,
+    // detail>=1 means real click; we always proceed for real clicks on empty space).
+    const rect = e.currentTarget.getBoundingClientRect()
+    const relY = e.clientY - rect.top
+    const snappedTop = snap(Math.max(0, Math.min(relY, totalH - SLOT_H / 2)))
+    const mins = Math.max(HOUR_START * 60, Math.min(topToMins(snappedTop), HOUR_END * 60))
+    const startTime = minsToTime(mins)
+    const block: TimeBlock = mins < 12 * 60 ? "morning" : mins < 18 * 60 ? "afternoon" : "night"
+    setClickMenu({ clientX: e.clientX, clientY: e.clientY, top: snappedTop, day_date: day, start_time: startTime, time_block: block })
+  }
 
   const totalH = HOURS.length * SLOT_H
 
@@ -342,8 +371,9 @@ export function CalendarView({
             return (
               <div
                 key={day}
-                className="relative flex-1 border-l border-border"
+                className="relative flex-1 border-l border-border cursor-pointer"
                 style={{ minWidth: DAY_COL_MIN_W, height: totalH }}
+                onClick={(e) => handleColumnClick(e, day)}
               >
                 {/* Hour grid lines */}
                 {HOURS.map((_, i) => (
@@ -416,6 +446,7 @@ export function CalendarView({
                         isGhost && "opacity-25",
                         isLive  && "z-30 shadow-lg",
                       )}
+                      onClick={(e) => e.stopPropagation()}
                       style={{
                         top,
                         height:    isResizing ? ds!.currentHeight : "auto",
@@ -487,6 +518,14 @@ export function CalendarView({
                   )
                 })}
 
+                {/* Click-to-add ghost preview */}
+                {clickMenu?.day_date === day && (
+                  <div
+                    className="pointer-events-none absolute inset-x-1 z-10 rounded-lg border-2 border-dashed border-emerald-400/50 bg-emerald-50/40"
+                    style={{ top: clickMenu.top, height: SLOT_H }}
+                  />
+                )}
+
                 {/* Drop target ghost when dragging from another day into this column */}
                 {dragSnap?.type === "move" &&
                   dragSnap.currentDayIdx === dayIdx &&
@@ -543,6 +582,68 @@ export function CalendarView({
           </div>
         )}
       </div>
+
+      {/* ── Click-to-add popup ── */}
+      {clickMenu && (
+        <>
+          {/* Transparent backdrop — closes the menu */}
+          <div className="fixed inset-0 z-40" onClick={() => setClickMenu(null)} />
+
+          <div
+            className="fixed z-50 min-w-[172px] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+            style={{
+              top: clickMenu.clientY + 6,
+              left: Math.min(clickMenu.clientX, (typeof window !== "undefined" ? window.innerWidth : 800) - 180),
+            }}
+          >
+            {/* Header: day + snapped time */}
+            <div className="border-b border-border px-3 py-2">
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                {format(parseDateOnly(clickMenu.day_date), "EEE, MMM d")}
+                {" · "}
+                {clickMenu.start_time.slice(0, 5)}
+              </p>
+            </div>
+
+            {/* Options */}
+            <div className="p-1">
+              <button
+                type="button"
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-secondary"
+                onClick={() => {
+                  onAddActivity?.(clickMenu.day_date, clickMenu.start_time, clickMenu.time_block)
+                  setClickMenu(null)
+                }}
+              >
+                <CalendarPlus className="h-4 w-4 shrink-0 text-emerald-600" />
+                Add Activity
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-secondary"
+                onClick={() => {
+                  onAddBooking?.(clickMenu.day_date)
+                  setClickMenu(null)
+                }}
+              >
+                <Ticket className="h-4 w-4 shrink-0 text-emerald-600" />
+                Add Booking
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-secondary"
+                onClick={() => {
+                  onAddTransport?.(clickMenu.day_date)
+                  setClickMenu(null)
+                }}
+              >
+                <Bus className="h-4 w-4 shrink-0 text-emerald-600" />
+                Add Transport
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

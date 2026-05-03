@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react"
 import { CalendarView } from "./calendar-view"
 import { ActivityDrawer } from "./activity-drawer"
+import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
+import { TransportDrawer } from "@/components/trip/bookings/transport-drawer"
 import { createClient } from "@/lib/supabase/client"
 import { daysBetween } from "@/lib/dates"
 import { toast } from "sonner"
-import type { Activity, TimeBlock, Trip } from "@/lib/types"
+import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
 
 export function CalendarPageClient({
   trip,
@@ -22,10 +24,12 @@ export function CalendarPageClient({
 
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
   const [drawerState, setDrawerState] = useState<
-    | { mode: "create"; day_date: string; time_block: TimeBlock }
+    | { mode: "create"; day_date: string; time_block: TimeBlock; start_time?: string }
     | { mode: "edit"; activity: Activity }
     | null
   >(null)
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const [transportOpen, setTransportOpen] = useState(false)
 
   async function handleSave(input: {
     id?: string
@@ -104,6 +108,30 @@ export function CalendarPageClient({
     toast.success("Activity removed")
   }
 
+  async function handleBookingSave(
+    input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string },
+  ) {
+    const supabase = createClient()
+    if (input.id) {
+      const { error } = await supabase.from("bookings").update({ ...input }).eq("id", input.id)
+      if (error) throw error
+      toast.success("Booking updated")
+    } else {
+      const { error } = await supabase.from("bookings").insert({ ...input, trip_id: trip.id })
+      if (error) throw error
+      toast.success("Booking added")
+    }
+    setBookingOpen(false)
+  }
+
+  async function handleBookingDelete(id: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from("bookings").delete().eq("id", id)
+    if (error) throw error
+    setBookingOpen(false)
+    toast.success("Booking removed")
+  }
+
   return (
     <>
       <CalendarView
@@ -111,7 +139,13 @@ export function CalendarPageClient({
         activities={activities}
         destination={trip.destination}
         onActivityClick={(a) => setDrawerState({ mode: "edit", activity: a })}
+        onAddActivity={(day_date, start_time, time_block) =>
+          setDrawerState({ mode: "create", day_date, time_block, start_time })
+        }
+        onAddBooking={() => setBookingOpen(true)}
+        onAddTransport={() => setTransportOpen(true)}
       />
+
       <ActivityDrawer
         state={drawerState}
         days={days}
@@ -121,6 +155,29 @@ export function CalendarPageClient({
         onClose={() => setDrawerState(null)}
         onSave={handleSave}
         onDelete={handleDelete}
+      />
+
+      <BookingDrawer
+        open={bookingOpen}
+        booking={null}
+        currency={trip.default_currency ?? "USD"}
+        tripStart={trip.start_date}
+        tripEnd={trip.end_date}
+        onClose={() => setBookingOpen(false)}
+        onSave={handleBookingSave}
+        onDelete={handleBookingDelete}
+      />
+
+      <TransportDrawer
+        open={transportOpen}
+        booking={null}
+        defaultType="transport"
+        currency={trip.default_currency ?? "USD"}
+        tripStart={trip.start_date}
+        tripEnd={trip.end_date}
+        onClose={() => setTransportOpen(false)}
+        onSave={handleBookingSave}
+        onDelete={handleBookingDelete}
       />
     </>
   )

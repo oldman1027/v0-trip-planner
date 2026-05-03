@@ -27,7 +27,7 @@ const CATEGORIES: { value: Activity["category"]; label: string }[] = [
 ]
 
 type State =
-  | { mode: "create"; day_date: string; time_block: TimeBlock }
+  | { mode: "create"; day_date: string; time_block: TimeBlock; start_time?: string }
   | { mode: "edit"; activity: Activity }
   | null
 
@@ -90,7 +90,7 @@ export function ActivityDrawer({
       setDay(state.day_date)
       setBlock(state.time_block)
       setLocation("")
-      setStart("")
+      setStart(state.start_time ? state.start_time.slice(0, 5) : "")
       setEnd("")
       setNotes("")
       setCost("")
