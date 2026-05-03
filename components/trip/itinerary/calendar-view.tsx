@@ -9,6 +9,29 @@ import { createClient } from "@/lib/supabase/client"
 import type { Activity, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 
+// ── Travel-time cache (module-level, persists across re-renders) ───────────
+const travelTimeCache = new Map<string, number | null>()
+
+function pairKey(a: string, b: string): string {
+  return `${a.trim().toLowerCase()}|||${b.trim().toLowerCase()}`
+}
+
+async function fetchTravelMins(origin: string, dest: string): Promise<number | null> {
+  const key = pairKey(origin, dest)
+  if (travelTimeCache.has(key)) return travelTimeCache.get(key)!
+  try {
+    const params = new URLSearchParams({ origin, destination: dest })
+    const res = await fetch(`/api/travel-time?${params}`)
+    const { mins } = await res.json()
+    const result = typeof mins === "number" ? mins : null
+    travelTimeCache.set(key, result)
+    return result
+  } catch {
+    travelTimeCache.set(key, null)
+    return null
+  }
+}
+
 // ── Green / turquoise palette — all categories stay in the same hue family ─
 const CATEGORY_STYLE: Record<
   Activity["category"],
@@ -185,6 +208,33 @@ export function CalendarView({
     sorted.forEach((a, i) => m.set(a.id, i + 1))
     return m
   }, [activities])
+
+  // ── Travel time estimates ──────────────────────────────────────────────────
+  const [travelTimes, setTravelTimes] = useState<Map<string, number | null>>(new Map())
+
+  useEffect(() => {
+    const toFetch: Array<{ origin: string; dest: string }> = []
+    for (const acts of byDay.values()) {
+      const sorted = [...acts]
+        .filter((a) => a.start_time && a.end_time)
+        .sort((a, b) => timeToMins(a.start_time!) - timeToMins(b.start_time!))
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const a = sorted[i], b = sorted[i + 1]
+        if (!a.location || !b.location) continue
+        if (a.location.trim().toLowerCase() === b.location.trim().toLowerCase()) continue
+        const key = pairKey(a.location, b.location)
+        if (!travelTimeCache.has(key)) toFetch.push({ origin: a.location, dest: b.location })
+      }
+    }
+    if (!toFetch.length) {
+      if (travelTimeCache.size > 0) setTravelTimes(new Map(travelTimeCache))
+      return
+    }
+    ;(async () => {
+      await Promise.all(toFetch.map(({ origin, dest }) => fetchTravelMins(origin, dest)))
+      setTravelTimes(new Map(travelTimeCache))
+    })()
+  }, [byDay])
 
   const [clickMenu, setClickMenu] = useState<ClickMenu | null>(null)
 
@@ -389,6 +439,18 @@ export function CalendarView({
                   const { top: bTop } = calcPos(b)
                   const connH = bTop - (aTop + aH)
                   if (connH < 10) return null
+
+                  // Resolve travel time from cache
+                  const hasDiffLocs =
+                    a.location && b.location &&
+                    a.location.trim().toLowerCase() !== b.location.trim().toLowerCase()
+                  const tKey = hasDiffLocs ? pairKey(a.location!, b.location!) : null
+                  const travelMins = tKey != null ? travelTimes.get(tKey) : undefined
+                  const label =
+                    typeof travelMins === "number" && travelMins > 0
+                      ? `${fmtGap(travelMins)} (${fmtGap(gapMins)} avail.)`
+                      : fmtGap(gapMins)
+
                   return (
                     <div
                       key={`conn-${a.id}`}
@@ -397,7 +459,7 @@ export function CalendarView({
                     >
                       <div className="w-px flex-1 border-l border-dashed border-muted-foreground/30" />
                       <span className="my-0.5 whitespace-nowrap rounded-full border border-border/50 bg-card px-1.5 py-0.5 text-[9px] text-muted-foreground/60">
-                        {fmtGap(gapMins)}
+                        {label}
                       </span>
                       <div className="w-px flex-1 border-l border-dashed border-muted-foreground/30" />
                     </div>
