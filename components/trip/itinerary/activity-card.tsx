@@ -119,10 +119,8 @@ export function ActivityCard({
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[240px] space-y-1 text-left">
                 {conflicts.map((c) => (
-                  <p key={`${c.kind}-${c.withId}`} className="flex items-start gap-1.5 leading-snug">
-                    <span aria-hidden className="mt-px shrink-0">
-                      {c.kind === "overlap" ? "⚠" : "⏱"}
-                    </span>
+                  <p key={c.withId} className="flex items-start gap-1.5 leading-snug">
+                    <span aria-hidden className="mt-px shrink-0">⚠</span>
                     {c.message}
                   </p>
                 ))}

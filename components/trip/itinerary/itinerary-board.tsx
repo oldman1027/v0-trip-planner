@@ -707,7 +707,6 @@ export function ItineraryBoard({
           days={days}
           activities={activities}
           activeCategories={activeCategories}
-          destination={trip.destination}
           onActivityClick={(a) => setDrawerState({ mode: "edit", activity: a })}
         />
       )}

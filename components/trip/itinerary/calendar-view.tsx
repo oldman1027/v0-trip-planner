@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { format } from "date-fns"
-import { Map as MapIcon, CalendarPlus, Ticket, Bus } from "lucide-react"
+import { CalendarPlus, Ticket, Bus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseDateOnly } from "@/lib/dates"
 import { createClient } from "@/lib/supabase/client"
-import { TripMap } from "@/components/trip/overview/trip-map"
 import type { Activity, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 
@@ -132,7 +131,6 @@ export function CalendarView({
   days,
   activities: initialActivities,
   activeCategories,
-  destination,
   onActivityClick,
   onAddActivity,
   onAddBooking,
@@ -141,7 +139,6 @@ export function CalendarView({
   days: string[]
   activities: Activity[]
   activeCategories?: Set<Activity["category"]>
-  destination?: string | null
   onActivityClick: (activity: Activity) => void
   onAddActivity?: (day_date: string, start_time: string, time_block: TimeBlock) => void
   onAddBooking?: (day_date: string) => void
@@ -150,7 +147,6 @@ export function CalendarView({
   // Local copy — initialised once on mount (views are mutually exclusive so
   // CalendarView always remounts with fresh data when switching back to it).
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
-  const [showMap, setShowMap] = useState(false)
 
   // Drag state lives in a ref so the always-attached window handlers always
   // read the latest value without stale-closure issues.
@@ -544,44 +540,8 @@ export function CalendarView({
   )
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Controls row */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setShowMap((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-            showMap
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground",
-          )}
-        >
-          <MapIcon className="h-3.5 w-3.5" aria-hidden />
-          {showMap ? "Hide map" : "Show map"}
-        </button>
-      </div>
-
-      {/* Split layout: calendar left, map right on lg+ */}
-      <div
-        className={cn(
-          showMap && "grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px]",
-        )}
-      >
-        {calendarGrid}
-
-        {showMap && (
-          <div className="lg:sticky lg:top-[130px]">
-            <TripMap
-              activities={activities}
-              destination={destination ?? null}
-              days={days}
-              className="relative overflow-hidden rounded-2xl border border-border"
-              containerClassName="h-80 w-full bg-muted/40 lg:h-[680px]"
-            />
-          </div>
-        )}
-      </div>
+    <>
+      {calendarGrid}
 
       {/* ── Click-to-add popup ── */}
       {clickMenu && (
@@ -644,6 +604,6 @@ export function CalendarView({
           </div>
         </>
       )}
-    </div>
+    </>
   )
 }
