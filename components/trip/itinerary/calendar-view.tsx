@@ -85,10 +85,19 @@ function calcPos(a: Activity): { top: number; height: number } {
   const clamped = Math.max(HOUR_START * 60, Math.min(startMins, HOUR_END * 60))
   return { top: minsToTop(clamped), height: (actDurationMins(a) / 60) * SLOT_H }
 }
+// Match calcPos: use time_block default when start_time is absent
+function effectiveStartMins(a: Activity): number {
+  if (a.start_time) return timeToMins(a.start_time)
+  return (BLOCK_HOUR[a.time_block ?? "morning"] ?? 7) * 60
+}
+
 function layoutActivities(acts: Activity[]): Laid[] {
   if (!acts.length) return []
-  const sorted = [...acts].sort((a, b) => timeToMins(a.start_time) - timeToMins(b.start_time))
-  const intervals = sorted.map((a) => ({ start: timeToMins(a.start_time), end: timeToMins(a.start_time) + actDurationMins(a) }))
+  const sorted = [...acts].sort((a, b) => effectiveStartMins(a) - effectiveStartMins(b))
+  const intervals = sorted.map((a) => ({
+    start: effectiveStartMins(a),
+    end: effectiveStartMins(a) + actDurationMins(a),
+  }))
   const colEnds: number[] = []
   const colFor: number[] = []
   for (let i = 0; i < sorted.length; i++) {
@@ -395,17 +404,22 @@ export function CalendarView({
                   const pinNum = pinNumberMap.get(a.id)
                   const blockH = Math.max(height, SLOT_H * 0.5)
 
+                  // During resize: fixed height so the drag reflects exactly.
+                  // At rest: auto height so wrapped text is never clipped.
+                  const isResizing = isLive && ds!.type === "resize"
+
                   return (
                     <div
                       key={a.id}
                       className={cn(
-                        "absolute overflow-hidden rounded-lg border text-xs select-none group/block",
+                        "absolute rounded-lg border text-xs select-none group/block overflow-hidden",
                         isGhost && "opacity-25",
                         isLive  && "z-30 shadow-lg",
                       )}
                       style={{
                         top,
-                        height: blockH,
+                        height:    isResizing ? ds!.currentHeight : "auto",
+                        minHeight: isResizing ? 0 : blockH,
                         left:  `calc(${leftPct}%  + 2px)`,
                         width: `calc(${widthPct}% - 4px)`,
                         backgroundColor: cat.bg,
@@ -414,12 +428,12 @@ export function CalendarView({
                     >
                       {/* Move handle — whole block except the resize strip */}
                       <div
-                        className="relative h-full cursor-grab px-1.5 py-1 active:cursor-grabbing"
-                        style={{ paddingBottom: 8, touchAction: "none" }}
+                        className="relative cursor-grab px-1.5 py-1 active:cursor-grabbing"
+                        style={{ paddingBottom: 10, touchAction: "none" }}
                         onPointerDown={(e) => startDrag(e, a.id, "move")}
                       >
                         {/* Numbered pin badge */}
-                        {pinNum && blockH >= 20 && (
+                        {pinNum && (
                           <div
                             className="absolute top-0.5 left-0.5 flex items-center justify-center rounded-full"
                             style={{
@@ -439,10 +453,13 @@ export function CalendarView({
                         )}
 
                         <div
-                          className="truncate text-[11px] font-semibold leading-tight"
+                          className="text-[11px] font-semibold leading-snug"
                           style={{
                             color: cat.text,
-                            marginLeft: pinNum && blockH >= 20 ? 17 : 0,
+                            marginLeft: pinNum ? 17 : 0,
+                            whiteSpace: "normal",
+                            overflowWrap: "break-word",
+                            wordBreak: "break-word",
                           }}
                         >
                           {a.title}
