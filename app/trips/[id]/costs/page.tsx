@@ -1,18 +1,46 @@
-import { PiggyBank } from "lucide-react"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { createClient } from "@/lib/supabase/server"
+import { CostsClient } from "@/components/trip/costs/costs-client"
+import { normalizeMembers } from "@/lib/types"
+import type { Trip, Booking, Expense, TripBudget } from "@/lib/types"
 
-export default function CostsPage() {
+export default async function CostsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const [
+    { data: trip },
+    { data: expensesRaw },
+    { data: budgetsRaw },
+    { data: membersRaw },
+    { data: bookings },
+  ] = await Promise.all([
+    supabase.from("trips").select("*").eq("id", id).maybeSingle<Trip>(),
+    supabase
+      .from("expenses")
+      .select("*, splits:expense_splits(*)")
+      .eq("trip_id", id)
+      .order("date", { ascending: false }),
+    supabase.from("trip_budgets").select("*").eq("trip_id", id),
+    supabase
+      .from("trip_members")
+      .select("trip_id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, created_at)")
+      .eq("trip_id", id),
+    supabase.from("bookings").select("*").eq("trip_id", id),
+  ])
+
+  if (!trip) return null
+
   return (
-    <Empty className="rounded-2xl border border-dashed border-border bg-card/50 py-24">
-      <EmptyHeader>
-        <EmptyMedia variant="icon" className="bg-secondary text-primary">
-          <PiggyBank className="h-6 w-6" aria-hidden />
-        </EmptyMedia>
-        <EmptyTitle className="font-serif text-2xl">Cost tracking coming soon</EmptyTitle>
-        <EmptyDescription className="max-w-md text-pretty">
-          Split bills, track who paid for what, and settle up at the end of the trip — without spreadsheets.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <CostsClient
+      trip={trip}
+      initialExpenses={(expensesRaw ?? []) as Expense[]}
+      initialBudgets={(budgetsRaw ?? []) as TripBudget[]}
+      members={normalizeMembers(membersRaw)}
+      initialBookings={(bookings ?? []) as Booking[]}
+      currentUserId={user?.id ?? ""}
+    />
   )
 }

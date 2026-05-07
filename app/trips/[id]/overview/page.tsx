@@ -1,7 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
 import { OverviewTab } from "@/components/trip/overview/overview-tab"
-import { computeReadiness } from "@/lib/readiness"
-import { detectConflicts } from "@/lib/time-conflicts"
 import type { Activity, Booking, Trip } from "@/lib/types"
 
 export default async function OverviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,18 +18,11 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
 
   if (!trip) return null
 
-  const acts = (activities ?? []) as Activity[]
-  const bkgs = (bookings ?? []) as Booking[]
-
-  const conflictMap = detectConflicts(acts)
-  const readinessStats = computeReadiness(acts, bkgs, conflictMap.size)
-
   return (
     <OverviewTab
       trip={trip}
-      activities={acts}
-      bookings={bkgs}
-      readinessStats={readinessStats}
+      activities={(activities ?? []) as Activity[]}
+      bookings={(bookings ?? []) as Booking[]}
     />
   )
 }

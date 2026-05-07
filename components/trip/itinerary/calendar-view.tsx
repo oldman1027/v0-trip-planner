@@ -136,8 +136,17 @@ function layoutActivities(acts: Activity[]): Laid[] {
     colEnds[col] = intervals[i].end
     colFor[i] = col
   }
-  const totalCols = Math.max(1, colEnds.length)
-  return sorted.map((a, i) => ({ activity: a, col: colFor[i], totalCols }))
+  // Per-activity totalCols: only count columns among activities that actually overlap this one.
+  // Non-overlapping activities always get full width (totalCols = 1).
+  return sorted.map((a, i) => {
+    let maxCol = colFor[i]
+    for (let j = 0; j < sorted.length; j++) {
+      if (i !== j && intervals[i].start < intervals[j].end && intervals[i].end > intervals[j].start) {
+        maxCol = Math.max(maxCol, colFor[j])
+      }
+    }
+    return { activity: a, col: colFor[i], totalCols: maxCol + 1 }
+  })
 }
 function fmtHour(h: number): string {
   if (h === 12) return "12p"
@@ -446,10 +455,14 @@ export function CalendarView({
                     a.location.trim().toLowerCase() !== b.location.trim().toLowerCase()
                   const tKey = hasDiffLocs ? pairKey(a.location!, b.location!) : null
                   const travelMins = tKey != null ? travelTimes.get(tKey) : undefined
-                  const label =
-                    typeof travelMins === "number" && travelMins > 0
-                      ? `${fmtGap(travelMins)} (${fmtGap(gapMins)} avail.)`
-                      : fmtGap(gapMins)
+                  const label = (() => {
+                    if (typeof travelMins === "number" && travelMins > 0)
+                      return `${fmtGap(travelMins)} (${fmtGap(gapMins)} available)`
+                    // API returned null for different-location pair → show rough estimate
+                    if (hasDiffLocs && travelMins === null)
+                      return `~30m (${fmtGap(gapMins)} available)`
+                    return fmtGap(gapMins)
+                  })()
 
                   return (
                     <div
@@ -521,10 +534,10 @@ export function CalendarView({
                         style={{ paddingBottom: 10, touchAction: "none" }}
                         onPointerDown={(e) => startDrag(e, a.id, "move")}
                       >
-                        {/* Numbered pin badge */}
+                        {/* Numbered pin badge — top-right */}
                         {pinNum && (
                           <div
-                            className="absolute top-0.5 left-0.5 flex items-center justify-center rounded-full"
+                            className="absolute top-0.5 right-0.5 flex items-center justify-center rounded-full"
                             style={{
                               width: 15, height: 15,
                               background: cat.badge,
@@ -545,7 +558,7 @@ export function CalendarView({
                           className="text-[11px] font-semibold leading-snug"
                           style={{
                             color: cat.text,
-                            marginLeft: pinNum ? 17 : 0,
+                            marginRight: pinNum ? 17 : 0,
                             whiteSpace: "normal",
                             overflowWrap: "break-word",
                             wordBreak: "break-word",

@@ -5,13 +5,11 @@ import { Printer, MapPin, Clock, CalendarCheck, AlertTriangle, Calendar } from "
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { TripReadiness } from "@/components/trip/trip-readiness"
 import { TripMap } from "@/components/trip/overview/trip-map"
 import { cn } from "@/lib/utils"
 import { daysBetween, formatDayLabel, formatLongDate } from "@/lib/dates"
 import { deadlineUrgency, deadlineLabel, daysUntilBooking } from "@/lib/booking-urgency"
 import type { Activity, Booking, Trip } from "@/lib/types"
-import type { ReadinessStats } from "@/lib/readiness"
 
 const CATEGORY_LABELS: Record<Activity["category"], string> = {
   food: "Food & Dining",
@@ -68,12 +66,10 @@ export function OverviewTab({
   trip,
   activities,
   bookings,
-  readinessStats,
 }: {
   trip: Trip
   activities: Activity[]
   bookings: Booking[]
-  readinessStats: ReadinessStats
 }) {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
 

@@ -1,0 +1,242 @@
+"use client"
+
+import { useState } from "react"
+import { Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { cn } from "@/lib/utils"
+import type { Expense, MemberWithProfile } from "@/lib/types"
+
+const CATEGORY_META: Record<string, { icon: string; label: string }> = {
+  accommodation: { icon: "🏨", label: "Accommodation" },
+  transport:     { icon: "✈️", label: "Transport" },
+  food:          { icon: "🍜", label: "Food" },
+  activities:    { icon: "🎯", label: "Activities" },
+  other:         { icon: "📦", label: "Other" },
+}
+
+function fmt(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${currency} ${Math.round(amount)}`
+  }
+}
+
+function ExpenseItem({
+  expense,
+  members,
+  currency,
+  onEdit,
+  onDelete,
+  onMarkSplitPaid,
+}: {
+  expense: Expense
+  members: MemberWithProfile[]
+  currency: string
+  onEdit: () => void
+  onDelete: () => void
+  onMarkSplitPaid: (splitId: string, paid: boolean) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  const memberMap = new Map(members.map((m) => [m.user_id, m]))
+  const payer = memberMap.get(expense.paid_by_user_id)
+  const payerName = payer?.profile?.full_name ?? "Someone"
+  const splits = expense.splits ?? []
+  const hasSplits = splits.length > 0
+  const isFromBooking = !!expense.booking_id
+  const meta = CATEGORY_META[expense.category] ?? CATEGORY_META.other
+
+  const displayCurrency = expense.currency !== currency ? expense.currency : currency
+
+  return (
+    <li className="overflow-hidden">
+      <div className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+        {/* Category icon */}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-xl">
+          {meta.icon}
+        </div>
+
+        {/* Main info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium leading-snug">{expense.description}</span>
+            {isFromBooking && (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                From booking
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>
+              {new Date(expense.date + "T00:00:00").toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            <span>·</span>
+            <span>
+              Paid by{" "}
+              <strong className="font-medium text-foreground">{payerName}</strong>
+            </span>
+            {hasSplits && (
+              <>
+                <span>·</span>
+                <span>
+                  {splits.length} split{splits.length !== 1 ? "s" : ""}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Amount + controls */}
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="tabular-nums text-sm font-semibold">
+            {fmt(expense.amount, displayCurrency)}
+          </span>
+
+          {hasSplits && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              aria-label={expanded ? "Collapse splits" : "Show splits"}
+            >
+              {expanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </button>
+          )}
+
+          {!isFromBooking && (
+            <>
+              <button
+                type="button"
+                onClick={onEdit}
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                aria-label="Edit expense"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                aria-label="Delete expense"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded split details */}
+      {expanded && hasSplits && (
+        <div className="border-t border-border/50 bg-secondary/30 px-5 py-3">
+          <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Split Details
+          </p>
+          <div className="flex flex-col gap-2">
+            {splits.map((split) => {
+              const m = memberMap.get(split.user_id)
+              const name = m?.profile?.full_name ?? "Unknown"
+              const initials = name[0]?.toUpperCase() ?? "?"
+              return (
+                <div key={split.id} className="flex items-center gap-3 text-sm">
+                  <Avatar className="h-5 w-5 shrink-0">
+                    <AvatarFallback className="bg-border text-[10px]">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1 truncate">{name}</span>
+                  <span className="tabular-nums text-xs text-muted-foreground">
+                    {fmt(split.amount, expense.currency)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onMarkSplitPaid(split.id, !split.paid)}
+                    className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors",
+                      split.paid
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : "bg-amber-100 text-amber-700 hover:bg-emerald-100 hover:text-emerald-700 dark:bg-amber-900/30 dark:text-amber-400",
+                    )}
+                  >
+                    {split.paid ? "Paid ✓" : "Pending"}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </li>
+  )
+}
+
+export function ExpenseList({
+  expenses,
+  members,
+  currency,
+  onEdit,
+  onDelete,
+  onMarkSplitPaid,
+}: {
+  expenses: Expense[]
+  members: MemberWithProfile[]
+  currency: string
+  onEdit: (expense: Expense) => void
+  onDelete: (id: string) => void
+  onMarkSplitPaid: (splitId: string, paid: boolean) => void
+}) {
+  if (expenses.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-2xl">
+          💸
+        </div>
+        <p className="font-serif text-xl">No expenses yet</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Add an expense or sync from your bookings above.
+        </p>
+      </div>
+    )
+  }
+
+  const total = expenses.reduce((sum, e) => sum + e.amount, 0)
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between px-0.5">
+        <span className="text-sm text-muted-foreground">
+          {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
+        </span>
+        <span className="tabular-nums text-sm font-semibold">{fmt(total, currency)}</span>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <ul className="divide-y divide-border">
+          {expenses.map((e) => (
+            <ExpenseItem
+              key={e.id}
+              expense={e}
+              members={members}
+              currency={currency}
+              onEdit={() => onEdit(e)}
+              onDelete={() => onDelete(e.id)}
+              onMarkSplitPaid={onMarkSplitPaid}
+            />
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}

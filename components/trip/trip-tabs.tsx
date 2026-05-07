@@ -16,7 +16,7 @@ export function TripTabs({ tripId }: { tripId: string }) {
   const base = `/trips/${tripId}`
 
   return (
-    <div className="mx-auto mt-6 w-full max-w-6xl px-6">
+    <div className="mt-6 w-full px-6">
       <nav className="flex items-center gap-1 overflow-x-auto border-b border-border" aria-label="Trip sections">
         {TABS.map((t) => {
           const href = t.slug ? `${base}/${t.slug}` : base

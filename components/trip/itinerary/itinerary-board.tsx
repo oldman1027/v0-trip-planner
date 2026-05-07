@@ -25,6 +25,8 @@ import { ActivityDrawer } from "./activity-drawer"
 import { CalendarView } from "./calendar-view"
 import { HotelBanner } from "./hotel-banner"
 import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
+import { TransportDrawer } from "@/components/trip/bookings/transport-drawer"
+import { TripMap } from "@/components/trip/overview/trip-map"
 import { TriplettoAI } from "@/components/trip/TriplettoAI"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
@@ -76,11 +78,14 @@ export function ItineraryBoard({
   const [viewMode, setViewMode] = useState<ViewMode>("board")
   const [activeCategories, setActiveCategories] = useState<Set<Activity["category"]>>(new Set())
   const [drawerState, setDrawerState] = useState<
-    | { mode: "create"; day_date: string; time_block: TimeBlock }
+    | { mode: "create"; day_date: string; time_block: TimeBlock; start_time?: string }
     | { mode: "edit"; activity: Activity }
     | null
   >(null)
   const [bookingOpen, setBookingOpen] = useState<Booking | null>(null)
+  const [calendarSelectedId, setCalendarSelectedId] = useState<string | null>(null)
+  const [calendarBookingOpen, setCalendarBookingOpen] = useState(false)
+  const [calendarTransportOpen, setCalendarTransportOpen] = useState(false)
 
   const conflicts = useMemo(() => detectConflicts(activities), [activities])
 
@@ -554,6 +559,40 @@ export function ItineraryBoard({
     toast.success("Booking removed")
   }
 
+  async function handleCalendarBookingSave(
+    input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string },
+  ) {
+    const supabase = createClient()
+    if (input.id) {
+      const { error } = await supabase.from("bookings").update({ ...input }).eq("id", input.id)
+      if (error) throw error
+      setBookings((prev) =>
+        prev.map((b) => (b.id === input.id ? ({ ...b, ...input, id: input.id! } as Booking) : b)),
+      )
+    } else {
+      const { data, error } = await supabase
+        .from("bookings")
+        .insert({ ...input, trip_id: trip.id })
+        .select()
+        .single()
+      if (error || !data) throw error ?? new Error("Insert failed")
+      setBookings((prev) => [data as Booking, ...prev])
+    }
+    setCalendarBookingOpen(false)
+    setCalendarTransportOpen(false)
+    toast.success("Booking saved")
+  }
+
+  async function handleCalendarBookingDelete(id: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from("bookings").delete().eq("id", id)
+    if (error) throw error
+    setBookings((prev) => prev.filter((b) => b.id !== id))
+    setCalendarBookingOpen(false)
+    setCalendarTransportOpen(false)
+    toast.success("Booking removed")
+  }
+
   const dragging = activeId ? findActivity(activeId) : null
 
   return (
@@ -564,14 +603,14 @@ export function ItineraryBoard({
         onActivitiesAdded={(added) => setActivities((prev) => [...prev, ...added])}
       />
 
-      {/* Category filter + view mode toggle */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1">
+      {/* Category filter + view mode toggle — sticky */}
+      <div className="sticky top-0 z-20 -mx-6 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-6 py-2 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
           {activeCategories.size > 0 && (
             <button
               type="button"
               onClick={() => setActiveCategories(new Set())}
-              className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+              className="rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
             >
               All
             </button>
@@ -591,7 +630,7 @@ export function ItineraryBoard({
                   })
                 }
                 className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  "rounded-full border px-4 py-1.5 text-xs font-medium transition-colors",
                   active
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground",
@@ -638,7 +677,7 @@ export function ItineraryBoard({
         >
           <div className="flex gap-6 items-start">
             {/* Day navigation sidebar — 30% */}
-            <aside className="sticky top-6 w-[28%] shrink-0 h-[calc(100vh-12rem)] rounded-2xl border border-border bg-card p-3">
+            <aside className="sticky top-14 w-[28%] shrink-0 h-[calc(100vh-12rem)] rounded-2xl border border-border bg-card p-3">
               <DaySidebar
                 days={days}
                 counts={dayCounts}
@@ -703,12 +742,42 @@ export function ItineraryBoard({
           <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
         </DndContext>
       ) : (
-        <CalendarView
-          days={days}
-          activities={activities}
-          activeCategories={activeCategories}
-          onActivityClick={(a) => setDrawerState({ mode: "edit", activity: a })}
-        />
+        <div
+          className="-mx-6 flex overflow-hidden border-t border-border"
+          style={{ height: "80vh", minHeight: 520 }}
+        >
+          {/* Calendar — left 60%, scrollable */}
+          <div className="min-w-0 flex-[6] overflow-y-auto border-r border-border">
+            <div className="px-4 py-4">
+              <CalendarView
+                days={days}
+                activities={activities}
+                activeCategories={activeCategories}
+                onActivityClick={(a) => {
+                  setCalendarSelectedId(a.id)
+                  setDrawerState({ mode: "edit", activity: a })
+                }}
+                onAddActivity={(day_date, start_time, time_block) =>
+                  setDrawerState({ mode: "create", day_date, time_block, start_time })
+                }
+                onAddBooking={() => setCalendarBookingOpen(true)}
+                onAddTransport={() => setCalendarTransportOpen(true)}
+              />
+            </div>
+          </div>
+
+          {/* Map — right 40%, fills fixed-height container */}
+          <div className="min-w-0 flex-[4] shrink-0">
+            <TripMap
+              activities={activities}
+              destination={trip.destination ?? null}
+              days={days}
+              selectedActivityId={calendarSelectedId}
+              className="h-full w-full"
+              containerClassName="h-full w-full"
+            />
+          </div>
+        </div>
       )}
 
       <ActivityDrawer
@@ -731,6 +800,29 @@ export function ItineraryBoard({
         onClose={() => setBookingOpen(null)}
         onSave={handleBookingSave}
         onDelete={handleBookingDelete}
+      />
+
+      {/* New booking/transport drawers triggered from the calendar popup */}
+      <BookingDrawer
+        open={calendarBookingOpen}
+        booking={null}
+        currency={trip.default_currency ?? "USD"}
+        tripStart={trip.start_date}
+        tripEnd={trip.end_date}
+        onClose={() => setCalendarBookingOpen(false)}
+        onSave={handleCalendarBookingSave}
+        onDelete={handleCalendarBookingDelete}
+      />
+      <TransportDrawer
+        open={calendarTransportOpen}
+        booking={null}
+        defaultType="transport"
+        currency={trip.default_currency ?? "USD"}
+        tripStart={trip.start_date}
+        tripEnd={trip.end_date}
+        onClose={() => setCalendarTransportOpen(false)}
+        onSave={handleCalendarBookingSave}
+        onDelete={handleCalendarBookingDelete}
       />
     </div>
   )

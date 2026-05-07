@@ -74,3 +74,38 @@ export type Booking = {
   booking_date: string | null
   created_at: string
 }
+
+export type ExpenseCategory = "accommodation" | "transport" | "food" | "activities" | "other"
+
+export type Expense = {
+  id: string
+  trip_id: string
+  booking_id: string | null
+  amount: number
+  currency: string
+  category: ExpenseCategory
+  date: string
+  description: string
+  paid_by_user_id: string
+  created_at: string
+  splits?: ExpenseSplit[]
+}
+
+export type ExpenseSplit = {
+  id: string
+  expense_id: string
+  user_id: string
+  amount: number
+  paid: boolean
+  created_at: string
+}
+
+export type TripBudget = {
+  id: string
+  trip_id: string
+  category: ExpenseCategory
+  budget_amount: number
+  created_at: string
+}
+
+export type MemberWithProfile = Omit<TripMember, "profile"> & { profile: Profile | null }

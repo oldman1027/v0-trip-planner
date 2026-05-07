@@ -4,8 +4,6 @@ import Link from "next/link"
 import { MapPin, Calendar } from "lucide-react"
 import { createServiceClient } from "@/lib/supabase/server"
 import { OverviewTab } from "@/components/trip/overview/overview-tab"
-import { computeReadiness } from "@/lib/readiness"
-import { detectConflicts } from "@/lib/time-conflicts"
 import { formatRange, tripDuration } from "@/lib/dates"
 import type { Activity, Booking, Trip } from "@/lib/types"
 
@@ -37,8 +35,6 @@ export default async function PublicTripPage({
 
   const acts = (activities ?? []) as Activity[]
   const bkgs = (bookings ?? []) as Booking[]
-  const conflictMap = detectConflicts(acts)
-  const readinessStats = computeReadiness(acts, bkgs, conflictMap.size)
 
   const cover =
     trip.cover_image_url ??
@@ -104,7 +100,6 @@ export default async function PublicTripPage({
           trip={trip}
           activities={acts}
           bookings={bkgs}
-          readinessStats={readinessStats}
         />
       </main>
     </div>
