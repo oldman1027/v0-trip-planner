@@ -242,7 +242,7 @@ export function getSeed(today: Date = new Date()) {
 
   const bookings = [
     {
-      type: "hotel" as const,
+      type: "accommodation" as const,
       title: "Hotel Gracery Shinjuku — 6 nights",
       details: { confirmation: "HG-44829", room: "Family superior" },
       amount: 1840,
@@ -251,7 +251,7 @@ export function getSeed(today: Date = new Date()) {
       cancellation_deadline: formatDateOnly(addDays(start, -3)) + "T23:59:00Z",
     },
     {
-      type: "flight" as const,
+      type: "transport" as const,
       title: "JAL 005 — SFO ↔ HND",
       details: { confirmation: "JAL-7TR8XQ", seats: "23A/B/C/D" },
       amount: 4280,

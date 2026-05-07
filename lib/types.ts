@@ -64,7 +64,7 @@ export type Activity = {
 export type Booking = {
   id: string
   trip_id: string
-  type: "hotel" | "flight" | "transport" | "other" | "restaurant" | "experience"
+  type: "accommodation" | "transport" | "dining" | "activities" | "other"
   title: string
   details: Record<string, unknown> | null
   amount: number | null
@@ -72,6 +72,12 @@ export type Booking = {
   payment_status: "pending" | "paid" | "partial" | "confirmed" | "cancelled"
   cancellation_deadline: string | null
   booking_date: string | null
+  confirmation_number: string | null
+  booking_url: string | null
+  check_in_time: string | null
+  check_out_time: string | null
+  departure_time: string | null
+  arrival_time: string | null
   created_at: string
 }
 

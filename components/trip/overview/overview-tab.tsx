@@ -75,7 +75,7 @@ export function OverviewTab({
 
   const days = daysBetween(trip.start_date, trip.end_date)
 
-  const keyBookings = bookings.filter((b) => ["flight", "hotel", "transport"].includes(b.type))
+  const keyBookings = bookings.filter((b) => ["accommodation", "transport"].includes(b.type))
 
   const sortedActivities = [...activities]
     .filter((a) => !a.is_wishlist && a.day_date)

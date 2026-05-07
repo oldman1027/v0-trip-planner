@@ -10,6 +10,7 @@ import { Trash2, Pencil, Plane, Bus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Booking } from "@/lib/types"
+import type { BookingSaveInput } from "./booking-drawer"
 
 type TransportDetails = {
   from_code?: string
@@ -87,9 +88,7 @@ export function TransportDrawer({
   tripStart: string
   tripEnd: string
   onClose: () => void
-  onSave: (
-    input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string }
-  ) => Promise<void>
+  onSave: (input: BookingSaveInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
   const [type, setType] = useState<"transport" | "flight">(defaultType)
@@ -113,8 +112,8 @@ export function TransportDrawer({
       return
     }
     if (booking) {
-      const d = (booking.details ?? {}) as TransportDetails
-      setType(booking.type === "flight" ? "flight" : "transport")
+      const d = (booking.details ?? {}) as TransportDetails & { transport_type?: string }
+      setType(d.transport_type === "flight" ? "flight" : "transport")
       setFlightNumber(booking.title ?? "")
       setFromCode(d.from_code ?? "")
       setFromCity(d.from_city ?? "")
@@ -151,9 +150,10 @@ export function TransportDrawer({
     try {
       await onSave({
         id: booking?.id,
-        type,
+        type: "transport",
         title: flightNumber.trim() || (type === "flight" ? "Flight" : "Transport"),
         details: {
+          transport_type: type,
           from_code: fromCode.trim().toUpperCase() || null,
           from_city: fromCity.trim() || null,
           to_code: toCode.trim().toUpperCase() || null,
@@ -161,6 +161,12 @@ export function TransportDrawer({
           departure_time: departureTime || null,
           arrival_time: arrivalTime || null,
         },
+        confirmation_number: null,
+        booking_url: null,
+        check_in_time: null,
+        check_out_time: null,
+        departure_time: null,
+        arrival_time: null,
         amount: amount ? Number(amount) : null,
         currency: booking?.currency ?? currency,
         payment_status: paymentStatus,

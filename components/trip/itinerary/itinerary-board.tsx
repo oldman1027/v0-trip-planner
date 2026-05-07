@@ -51,10 +51,10 @@ const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
 ]
 
 function categoryToBookingType(cat: Activity["category"]): Booking["type"] {
-  if (cat === "food") return "restaurant"
-  if (cat === "accommodation") return "hotel"
+  if (cat === "food") return "dining"
+  if (cat === "accommodation") return "accommodation"
   if (cat === "transport") return "transport"
-  if (cat === "attraction" || cat === "entertainment" || cat === "shopping") return "experience"
+  if (cat === "attraction" || cat === "entertainment" || cat === "shopping") return "activities"
   return "other"
 }
 
@@ -356,7 +356,7 @@ export function ItineraryBoard({
       let resolvedBookingId: string | null = existingBooking?.id ?? null
       if (input.needs_booking) {
         if (existingBooking) {
-          if (existingBooking.type === "restaurant") {
+          if (existingBooking.type === "dining") {
             // Sync restaurant-specific fields back to the booking
             const existingDetails = (existingBooking.details ?? {}) as Record<string, unknown>
             const newDatetime =

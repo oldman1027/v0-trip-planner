@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Trash2, Lock } from "lucide-react"
+import { Trash2, Lock, ExternalLink } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
@@ -13,6 +15,13 @@ import type { Booking } from "@/lib/types"
 import { formatDayLabel } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+
+type DrawerType = "accommodation" | "dining" | "activities" | "other"
+
+export type BookingSaveInput = Omit<Booking, "id" | "trip_id" | "created_at"> & {
+  id?: string
+  trackInCosts?: boolean
+}
 
 export function BookingDrawer({
   open,
@@ -30,68 +39,128 @@ export function BookingDrawer({
   tripStart: string
   tripEnd: string
   onClose: () => void
-  onSave: (input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string }) => Promise<void>
+  onSave: (input: BookingSaveInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
-  const [type, setType] = useState<Booking["type"]>("hotel")
+  const [type, setType] = useState<DrawerType>("accommodation")
   const [title, setTitle] = useState("")
-  const [amount, setAmount] = useState("")
-  const [status, setStatus] = useState<Booking["payment_status"]>("pending")
-  const [deadline, setDeadline] = useState("")
   const [bookingDate, setBookingDate] = useState("")
-  // restaurant-specific
+  // accommodation
+  const [checkInTime, setCheckInTime] = useState("")
+  const [checkOutTime, setCheckOutTime] = useState("")
+  const [address, setAddress] = useState("")
+  // dining
   const [restaurantName, setRestaurantName] = useState("")
   const [restaurantDatetime, setRestaurantDatetime] = useState("")
   const [partySize, setPartySize] = useState("")
   const [restaurantLocation, setRestaurantLocation] = useState("")
+  // activities
+  const [startTime, setStartTime] = useState("")
+  const [activityLocation, setActivityLocation] = useState("")
+  // all types
+  const [confirmationNumber, setConfirmationNumber] = useState("")
+  const [bookingUrl, setBookingUrl] = useState("")
+  const [amount, setAmount] = useState("")
+  const [status, setStatus] = useState<Booking["payment_status"]>("pending")
+  const [deadline, setDeadline] = useState("")
+  const [notes, setNotes] = useState("")
+  const [trackInCosts, setTrackInCosts] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (booking) {
-      setType(booking.type)
+      const t = booking.type as DrawerType
+      setType(t)
       setAmount(booking.amount != null ? String(booking.amount) : "")
       setStatus(booking.payment_status)
       setDeadline(booking.cancellation_deadline ? booking.cancellation_deadline.slice(0, 10) : "")
-      if (booking.type === "restaurant") {
-        const d = (booking.details ?? {}) as Record<string, unknown>
+      setConfirmationNumber(booking.confirmation_number ?? "")
+      setBookingUrl(booking.booking_url ?? "")
+      const d = (booking.details ?? {}) as Record<string, unknown>
+      setNotes((d.notes as string) ?? "")
+
+      if (t === "dining") {
         setRestaurantName((d.restaurant_name as string) ?? booking.title ?? "")
         setRestaurantDatetime((d.datetime as string) ?? "")
         setPartySize(d.party_size != null ? String(d.party_size) : "")
         setRestaurantLocation((d.location as string) ?? "")
         setTitle("")
+        setBookingDate("")
+        setCheckInTime("")
+        setCheckOutTime("")
+        setAddress("")
+        setStartTime("")
+        setActivityLocation("")
+      } else if (t === "accommodation") {
+        setTitle(booking.title)
+        setBookingDate(booking.booking_date ?? "")
+        setCheckInTime(booking.check_in_time ?? "")
+        setCheckOutTime(booking.check_out_time ?? "")
+        setAddress((d.address as string) ?? "")
+        setRestaurantName("")
+        setRestaurantDatetime("")
+        setPartySize("")
+        setRestaurantLocation("")
+        setStartTime("")
+        setActivityLocation("")
+      } else if (t === "activities") {
+        setTitle(booking.title)
+        setBookingDate(booking.booking_date ?? "")
+        setStartTime(booking.departure_time ?? "")
+        setActivityLocation((d.location as string) ?? "")
+        setAddress("")
+        setCheckInTime("")
+        setCheckOutTime("")
+        setRestaurantName("")
+        setRestaurantDatetime("")
+        setPartySize("")
+        setRestaurantLocation("")
       } else {
         setTitle(booking.title)
+        setBookingDate(booking.booking_date ?? "")
+        setAddress("")
+        setCheckInTime("")
+        setCheckOutTime("")
+        setStartTime("")
+        setActivityLocation("")
         setRestaurantName("")
         setRestaurantDatetime("")
         setPartySize("")
         setRestaurantLocation("")
       }
-      setBookingDate(booking.booking_date ?? "")
+      setTrackInCosts(false)
     } else {
-      setType("hotel")
+      setType("accommodation")
       setTitle("")
+      setBookingDate("")
+      setCheckInTime("")
+      setCheckOutTime("")
+      setAddress("")
       setRestaurantName("")
       setRestaurantDatetime("")
       setPartySize("")
       setRestaurantLocation("")
+      setStartTime("")
+      setActivityLocation("")
+      setConfirmationNumber("")
+      setBookingUrl("")
       setAmount("")
       setStatus("pending")
       setDeadline("")
-      setBookingDate("")
+      setNotes("")
+      setTrackInCosts(false)
     }
   }, [booking, open])
 
-  const isRestaurant = type === "restaurant"
-  // True when this booking is linked to an itinerary activity (date is auto-managed).
+  const isDining = type === "dining"
+  const isAccommodation = type === "accommodation"
   const isLinked = !!(booking?.details as Record<string, unknown> | null)?.activity_id
 
-  // Determine which date to validate against the trip range.
-  const effectiveDateForValidation = isRestaurant
+  const effectiveDateForValidation = isDining
     ? restaurantDatetime ? restaurantDatetime.slice(0, 10) : null
-    : isLinked
-      ? null // trigger auto-corrects; no client error shown
-      : bookingDate || null
+    : isLinked ? null
+    : bookingDate || null
 
   const dateError =
     effectiveDateForValidation && tripStart && tripEnd
@@ -103,22 +172,50 @@ export function BookingDrawer({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const effectiveTitle = isRestaurant ? restaurantName.trim() : title.trim()
-    const effectiveDetails: Record<string, unknown> | null = isRestaurant
-      ? {
-          restaurant_name: restaurantName.trim(),
-          datetime: restaurantDatetime,
-          party_size: partySize ? Number(partySize) : null,
-          location: restaurantLocation.trim() || null,
-          activity_id: ((booking?.details as Record<string, unknown> | null)?.activity_id as string) ?? undefined,
-        }
-      : booking?.details ?? null
-    // Compute the booking_date to persist.
-    const effectiveBookingDate: string | null = isRestaurant
-      ? restaurantDatetime ? restaurantDatetime.slice(0, 10) : null
-      : isLinked
-        ? booking?.booking_date ?? null  // trigger will auto-correct
-        : bookingDate || null
+
+    const existingActivityId = ((booking?.details as Record<string, unknown> | null)?.activity_id as string) ?? undefined
+
+    let effectiveTitle: string
+    let effectiveDetails: Record<string, unknown> | null
+    let effectiveBookingDate: string | null
+    let effectiveCheckInTime: string | null = null
+    let effectiveCheckOutTime: string | null = null
+    let effectiveDepartureTime: string | null = null
+
+    if (type === "dining") {
+      effectiveTitle = restaurantName.trim()
+      effectiveDetails = {
+        restaurant_name: restaurantName.trim(),
+        datetime: restaurantDatetime,
+        party_size: partySize ? Number(partySize) : null,
+        location: restaurantLocation.trim() || null,
+        activity_id: existingActivityId,
+        notes: notes.trim() || null,
+      }
+      effectiveBookingDate = restaurantDatetime ? restaurantDatetime.slice(0, 10) : null
+    } else if (type === "accommodation") {
+      effectiveTitle = title.trim()
+      effectiveDetails = {
+        address: address.trim() || null,
+        notes: notes.trim() || null,
+      }
+      effectiveBookingDate = isLinked ? (booking?.booking_date ?? null) : bookingDate || null
+      effectiveCheckInTime = checkInTime || null
+      effectiveCheckOutTime = checkOutTime || null
+    } else if (type === "activities") {
+      effectiveTitle = title.trim()
+      effectiveDetails = {
+        location: activityLocation.trim() || null,
+        notes: notes.trim() || null,
+      }
+      effectiveBookingDate = bookingDate || null
+      effectiveDepartureTime = startTime || null
+    } else {
+      effectiveTitle = title.trim()
+      effectiveDetails = notes.trim() ? { notes: notes.trim() } : null
+      effectiveBookingDate = bookingDate || null
+    }
+
     try {
       await onSave({
         id: booking?.id,
@@ -130,6 +227,13 @@ export function BookingDrawer({
         payment_status: status,
         cancellation_deadline: deadline ? new Date(deadline + "T23:59:00").toISOString() : null,
         booking_date: effectiveBookingDate,
+        confirmation_number: confirmationNumber.trim() || null,
+        booking_url: bookingUrl.trim() || null,
+        check_in_time: effectiveCheckInTime,
+        check_out_time: effectiveCheckOutTime,
+        departure_time: effectiveDepartureTime,
+        arrival_time: null,
+        trackInCosts: !booking && trackInCosts,
       })
       onClose()
     } catch (err) {
@@ -153,47 +257,118 @@ export function BookingDrawer({
   const submitDisabled =
     saving ||
     !!dateError ||
-    (isRestaurant
+    (isDining
       ? !restaurantName.trim() || !restaurantDatetime || !partySize
       : !title.trim())
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="border-b border-border">
+        <SheetHeader className="border-b border-border px-4 py-4">
           <SheetTitle className="font-serif text-2xl">{booking ? "Edit booking" : "Add booking"}</SheetTitle>
         </SheetHeader>
+
         <form onSubmit={onSubmit} className="flex flex-1 flex-col">
           <div className="flex-1 px-4 py-6">
             <FieldGroup>
+              {/* Type selector */}
               <Field>
                 <FieldLabel htmlFor="type">Type</FieldLabel>
                 <Select
                   value={type}
                   onValueChange={(v) => {
-                    const next = v as Booking["type"]
+                    const next = v as DrawerType
                     setType(next)
-                    // Reset status when crossing the restaurant/non-restaurant boundary
-                    const isNextRestaurant = next === "restaurant"
-                    const isCurRestaurant = type === "restaurant"
-                    if (isNextRestaurant !== isCurRestaurant) setStatus("pending")
+                    if ((next === "dining") !== isDining) setStatus("pending")
                   }}
                 >
                   <SelectTrigger id="type" className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hotel">Hotel</SelectItem>
-                    <SelectItem value="flight">Flight</SelectItem>
-                    <SelectItem value="transport">Transport</SelectItem>
-                    <SelectItem value="restaurant">Restaurant / Meal</SelectItem>
-                    <SelectItem value="experience">Experience</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="accommodation">🏨 Accommodation</SelectItem>
+                    <SelectItem value="dining">🍽️ Dining</SelectItem>
+                    <SelectItem value="activities">🎯 Activities</SelectItem>
+                    <SelectItem value="other">📦 Other</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
 
-              {isRestaurant ? (
+              {/* ── Accommodation fields ── */}
+              {isAccommodation && (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="title">Property name</FieldLabel>
+                    <Input
+                      id="title"
+                      required
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Grand Hyatt Tokyo"
+                      className="rounded-xl"
+                    />
+                  </Field>
+
+                  {isLinked ? (
+                    booking?.booking_date ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">
+                        <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        Date follows activity · {formatDayLabel(booking.booking_date)}
+                      </div>
+                    ) : null
+                  ) : (
+                    <Field>
+                      <FieldLabel htmlFor="booking-date">Check-in date</FieldLabel>
+                      <Input
+                        id="booking-date"
+                        type="date"
+                        min={tripStart || undefined}
+                        max={tripEnd || undefined}
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        className={cn("rounded-xl", dateError && "border-destructive")}
+                      />
+                      {dateError && <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>}
+                    </Field>
+                  )}
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="check-in-time">Check-in time</FieldLabel>
+                      <Input
+                        id="check-in-time"
+                        type="time"
+                        value={checkInTime}
+                        onChange={(e) => setCheckInTime(e.target.value)}
+                        className="rounded-xl"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="check-out-time">Check-out time</FieldLabel>
+                      <Input
+                        id="check-out-time"
+                        type="time"
+                        value={checkOutTime}
+                        onChange={(e) => setCheckOutTime(e.target.value)}
+                        className="rounded-xl"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field>
+                    <FieldLabel htmlFor="address">Address (optional)</FieldLabel>
+                    <LocationAutocomplete
+                      id="address"
+                      value={address}
+                      onChange={setAddress}
+                      placeholder="Hotel address"
+                    />
+                  </Field>
+                </>
+              )}
+
+              {/* ── Dining fields ── */}
+              {isDining && (
                 <>
                   <Field>
                     <FieldLabel htmlFor="restaurant-name">Restaurant name</FieldLabel>
@@ -220,9 +395,7 @@ export function BookingDrawer({
                         onChange={(e) => setRestaurantDatetime(e.target.value)}
                         className={cn("rounded-xl", dateError && "border-destructive")}
                       />
-                      {dateError && (
-                        <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>
-                      )}
+                      {dateError && <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>}
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="party-size">Party size</FieldLabel>
@@ -250,30 +423,76 @@ export function BookingDrawer({
                     />
                   </Field>
                 </>
-              ) : (
-                <Field>
-                  <FieldLabel htmlFor="title">Title</FieldLabel>
-                  <Input
-                    id="title"
-                    required
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Hotel Gracery Shinjuku"
-                    className="rounded-xl"
-                  />
-                </Field>
               )}
 
-              {/* Date field — linked bookings: read-only notice; standalone: optional date input */}
-              {!isRestaurant && (
-                isLinked ? (
-                  booking?.booking_date ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">
-                      <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      Date follows activity · {formatDayLabel(booking.booking_date)}
-                    </div>
-                  ) : null
-                ) : (
+              {/* ── Activities fields ── */}
+              {type === "activities" && (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="title">Activity name</FieldLabel>
+                    <Input
+                      id="title"
+                      required
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Tokyo DisneySea"
+                      className="rounded-xl"
+                    />
+                  </Field>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="booking-date">Date</FieldLabel>
+                      <Input
+                        id="booking-date"
+                        type="date"
+                        min={tripStart || undefined}
+                        max={tripEnd || undefined}
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        className={cn("rounded-xl", dateError && "border-destructive")}
+                      />
+                      {dateError && <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>}
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="start-time">Start time</FieldLabel>
+                      <Input
+                        id="start-time"
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="rounded-xl"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field>
+                    <FieldLabel htmlFor="activity-location">Location (optional)</FieldLabel>
+                    <LocationAutocomplete
+                      id="activity-location"
+                      value={activityLocation}
+                      onChange={setActivityLocation}
+                      placeholder="Tokyo DisneySea, Japan"
+                    />
+                  </Field>
+                </>
+              )}
+
+              {/* ── Other fields ── */}
+              {type === "other" && (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="title">Title</FieldLabel>
+                    <Input
+                      id="title"
+                      required
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Travel insurance"
+                      className="rounded-xl"
+                    />
+                  </Field>
+
                   <Field>
                     <FieldLabel htmlFor="booking-date">Date (optional)</FieldLabel>
                     <Input
@@ -285,13 +504,41 @@ export function BookingDrawer({
                       onChange={(e) => setBookingDate(e.target.value)}
                       className={cn("rounded-xl", dateError && "border-destructive")}
                     />
-                    {dateError && (
-                      <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>
-                    )}
+                    {dateError && <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>}
                   </Field>
-                )
+                </>
               )}
 
+              {/* ── Shared: confirmation + URL ── */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="conf-number">Confirmation #</FieldLabel>
+                  <Input
+                    id="conf-number"
+                    value={confirmationNumber}
+                    onChange={(e) => setConfirmationNumber(e.target.value)}
+                    placeholder="ABC123"
+                    className="rounded-xl"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="booking-url">
+                    <span className="flex items-center gap-1">
+                      Booking URL <ExternalLink className="h-3 w-3 opacity-60" aria-hidden />
+                    </span>
+                  </FieldLabel>
+                  <Input
+                    id="booking-url"
+                    type="url"
+                    value={bookingUrl}
+                    onChange={(e) => setBookingUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="rounded-xl"
+                  />
+                </Field>
+              </div>
+
+              {/* ── Shared: amount + status ── */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="amount">Amount ({currency})</FieldLabel>
@@ -307,13 +554,13 @@ export function BookingDrawer({
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="status">{isRestaurant ? "Reservation" : "Payment"}</FieldLabel>
+                  <FieldLabel htmlFor="status">{isDining ? "Reservation" : "Payment"}</FieldLabel>
                   <Select value={status} onValueChange={(v) => setStatus(v as Booking["payment_status"])}>
                     <SelectTrigger id="status" className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {isRestaurant ? (
+                      {isDining ? (
                         <>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="confirmed">Confirmed</SelectItem>
@@ -331,16 +578,47 @@ export function BookingDrawer({
                 </Field>
               </div>
 
+              {/* ── Cancel by (not for dining) ── */}
+              {!isDining && (
+                <Field>
+                  <FieldLabel htmlFor="deadline">Cancel by (optional)</FieldLabel>
+                  <Input
+                    id="deadline"
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </Field>
+              )}
+
+              {/* ── Notes ── */}
               <Field>
-                <FieldLabel htmlFor="deadline">Cancel by</FieldLabel>
-                <Input
-                  id="deadline"
-                  type="date"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="rounded-xl"
+                <FieldLabel htmlFor="notes">Notes (optional)</FieldLabel>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add any notes..."
+                  className="min-h-[80px] rounded-xl resize-none"
                 />
               </Field>
+
+              {/* ── Track in Costs (new bookings only) ── */}
+              {!booking && amount && (
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#8AD0C0]/60 bg-[#8AD0C0]/10 px-4 py-3">
+                  <Checkbox
+                    id="track-costs"
+                    checked={trackInCosts}
+                    onCheckedChange={(v) => setTrackInCosts(!!v)}
+                    className="border-[#27ba76] data-[state=checked]:bg-[#27ba76] data-[state=checked]:border-[#27ba76]"
+                  />
+                  <div>
+                    <p className="text-sm font-medium leading-none">Track in Costs</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Auto-create a linked expense for this booking</p>
+                  </div>
+                </label>
+              )}
             </FieldGroup>
           </div>
 
@@ -363,7 +641,11 @@ export function BookingDrawer({
               <Button type="button" variant="ghost" className="rounded-xl" onClick={onClose} disabled={saving}>
                 Cancel
               </Button>
-              <Button type="submit" className="rounded-xl" disabled={submitDisabled}>
+              <Button
+                type="submit"
+                className="rounded-xl bg-[#27ba76] text-white hover:bg-[#27ba76]/90"
+                disabled={submitDisabled}
+              >
                 {saving ? (
                   <>
                     <Spinner className="mr-2 size-4" /> Saving...

@@ -1,28 +1,58 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Hotel, Plane, Bus, Ticket, Utensils, Star, AlertTriangle, Calendar } from "lucide-react"
+import { Plus, Hotel, Bus, Plane, Utensils, Star, Package, AlertTriangle, Calendar, List, LayoutGrid, Ticket } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { BookingDrawer } from "./booking-drawer"
+import { BookingDrawer, type BookingSaveInput } from "./booking-drawer"
 import { TransportDrawer } from "./transport-drawer"
+import { BookingCardView } from "./booking-card-view"
 import { createClient } from "@/lib/supabase/client"
 import { deadlineUrgency, deadlineLabel, daysUntilBooking } from "@/lib/booking-urgency"
 import type { Booking } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-const TYPE_META: Record<Booking["type"], { label: string; icon: typeof Hotel }> = {
-  hotel:      { label: "Hotel",       icon: Hotel },
-  flight:     { label: "Flight",      icon: Plane },
-  transport:  { label: "Transport",   icon: Bus },
-  other:      { label: "Other",       icon: Ticket },
-  restaurant: { label: "Restaurant",  icon: Utensils },
-  experience: { label: "Experience",  icon: Star },
+function getBookingTypeLabel(booking: Booking): string {
+  if (booking.type === "transport") {
+    const d = (booking.details ?? {}) as Record<string, unknown>
+    return d.transport_type === "flight" ? "Flight" : "Transport"
+  }
+  const labels: Record<Booking["type"], string> = {
+    accommodation: "Accommodation",
+    transport: "Transport",
+    dining: "Dining",
+    activities: "Activity",
+    other: "Other",
+  }
+  return labels[booking.type] ?? "Other"
 }
+
+function getBookingIcon(booking: Booking) {
+  if (booking.type === "transport") {
+    const d = (booking.details ?? {}) as Record<string, unknown>
+    return d.transport_type === "flight" ? Plane : Bus
+  }
+  const icons: Record<Booking["type"], typeof Hotel> = {
+    accommodation: Hotel,
+    transport: Bus,
+    dining: Utensils,
+    activities: Star,
+    other: Package,
+  }
+  return icons[booking.type] ?? Package
+}
+
+const EXPENSE_CATEGORY_MAP = {
+  accommodation: "accommodation",
+  transport: "transport",
+  dining: "food",
+  activities: "activities",
+  other: "other",
+} as const
 
 function getTimeBlock(time: string): "morning" | "afternoon" | "night" {
   const hour = parseInt(time.slice(0, 2), 10)
@@ -46,16 +76,14 @@ export function BookingsList({
 }) {
   const [bookings, setBookings] = useState(initialBookings)
   const [filter, setFilter] = useState<string>("all")
+  const [view, setView] = useState<"list" | "card">("list")
   const [open, setOpen] = useState<Booking | "new" | null>(null)
 
   const isTransportOpen =
     open !== null &&
     (open === "new"
-      ? filter === "transport" || filter === "flight"
-      : open.type === "transport" || open.type === "flight")
-
-  const defaultTransportType: "transport" | "flight" =
-    open === "new" && filter === "flight" ? "flight" : "transport"
+      ? filter === "transport"
+      : open.type === "transport")
 
   const transportBooking =
     open !== null && open !== "new" && isTransportOpen ? open : null
@@ -65,36 +93,43 @@ export function BookingsList({
     [bookings, filter],
   )
 
-  async function handleSave(input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string }) {
+  async function handleSave(input: BookingSaveInput) {
     const supabase = createClient()
+    const { trackInCosts, ...bookingData } = input
 
-    const isLinked = !!(input.details as Record<string, unknown> | null)?.activity_id
-    if (!isLinked && input.booking_date && tripStart && tripEnd) {
-      if (input.booking_date < tripStart || input.booking_date > tripEnd) {
+    const isLinked = !!(bookingData.details as Record<string, unknown> | null)?.activity_id
+    if (!isLinked && bookingData.booking_date && tripStart && tripEnd) {
+      if (bookingData.booking_date < tripStart || bookingData.booking_date > tripEnd) {
         throw new Error("Invalid booking date: outside trip range")
       }
     }
 
-    if (input.id) {
+    if (bookingData.id) {
       const { error } = await supabase
         .from("bookings")
         .update({
-          type: input.type,
-          title: input.title,
-          details: input.details,
-          amount: input.amount,
-          currency: input.currency,
-          payment_status: input.payment_status,
-          cancellation_deadline: input.cancellation_deadline,
-          booking_date: input.booking_date,
+          type: bookingData.type,
+          title: bookingData.title,
+          details: bookingData.details,
+          amount: bookingData.amount,
+          currency: bookingData.currency,
+          payment_status: bookingData.payment_status,
+          cancellation_deadline: bookingData.cancellation_deadline,
+          booking_date: bookingData.booking_date,
+          confirmation_number: bookingData.confirmation_number,
+          booking_url: bookingData.booking_url,
+          check_in_time: bookingData.check_in_time,
+          check_out_time: bookingData.check_out_time,
+          departure_time: bookingData.departure_time,
+          arrival_time: bookingData.arrival_time,
         })
-        .eq("id", input.id)
+        .eq("id", bookingData.id)
       if (error) throw error
 
-      const editDetails = (input.details ?? {}) as Record<string, unknown>
+      const editDetails = (bookingData.details ?? {}) as Record<string, unknown>
       const editActivityId = editDetails.activity_id as string | undefined
       if (editActivityId) {
-        if (input.type === "restaurant") {
+        if (bookingData.type === "dining") {
           const datetime = (editDetails.datetime as string) ?? ""
           const dayDate = datetime ? datetime.slice(0, 10) : null
           const startTime = datetime ? datetime.slice(11, 16) : null
@@ -102,7 +137,7 @@ export function BookingsList({
           await supabase
             .from("activities")
             .update({
-              title: input.title,
+              title: bookingData.title,
               location: (editDetails.location as string | null) ?? null,
               day_date: dayDate,
               time_block: timeBlock,
@@ -112,20 +147,22 @@ export function BookingsList({
         } else {
           await supabase
             .from("activities")
-            .update({ title: input.title, cost_amount: input.amount })
+            .update({ title: bookingData.title, cost_amount: bookingData.amount })
             .eq("id", editActivityId)
         }
       }
 
       setBookings((prev) =>
-        prev.map((b) => (b.id === input.id ? ({ ...b, ...input, id: input.id! } as Booking) : b)),
+        prev.map((b) =>
+          b.id === bookingData.id ? ({ ...b, ...bookingData, id: bookingData.id! } as Booking) : b,
+        ),
       )
       toast.success("Booking updated")
     } else {
-      let bookingDetails = input.details
+      let bookingDetails = bookingData.details
 
-      if (input.type === "restaurant") {
-        const d = (input.details ?? {}) as Record<string, unknown>
+      if (bookingData.type === "dining") {
+        const d = (bookingData.details ?? {}) as Record<string, unknown>
         const datetime = (d.datetime as string) ?? ""
         const dayDate = datetime ? datetime.slice(0, 10) : null
         const startTime = datetime ? datetime.slice(11, 16) : null
@@ -138,7 +175,7 @@ export function BookingsList({
             day_date: dayDate,
             time_block: timeBlock,
             position: 999,
-            title: input.title,
+            title: bookingData.title,
             location: (d.location as string | null) ?? null,
             start_time: startTime,
             end_time: null,
@@ -156,20 +193,41 @@ export function BookingsList({
 
       const { data, error } = await supabase
         .from("bookings")
-        .insert({ ...input, trip_id: tripId, details: bookingDetails })
+        .insert({
+          ...bookingData,
+          trip_id: tripId,
+          details: bookingDetails,
+        })
         .select()
         .single()
       if (error || !data) throw error ?? new Error("Insert failed")
 
-      if (input.type === "restaurant") {
+      if (bookingData.type === "dining") {
         const activityId = (bookingDetails as Record<string, unknown> | null)?.activity_id as string | undefined
         if (activityId) {
           await supabase.from("activities").update({ booking_id: (data as Booking).id }).eq("id", activityId)
         }
       }
 
+      // Create linked expense if requested
+      if (trackInCosts && bookingData.amount) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          await supabase.from("expenses").insert({
+            trip_id: tripId,
+            booking_id: (data as Booking).id,
+            amount: bookingData.amount,
+            currency: bookingData.currency ?? currency,
+            category: EXPENSE_CATEGORY_MAP[bookingData.type as keyof typeof EXPENSE_CATEGORY_MAP] ?? "other",
+            date: bookingData.booking_date ?? new Date().toISOString().slice(0, 10),
+            description: bookingData.title,
+            paid_by_user_id: user.id,
+          })
+        }
+      }
+
       setBookings((prev) => [data as Booking, ...prev])
-      toast.success("Booking added")
+      toast.success(trackInCosts && bookingData.amount ? "Booking added and expense created" : "Booking added")
     }
   }
 
@@ -186,7 +244,7 @@ export function BookingsList({
     }
     const linkedActivityId = (deletedBooking?.details as Record<string, unknown> | null)?.activity_id as string | undefined
     if (linkedActivityId) {
-      if (deletedBooking?.type === "restaurant") {
+      if (deletedBooking?.type === "dining") {
         await supabase.from("activities").delete().eq("id", linkedActivityId)
       } else {
         await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
@@ -205,13 +263,12 @@ export function BookingsList({
           className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-1"
         >
           {[
-            { v: "all",        l: "All" },
-            { v: "hotel",      l: "Hotels" },
-            { v: "flight",     l: "Flights" },
-            { v: "transport",  l: "Transport" },
-            { v: "restaurant", l: "Restaurant" },
-            { v: "experience", l: "Experiences" },
-            { v: "other",      l: "Other" },
+            { v: "all",           l: "All" },
+            { v: "accommodation", l: "Accommodation" },
+            { v: "transport",     l: "Transport" },
+            { v: "dining",        l: "Dining" },
+            { v: "activities",    l: "Activities" },
+            { v: "other",         l: "Other" },
           ].map((t) => (
             <ToggleGroupItem
               key={t.v}
@@ -223,10 +280,44 @@ export function BookingsList({
           ))}
         </ToggleGroup>
 
-        <Button className="rounded-xl" onClick={() => setOpen("new")}>
-          <Plus className="mr-2 h-4 w-4" aria-hidden />
-          Add booking
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex overflow-hidden rounded-xl border border-border">
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              aria-label="List view"
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
+                view === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:bg-secondary",
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("card")}
+              aria-label="Card view"
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
+                view === "card"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:bg-secondary",
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Cards
+            </button>
+          </div>
+
+          <Button className="rounded-xl bg-[#27ba76] text-white hover:bg-[#27ba76]/90" onClick={() => setOpen("new")}>
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Add booking
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -237,32 +328,38 @@ export function BookingsList({
             </EmptyMedia>
             <EmptyTitle className="font-serif text-2xl">No bookings yet</EmptyTitle>
             <EmptyDescription className="max-w-md">
-              Track hotels, flights, and reservations in one place — with payment status and cancellation alerts.
+              Track accommodation, transport, dining, and activities in one place — with payment status and cancellation alerts.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
+      ) : view === "card" ? (
+        <BookingCardView
+          bookings={filtered}
+          onEdit={(b) => setOpen(b)}
+          onDelete={handleDelete}
+        />
       ) : (
         <Card className="rounded-2xl border-border">
           <ul className="divide-y divide-border">
             {filtered.map((b) => {
-              const Icon = TYPE_META[b.type].icon
+              const Icon = getBookingIcon(b)
               const urgency = deadlineUrgency(b.cancellation_deadline)
               const dlLabel = deadlineLabel(b.cancellation_deadline)
               const daysAway = daysUntilBooking(b.booking_date)
               const upcoming = daysAway !== null && daysAway <= 7
 
-              const restaurantDetails =
-                b.type === "restaurant" ? ((b.details ?? {}) as Record<string, unknown>) : null
-              const restaurantSubtitle = restaurantDetails
+              const diningDetails =
+                b.type === "dining" ? ((b.details ?? {}) as Record<string, unknown>) : null
+              const diningSubtitle = diningDetails
                 ? [
-                    restaurantDetails.datetime
-                      ? new Date(restaurantDetails.datetime as string).toLocaleString(undefined, {
+                    diningDetails.datetime
+                      ? new Date(diningDetails.datetime as string).toLocaleString(undefined, {
                           dateStyle: "medium",
                           timeStyle: "short",
                         })
                       : null,
-                    restaurantDetails.party_size != null
-                      ? `${restaurantDetails.party_size} guests`
+                    diningDetails.party_size != null
+                      ? `${diningDetails.party_size} guests`
                       : null,
                   ]
                     .filter(Boolean)
@@ -278,7 +375,6 @@ export function BookingsList({
                     urgency !== "critical" && upcoming && "bg-sky-50/30 dark:bg-sky-950/10",
                   )}
                 >
-                  {/* Left accent stripe */}
                   {(urgency === "critical" || upcoming) && (
                     <span
                       aria-hidden
@@ -301,10 +397,12 @@ export function BookingsList({
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="font-medium leading-snug">{b.title}</div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                        <span className="capitalize">{TYPE_META[b.type].label}</span>
-                        {restaurantSubtitle && <span>{restaurantSubtitle}</span>}
+                        <span>{getBookingTypeLabel(b)}</span>
+                        {b.confirmation_number && (
+                          <span className="font-mono">#{b.confirmation_number}</span>
+                        )}
+                        {diningSubtitle && <span>{diningSubtitle}</span>}
 
-                        {/* Upcoming chip */}
                         {upcoming && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400">
                             <Calendar className="h-2.5 w-2.5" aria-hidden />
@@ -312,7 +410,6 @@ export function BookingsList({
                           </span>
                         )}
 
-                        {/* Deadline indicator */}
                         {urgency === "critical" && dlLabel && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -352,7 +449,7 @@ export function BookingsList({
 
       <BookingDrawer
         open={open !== null && !isTransportOpen}
-        booking={open === "new" || isTransportOpen ? null : open}
+        booking={open === "new" || isTransportOpen ? null : (open as Booking | null)}
         currency={currency}
         tripStart={tripStart}
         tripEnd={tripEnd}
@@ -364,7 +461,6 @@ export function BookingsList({
       <TransportDrawer
         open={isTransportOpen}
         booking={transportBooking}
-        defaultType={defaultTransportType}
         currency={currency}
         tripStart={tripStart}
         tripEnd={tripEnd}
@@ -379,7 +475,7 @@ export function BookingsList({
 function PaymentBadge({ status }: { status: Booking["payment_status"] }) {
   const styles =
     status === "paid" || status === "confirmed"
-      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+      ? "bg-[#27ba76]/15 text-[#27ba76] border border-[#27ba76]/30"
       : status === "partial"
         ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
         : status === "cancelled"

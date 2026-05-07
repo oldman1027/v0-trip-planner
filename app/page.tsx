@@ -26,12 +26,11 @@ function fmtMoney(amount: number, currency: string) {
 }
 
 const BOOKING_META: Record<Booking["type"], { label: string; icon: React.ElementType }> = {
-  hotel: { label: "Hotel", icon: Hotel },
-  flight: { label: "Flight", icon: Plane },
-  transport: { label: "Transport", icon: Bus },
-  other: { label: "Other", icon: Ticket },
-  restaurant: { label: "Restaurant", icon: Utensils },
-  experience: { label: "Experience", icon: Star },
+  accommodation: { label: "Accommodation", icon: Hotel },
+  transport:     { label: "Transport",     icon: Bus },
+  dining:        { label: "Dining",        icon: Utensils },
+  activities:    { label: "Activity",      icon: Star },
+  other:         { label: "Other",         icon: Ticket },
 }
 
 // ─── page ──────────────────────────────────────────────────────────────────

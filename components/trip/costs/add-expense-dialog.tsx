@@ -168,13 +168,13 @@ export function AddExpenseDialog({
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
-        <SheetHeader className="mb-6">
+        <SheetHeader className="border-b border-border px-6 pb-4 pt-6">
           <SheetTitle className="font-serif text-2xl">
             {expense ? "Edit Expense" : "Add Expense"}
           </SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 pb-8 pt-6">
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Description</label>
