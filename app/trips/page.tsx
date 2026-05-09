@@ -2,6 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Plus } from "lucide-react"
 import { AppHeader } from "@/components/app-header"
+import { NotificationsPopover } from "@/components/notifications-popover"
 import { Button } from "@/components/ui/button"
 import { TripCard } from "@/components/trips/trip-card"
 import { TripsEmpty } from "@/components/trips/trips-empty"
@@ -34,7 +35,9 @@ export default async function TripsPage() {
 
   return (
     <div className="min-h-svh">
-      <AppHeader />
+      <AppHeader>
+        <NotificationsPopover />
+      </AppHeader>
 
       <main className="mx-auto w-full max-w-6xl px-6 py-10">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">

@@ -9,9 +9,11 @@ import type { Trip } from "@/lib/types"
 export function TripHeader({
   trip,
   totalBudget = 0,
+  isOwner = false,
 }: {
   trip: Trip
   totalBudget?: number
+  isOwner?: boolean
 }) {
   const cover =
     trip.cover_image_url ??
@@ -76,7 +78,7 @@ export function TripHeader({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <TripHeroActions trip={trip} />
+              <TripHeroActions trip={trip} isOwner={isOwner} />
               <TripActionsMenu trip={trip} isSample={trip.is_sample} />
             </div>
           </div>

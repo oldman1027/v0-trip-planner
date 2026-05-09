@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation"
 import { AppHeader } from "@/components/app-header"
 import { TripHeader } from "@/components/trip/trip-header"
 import { TripTabs } from "@/components/trip/trip-tabs"
+import { NotificationsPopover } from "@/components/notifications-popover"
 import { createClient } from "@/lib/supabase/server"
 import type { Trip } from "@/lib/types"
 
@@ -19,9 +20,15 @@ export default async function TripLayout({
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [{ data: trip }, { data: bookings }] = await Promise.all([
+  const [{ data: trip }, { data: bookings }, { data: membership }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle(),
     supabase.from("bookings").select("id, amount").eq("trip_id", id),
+    supabase
+      .from("trip_members")
+      .select("role")
+      .eq("trip_id", id)
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ])
   if (!trip) notFound()
 
@@ -29,11 +36,14 @@ export default async function TripLayout({
     (sum: number, b: { amount: number | null }) => sum + (b.amount ?? 0),
     0,
   )
+  const isOwner = membership?.role === "owner"
 
   return (
     <div className="min-h-svh">
-      <AppHeader />
-      <TripHeader trip={trip as Trip} totalBudget={totalBudget} />
+      <AppHeader>
+        <NotificationsPopover />
+      </AppHeader>
+      <TripHeader trip={trip as Trip} totalBudget={totalBudget} isOwner={isOwner} />
       <TripTabs tripId={id} />
       <main className="w-full px-4 pb-16 pt-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">{children}</div>

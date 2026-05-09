@@ -9,6 +9,7 @@ const TABS = [
   { label: "Overview", slug: "overview" },
   { label: "Bookings", slug: "bookings" },
   { label: "Costs", slug: "costs" },
+  { label: "Group", slug: "group" },
 ]
 
 export function TripTabs({ tripId }: { tripId: string }) {
@@ -16,8 +17,9 @@ export function TripTabs({ tripId }: { tripId: string }) {
   const base = `/trips/${tripId}`
 
   return (
-    <div className="mt-6 w-full px-6">
-      <nav className="flex items-center gap-1 overflow-x-auto border-b border-border" aria-label="Trip sections">
+    <div className="mt-6 w-full border-b border-border">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Trip sections">
         {TABS.map((t) => {
           const href = t.slug ? `${base}/${t.slug}` : base
           const active = t.slug ? pathname === href || pathname.startsWith(href + "/") : pathname === base
@@ -37,7 +39,8 @@ export function TripTabs({ tripId }: { tripId: string }) {
             </Link>
           )
         })}
-      </nav>
+        </nav>
+      </div>
     </div>
   )
 }

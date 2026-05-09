@@ -20,6 +20,8 @@ export type TripMember = {
   user_id: string
   role: "owner" | "editor" | "viewer"
   joined_at: string
+  last_activity_at?: string | null
+  invited_by_user_id?: string | null
   profile?: Profile
 }
 
@@ -125,3 +127,25 @@ export type TripBudget = {
 }
 
 export type MemberWithProfile = Omit<TripMember, "profile"> & { profile: Profile | null }
+
+export type TripShareLink = {
+  id: string
+  trip_id: string
+  token: string
+  created_by_user_id: string
+  created_at: string
+  last_used_at: string | null
+  use_count: number
+}
+
+export type Notification = {
+  id: string
+  user_id: string
+  type: string
+  title: string
+  message: string
+  link: string | null
+  read: boolean
+  created_at: string
+  metadata: Record<string, unknown> | null
+}

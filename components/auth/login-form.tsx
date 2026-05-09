@@ -10,7 +10,7 @@ import { Mail, Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { getAuthCallbackUrl } from "@/lib/auth-url"
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -22,10 +22,13 @@ export function LoginForm() {
     setError(null)
     try {
       const supabase = createClient()
+      const callbackUrl = next
+        ? `${getAuthCallbackUrl()}?next=${encodeURIComponent(next)}`
+        : getAuthCallbackUrl()
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: getAuthCallbackUrl(),
+          emailRedirectTo: callbackUrl,
         },
       })
       if (signInError) throw signInError
