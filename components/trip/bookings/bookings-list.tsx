@@ -258,21 +258,21 @@ export function BookingsList({
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { v: "all",           l: "All" },
-            { v: "accommodation", l: "🏨 Accommodation" },
-            { v: "transport",     l: "✈️ Transport" },
-            { v: "dining",        l: "🍽️ Dining" },
-            { v: "activities",    l: "🎭 Activities" },
-            { v: "other",         l: "📦 Other" },
+            { v: "accommodation", l: "Accommodation" },
+            { v: "transport",     l: "Transport" },
+            { v: "dining",        l: "Dining" },
+            { v: "activities",    l: "Activities" },
+            { v: "other",         l: "Other" },
           ].map((t) => (
             <button
               key={t.v}
               type="button"
               onClick={() => setFilter(t.v)}
               className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
+                "rounded-full border px-4 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
                 filter === t.v
-                  ? "bg-teal-500 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700",
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
               )}
             >
               {t.l}

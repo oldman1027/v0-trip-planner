@@ -9,7 +9,6 @@ const TABS = [
   { label: "Overview", slug: "overview" },
   { label: "Bookings", slug: "bookings" },
   { label: "Costs", slug: "costs" },
-  { label: "Group", slug: "group" },
 ]
 
 export function TripTabs({ tripId }: { tripId: string }) {

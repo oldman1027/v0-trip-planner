@@ -46,7 +46,7 @@ const CAT_LABELS: Record<string, string> = {
   all:           "All",
   accommodation: "Accommodation",
   transport:     "Transport",
-  food:          "Food",
+  food:          "Dining",
   activities:    "Activities",
   other:         "Other",
 }
