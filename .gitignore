@@ -22,3 +22,6 @@ node_modules
 *.rtf
 *.backup
 .env.local
+
+# Supabase local config
+supabase/.temp/
