@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import { Plus, Hotel, Bus, Plane, Utensils, Star, Package, AlertTriangle, Calendar, List, LayoutGrid, Ticket } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BookingDrawer, type BookingSaveInput } from "./booking-drawer"
@@ -256,29 +255,30 @@ export function BookingsList({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleGroup
-          type="single"
-          value={filter}
-          onValueChange={(v) => v && setFilter(v)}
-          className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-1"
-        >
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { v: "all",           l: "All" },
-            { v: "accommodation", l: "Accommodation" },
-            { v: "transport",     l: "Transport" },
-            { v: "dining",        l: "Dining" },
-            { v: "activities",    l: "Activities" },
-            { v: "other",         l: "Other" },
+            { v: "accommodation", l: "🏨 Accommodation" },
+            { v: "transport",     l: "✈️ Transport" },
+            { v: "dining",        l: "🍽️ Dining" },
+            { v: "activities",    l: "🎭 Activities" },
+            { v: "other",         l: "📦 Other" },
           ].map((t) => (
-            <ToggleGroupItem
+            <button
               key={t.v}
-              value={t.v}
-              className="rounded-lg px-3 py-1.5 text-sm data-[state=on]:bg-secondary data-[state=on]:text-primary"
+              type="button"
+              onClick={() => setFilter(t.v)}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
+                filter === t.v
+                  ? "bg-teal-500 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700",
+              )}
             >
               {t.l}
-            </ToggleGroupItem>
+            </button>
           ))}
-        </ToggleGroup>
+        </div>
 
         <div className="flex items-center gap-2">
           {/* View toggle */}

@@ -16,7 +16,7 @@ import { formatDayLabel } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-type DrawerType = "accommodation" | "dining" | "activities" | "other"
+type DrawerType = "accommodation" | "transport" | "dining" | "activities" | "other"
 
 export type BookingSaveInput = Omit<Booking, "id" | "trip_id" | "created_at"> & {
   id?: string
@@ -65,6 +65,7 @@ export function BookingDrawer({
   const [deadline, setDeadline] = useState("")
   const [notes, setNotes] = useState("")
   const [trackInCosts, setTrackInCosts] = useState(false)
+  const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -150,6 +151,7 @@ export function BookingDrawer({
       setDeadline("")
       setNotes("")
       setTrackInCosts(false)
+      setSelectedCurrency("THB")
     }
   }, [booking, open])
 
@@ -168,6 +170,12 @@ export function BookingDrawer({
         ? "Booking date must be within trip dates"
         : null
       : null
+
+  function convertToTHB(value: string): number | null {
+    if (!value) return null
+    const num = Number(value)
+    return selectedCurrency === "MYR" ? num * 7.69 : num
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -222,7 +230,7 @@ export function BookingDrawer({
         type,
         title: effectiveTitle,
         details: effectiveDetails,
-        amount: amount ? Number(amount) : null,
+        amount: convertToTHB(amount),
         currency: booking?.currency ?? currency,
         payment_status: status,
         cancellation_deadline: deadline ? new Date(deadline + "T23:59:00").toISOString() : null,
@@ -287,8 +295,9 @@ export function BookingDrawer({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="accommodation">🏨 Accommodation</SelectItem>
+                    <SelectItem value="transport">✈️ Transport</SelectItem>
                     <SelectItem value="dining">🍽️ Dining</SelectItem>
-                    <SelectItem value="activities">🎯 Activities</SelectItem>
+                    <SelectItem value="activities">🎭 Activities</SelectItem>
                     <SelectItem value="other">📦 Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -541,17 +550,52 @@ export function BookingDrawer({
               {/* ── Shared: amount + status ── */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
-                  <FieldLabel htmlFor="amount">Amount ({currency})</FieldLabel>
-                  <Input
-                    id="amount"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="rounded-xl"
-                  />
+                  <FieldLabel htmlFor="amount">Amount ({selectedCurrency})</FieldLabel>
+                  <div className="relative">
+                    <Input
+                      id="amount"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="rounded-xl pr-24"
+                    />
+                    <div className="absolute right-1 top-1/2 flex -translate-y-1/2 overflow-hidden rounded-lg border border-border">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCurrency("THB")}
+                        className={cn(
+                          "px-2 py-1 text-xs font-medium transition-colors",
+                          selectedCurrency === "THB"
+                            ? "bg-teal-500 text-white"
+                            : "bg-card text-muted-foreground hover:bg-secondary",
+                        )}
+                      >
+                        THB
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCurrency("MYR")}
+                        className={cn(
+                          "px-2 py-1 text-xs font-medium transition-colors",
+                          selectedCurrency === "MYR"
+                            ? "bg-teal-500 text-white"
+                            : "bg-card text-muted-foreground hover:bg-secondary",
+                        )}
+                      >
+                        MYR
+                      </button>
+                    </div>
+                  </div>
+                  {amount && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {selectedCurrency === "THB"
+                        ? `≈ MYR ${(Number(amount) * 0.13).toFixed(2)}`
+                        : `≈ THB ${(Number(amount) * 7.69).toFixed(0)}`}
+                    </p>
+                  )}
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="status">{isDining ? "Reservation" : "Payment"}</FieldLabel>
