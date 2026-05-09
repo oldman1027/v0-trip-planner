@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import type { Expense, MemberWithProfile } from "@/lib/types"
+import type { Expense, ExpenseParticipant, MemberWithProfile } from "@/lib/types"
 
 const CATEGORY_META: Record<string, { icon: string; label: string }> = {
   accommodation: { icon: "🏨", label: "Accommodation" },
@@ -29,6 +29,7 @@ function fmt(amount: number, currency: string) {
 function ExpenseItem({
   expense,
   members,
+  participants,
   currency,
   onEdit,
   onDelete,
@@ -36,6 +37,7 @@ function ExpenseItem({
 }: {
   expense: Expense
   members: MemberWithProfile[]
+  participants: ExpenseParticipant[]
   currency: string
   onEdit: () => void
   onDelete: () => void
@@ -43,9 +45,12 @@ function ExpenseItem({
 }) {
   const [expanded, setExpanded] = useState(false)
 
-  const memberMap = new Map(members.map((m) => [m.user_id, m]))
-  const payer = memberMap.get(expense.paid_by_user_id)
-  const payerName = payer?.profile?.full_name ?? "Someone"
+  const memberMap      = new Map(members.map((m) => [m.user_id, m]))
+  const participantMap = new Map(participants.map((p) => [p.id, p]))
+
+  const payerName = expense.paid_by_participant_id
+    ? (participantMap.get(expense.paid_by_participant_id)?.name ?? "Someone")
+    : (memberMap.get(expense.paid_by_user_id ?? "")?.profile?.full_name ?? "Someone")
   const splits = expense.splits ?? []
   const hasSplits = splits.length > 0
   const isFromBooking = !!expense.booking_id
@@ -146,8 +151,9 @@ function ExpenseItem({
           </p>
           <div className="flex flex-col gap-2">
             {splits.map((split) => {
-              const m = memberMap.get(split.user_id)
-              const name = m?.profile?.full_name ?? "Unknown"
+              const name = split.participant_id
+                ? (participantMap.get(split.participant_id)?.name ?? "Unknown")
+                : (memberMap.get(split.user_id ?? "")?.profile?.full_name ?? "Unknown")
               const initials = name[0]?.toUpperCase() ?? "?"
               return (
                 <div key={split.id} className="flex items-center gap-3 text-sm">
@@ -185,6 +191,7 @@ function ExpenseItem({
 export function ExpenseList({
   expenses,
   members,
+  participants,
   currency,
   onEdit,
   onDelete,
@@ -192,6 +199,7 @@ export function ExpenseList({
 }: {
   expenses: Expense[]
   members: MemberWithProfile[]
+  participants: ExpenseParticipant[]
   currency: string
   onEdit: (expense: Expense) => void
   onDelete: (id: string) => void
@@ -229,6 +237,7 @@ export function ExpenseList({
               key={e.id}
               expense={e}
               members={members}
+              participants={participants}
               currency={currency}
               onEdit={() => onEdit(e)}
               onDelete={() => onDelete(e.id)}

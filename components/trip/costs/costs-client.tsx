@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BudgetCards } from "./budget-cards"
 import { ExpenseList } from "./expense-list"
 import { AddExpenseDialog } from "./add-expense-dialog"
+import { ManageParticipantsDialog } from "./manage-participants-dialog"
+import { SettlementSummary } from "./settlement-summary"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -17,6 +19,7 @@ import type {
   ExpenseSplit,
   TripBudget,
   MemberWithProfile,
+  ExpenseParticipant,
 } from "@/lib/types"
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -62,7 +65,7 @@ function fmt(amount: number, currency: string) {
   }
 }
 
-// ── Who Owes Whom ──────────────────────────────────────────────────────────
+// ── Who Owes Whom (auth-user mode) ─────────────────────────────────────────
 
 function OweSummary({
   expenses,
@@ -73,11 +76,12 @@ function OweSummary({
   members: MemberWithProfile[]
   currency: string
 }) {
-  // Build gross debts: ower → owee → total
   const gross = new Map<string, Map<string, number>>()
 
   for (const expense of expenses) {
+    if (!expense.paid_by_user_id) continue
     for (const split of expense.splits ?? []) {
+      if (!split.user_id) continue
       if (split.paid) continue
       if (split.user_id === expense.paid_by_user_id) continue
       const ower = split.user_id
@@ -88,7 +92,6 @@ function OweSummary({
     }
   }
 
-  // Simplify: net each A↔B pair
   const settled: Array<{ from: string; to: string; amount: number }> = []
   const seen = new Set<string>()
 
@@ -147,6 +150,7 @@ export function CostsClient({
   members,
   initialBookings,
   currentUserId,
+  initialParticipants,
 }: {
   trip: Trip
   initialExpenses: Expense[]
@@ -154,14 +158,18 @@ export function CostsClient({
   members: MemberWithProfile[]
   initialBookings: Booking[]
   currentUserId: string
+  initialParticipants: ExpenseParticipant[]
 }) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<TripBudget[]>(initialBudgets)
+  const [participants, setParticipants] = useState<ExpenseParticipant[]>(initialParticipants)
   const [catFilter, setCatFilter] = useState<"all" | ExpenseCategory>("all")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [manageMembersOpen, setManageMembersOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
 
   const currency = trip.default_currency ?? "USD"
+  const usingParticipants = participants.length > 0
 
   // ── Auto-populate from bookings on first mount ───────────────────────────
   useEffect(() => {
@@ -204,29 +212,46 @@ export function CostsClient({
     currency: string
     category: ExpenseCategory
     date: string
-    paid_by_user_id: string
+    paid_by_user_id: string | null
+    paid_by_participant_id?: string | null
     splits: { user_id: string; amount: number }[]
+    participant_splits?: { participant_id: string; amount: number }[]
   }) {
     const supabase = createClient()
+    const hasParticipantSplits = (input.participant_splits?.length ?? 0) > 0
 
     if (input.id) {
       const { error } = await supabase
         .from("expenses")
         .update({
-          description:     input.description,
-          amount:          input.amount,
-          currency:        input.currency,
-          category:        input.category,
-          date:            input.date,
-          paid_by_user_id: input.paid_by_user_id,
+          description:            input.description,
+          amount:                 input.amount,
+          currency:               input.currency,
+          category:               input.category,
+          date:                   input.date,
+          paid_by_user_id:        input.paid_by_user_id ?? null,
+          paid_by_participant_id: input.paid_by_participant_id ?? null,
         })
         .eq("id", input.id)
       if (error) throw error
 
-      // Replace splits
       await supabase.from("expense_splits").delete().eq("expense_id", input.id)
+
       let newSplits: ExpenseSplit[] = []
-      if (input.splits.length) {
+      if (hasParticipantSplits) {
+        const { data: sd } = await supabase
+          .from("expense_splits")
+          .insert(
+            input.participant_splits!.map((s) => ({
+              expense_id:     input.id!,
+              participant_id: s.participant_id,
+              user_id:        null,
+              amount:         s.amount,
+            })),
+          )
+          .select()
+        newSplits = (sd ?? []) as ExpenseSplit[]
+      } else if (input.splits.length) {
         const { data: sd } = await supabase
           .from("expense_splits")
           .insert(input.splits.map((s) => ({ expense_id: input.id!, ...s })))
@@ -236,9 +261,7 @@ export function CostsClient({
 
       setExpenses((prev) =>
         prev.map((e) =>
-          e.id === input.id
-            ? { ...e, ...input, splits: newSplits }
-            : e,
+          e.id === input.id ? { ...e, ...input, splits: newSplits } : e,
         ),
       )
       toast.success("Expense updated")
@@ -246,13 +269,14 @@ export function CostsClient({
       const { data, error } = await supabase
         .from("expenses")
         .insert({
-          trip_id:         trip.id,
-          description:     input.description,
-          amount:          input.amount,
-          currency:        input.currency,
-          category:        input.category,
-          date:            input.date,
-          paid_by_user_id: input.paid_by_user_id,
+          trip_id:                trip.id,
+          description:            input.description,
+          amount:                 input.amount,
+          currency:               input.currency,
+          category:               input.category,
+          date:                   input.date,
+          paid_by_user_id:        input.paid_by_user_id ?? null,
+          paid_by_participant_id: input.paid_by_participant_id ?? null,
         })
         .select()
         .single()
@@ -260,7 +284,21 @@ export function CostsClient({
 
       const newExp = data as Expense
       let splits: ExpenseSplit[] = []
-      if (input.splits.length) {
+
+      if (hasParticipantSplits) {
+        const { data: sd } = await supabase
+          .from("expense_splits")
+          .insert(
+            input.participant_splits!.map((s) => ({
+              expense_id:     newExp.id,
+              participant_id: s.participant_id,
+              user_id:        null,
+              amount:         s.amount,
+            })),
+          )
+          .select()
+        splits = (sd ?? []) as ExpenseSplit[]
+      } else if (input.splits.length) {
         const { data: sd } = await supabase
           .from("expense_splits")
           .insert(input.splits.map((s) => ({ expense_id: newExp.id, ...s })))
@@ -342,7 +380,7 @@ export function CostsClient({
         onSetBudget={handleSetBudget}
       />
 
-      {/* Filter bar + Add button */}
+      {/* Filter bar + action buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {ALL_CATEGORIES.map((cat) => (
@@ -362,22 +400,33 @@ export function CostsClient({
           ))}
         </div>
 
-        <Button
-          className="rounded-xl"
-          onClick={() => {
-            setEditingExpense(null)
-            setDialogOpen(true)
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" aria-hidden />
-          Add Expense
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => setManageMembersOpen(true)}
+          >
+            <Users className="mr-2 h-4 w-4" aria-hidden />
+            Members
+          </Button>
+          <Button
+            className="rounded-xl"
+            onClick={() => {
+              setEditingExpense(null)
+              setDialogOpen(true)
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Add Expense
+          </Button>
+        </div>
       </div>
 
       {/* Expense list */}
       <ExpenseList
         expenses={filtered}
         members={members}
+        participants={participants}
         currency={currency}
         onEdit={(e) => {
           setEditingExpense(e)
@@ -387,8 +436,16 @@ export function CostsClient({
         onMarkSplitPaid={handleMarkSplitPaid}
       />
 
-      {/* Who owes whom */}
-      <OweSummary expenses={expenses} members={members} currency={currency} />
+      {/* Who owes whom — participant mode vs auth-user mode */}
+      {usingParticipants ? (
+        <SettlementSummary
+          expenses={expenses}
+          participants={participants}
+          currency={currency}
+        />
+      ) : (
+        <OweSummary expenses={expenses} members={members} currency={currency} />
+      )}
 
       {/* Add / edit dialog */}
       <AddExpenseDialog
@@ -396,12 +453,22 @@ export function CostsClient({
         expense={editingExpense}
         trip={trip}
         members={members}
+        participants={participants}
         currentUserId={currentUserId}
         onClose={() => {
           setDialogOpen(false)
           setEditingExpense(null)
         }}
         onSave={handleSaveExpense}
+      />
+
+      {/* Manage members dialog */}
+      <ManageParticipantsDialog
+        tripId={trip.id}
+        open={manageMembersOpen}
+        participants={participants}
+        onOpenChange={setManageMembersOpen}
+        onParticipantsChange={setParticipants}
       />
     </div>
   )

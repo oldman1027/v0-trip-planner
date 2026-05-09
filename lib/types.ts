@@ -83,6 +83,13 @@ export type Booking = {
 
 export type ExpenseCategory = "accommodation" | "transport" | "food" | "activities" | "other"
 
+export type ExpenseParticipant = {
+  id: string
+  trip_id: string
+  name: string
+  created_at: string
+}
+
 export type Expense = {
   id: string
   trip_id: string
@@ -92,7 +99,8 @@ export type Expense = {
   category: ExpenseCategory
   date: string
   description: string
-  paid_by_user_id: string
+  paid_by_user_id: string | null
+  paid_by_participant_id: string | null
   created_at: string
   splits?: ExpenseSplit[]
 }
@@ -100,9 +108,11 @@ export type Expense = {
 export type ExpenseSplit = {
   id: string
   expense_id: string
-  user_id: string
+  user_id: string | null
+  participant_id: string | null
   amount: number
   paid: boolean
+  settled: boolean
   created_at: string
 }
 
