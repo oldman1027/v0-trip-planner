@@ -45,8 +45,8 @@ export default async function TripLayout({
       </AppHeader>
       <TripHeader trip={trip as Trip} totalBudget={totalBudget} isOwner={isOwner} />
       <TripTabs tripId={id} />
-      <main className="w-full px-4 pb-16 pt-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">{children}</div>
+      <main className="w-full pb-16 pt-4">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">{children}</div>
       </main>
     </div>
   )
