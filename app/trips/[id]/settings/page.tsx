@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card"
 import { CollaboratorsSection } from "@/components/trip/collaborators-section"
 import { createClient } from "@/lib/supabase/server"
 import { daysBetween, formatDayLabel } from "@/lib/dates"
-import { normalizeMembers, type Activity, type Trip } from "@/lib/types"
+import { normalizeMembers, type Activity, type Trip, type TripInvitation } from "@/lib/types"
 
 export default async function TripSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -13,6 +13,7 @@ export default async function TripSettingsPage({ params }: { params: Promise<{ i
     { data: trip },
     { data: membersRaw },
     { data: activities },
+    { data: pendingInvitations },
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from("trips").select("*").eq("id", id).maybeSingle<Trip>(),
@@ -21,6 +22,12 @@ export default async function TripSettingsPage({ params }: { params: Promise<{ i
       .select("trip_id, user_id, role, joined_at, last_activity_at, invited_by_user_id, profile:profiles(id, full_name, avatar_url, created_at)")
       .eq("trip_id", id),
     supabase.from("activities").select("*").eq("trip_id", id),
+    supabase
+      .from("trip_invitations")
+      .select("*")
+      .eq("trip_id", id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
   ])
 
   if (!trip || !user) return null
@@ -69,6 +76,7 @@ export default async function TripSettingsPage({ params }: { params: Promise<{ i
         currentUserId={user.id}
         isOwner={isOwner}
         initialMembers={members}
+        initialPendingInvitations={(pendingInvitations ?? []) as TripInvitation[]}
       />
 
       <div className="flex flex-col gap-6">

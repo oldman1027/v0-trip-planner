@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Crown, LogOut, Trash2, UserPlus } from "lucide-react"
+import { Crown, LogOut, Mail, Trash2, UserPlus, X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { Card } from "@/components/ui/card"
@@ -20,8 +20,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { removeCollaborator, leaveTrip } from "@/lib/supabase/trip-shares"
+import { cancelInvitation } from "@/app/actions/cancel-invitation"
 import { ShareTripDialog } from "./share-trip-dialog"
-import type { MemberWithProfile } from "@/lib/types"
+import type { MemberWithProfile, TripInvitation } from "@/lib/types"
 
 interface CollaboratorsSectionProps {
   tripId: string
@@ -29,6 +30,7 @@ interface CollaboratorsSectionProps {
   currentUserId: string
   isOwner: boolean
   initialMembers: MemberWithProfile[]
+  initialPendingInvitations: TripInvitation[]
 }
 
 export function CollaboratorsSection({
@@ -37,9 +39,11 @@ export function CollaboratorsSection({
   currentUserId,
   isOwner,
   initialMembers,
+  initialPendingInvitations,
 }: CollaboratorsSectionProps) {
   const router = useRouter()
   const [members, setMembers] = useState(initialMembers)
+  const [pendingInvitations, setPendingInvitations] = useState(initialPendingInvitations)
   const [shareOpen, setShareOpen] = useState(false)
   const [pendingRemove, setPendingRemove] = useState<MemberWithProfile | null>(null)
   const [pendingLeave, setPendingLeave] = useState(false)
@@ -69,6 +73,16 @@ export function CollaboratorsSection({
     }
   }
 
+  async function handleCancelInvitation(invitation: TripInvitation) {
+    const result = await cancelInvitation(invitation.id, tripId)
+    if (result.status === "success") {
+      setPendingInvitations((prev) => prev.filter((i) => i.id !== invitation.id))
+      toast.success("Invitation cancelled")
+    } else {
+      toast.error("Failed to cancel invitation")
+    }
+  }
+
   return (
     <>
       <Card className="rounded-2xl border-border lg:col-span-2">
@@ -84,6 +98,7 @@ export function CollaboratorsSection({
         </div>
 
         <ul className="divide-y divide-border">
+          {/* Active members */}
           {members.map((m) => {
             const name = m.profile?.full_name ?? "Unnamed traveler"
             const isCurrentUser = m.user_id === currentUserId
@@ -124,7 +139,6 @@ export function CollaboratorsSection({
                     {m.role}
                   </Badge>
 
-                  {/* Owner can remove non-owner collaborators */}
                   {isOwner && !isCurrentUser && !isThisOwner && (
                     <Button
                       variant="ghost"
@@ -137,7 +151,6 @@ export function CollaboratorsSection({
                     </Button>
                   )}
 
-                  {/* Non-owner can leave */}
                   {!isOwner && isCurrentUser && (
                     <Button
                       variant="ghost"
@@ -154,7 +167,43 @@ export function CollaboratorsSection({
             )
           })}
 
-          {members.length === 0 && (
+          {/* Pending invitations */}
+          {pendingInvitations.map((inv) => (
+            <li key={inv.id} className="flex items-center justify-between gap-4 p-5 opacity-75">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-secondary text-secondary-foreground">
+                    <Mail className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="flex items-center gap-2 font-medium">
+                    {inv.email}
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      Pending
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Invited {formatDistanceToNow(new Date(inv.created_at), { addSuffix: true })}
+                  </div>
+                </div>
+              </div>
+
+              {isOwner && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleCancelInvitation(inv)}
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Cancel invitation</span>
+                </Button>
+              )}
+            </li>
+          ))}
+
+          {members.length === 0 && pendingInvitations.length === 0 && (
             <li className="p-5 text-sm text-muted-foreground">No members yet.</li>
           )}
         </ul>

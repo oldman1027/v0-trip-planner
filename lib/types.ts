@@ -128,6 +128,15 @@ export type TripBudget = {
 
 export type MemberWithProfile = Omit<TripMember, "profile"> & { profile: Profile | null }
 
+export type TripInvitation = {
+  id: string
+  trip_id: string
+  email: string
+  invited_by_user_id: string | null
+  status: "pending" | "accepted"
+  created_at: string
+}
+
 export type TripShareLink = {
   id: string
   trip_id: string
