@@ -7,6 +7,8 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
+import { inviteToTrip } from "@/app/actions/invite-to-trip"
+import { sendNewUserInvitation } from "@/app/actions/send-new-user-invitation"
 
 export function InviteMemberForm({ tripId }: { tripId: string }) {
   const [email, setEmail] = useState("")
@@ -14,15 +16,33 @@ export function InviteMemberForm({ tripId }: { tripId: string }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) return
     setLoading(true)
-    // Phase 2: real invite flow with email + magic links + RLS-safe membership insert.
-    await new Promise((r) => setTimeout(r, 600))
-    toast.success("Invite saved", {
-      description: `We'll email ${email} when invites are wired up.`,
-    })
-    setEmail("")
-    setLoading(false)
-    void tripId
+
+    try {
+      const result = await inviteToTrip(tripId, trimmedEmail)
+      if (result.status === "success") {
+        toast.success(`Invited ${result.memberName}`)
+        setEmail("")
+      } else if (result.status === "not_found") {
+        const emailResult = await sendNewUserInvitation(tripId, trimmedEmail)
+        if (emailResult.status === "success") {
+          toast.success(`Invitation sent to ${trimmedEmail}`)
+          setEmail("")
+        } else {
+          toast.error("No Tripletto account found and email could not be sent")
+        }
+      } else if (result.status === "already_member") {
+        toast.info("That person is already a collaborator")
+      } else if (result.status === "unauthorized") {
+        toast.error("Only the trip owner can invite collaborators")
+      } else {
+        toast.error("Something went wrong — please try again")
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -45,7 +65,7 @@ export function InviteMemberForm({ tripId }: { tripId: string }) {
               className="rounded-xl"
             />
           </Field>
-          <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+          <Button type="submit" className="w-full rounded-xl" disabled={loading || !email.trim()}>
             {loading ? (
               <>
                 <Spinner className="mr-2 size-4" /> Sending...

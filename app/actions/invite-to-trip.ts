@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient, createServiceClient } from "@/lib/supabase/server"
+import { sendTripInvitationEmail } from "@/lib/email"
 
 export type InviteResult =
   | { status: "success"; memberName: string }
@@ -57,14 +58,18 @@ export async function inviteToTrip(tripId: string, email: string): Promise<Invit
   const callerName = callerProfile?.full_name ?? user.email ?? "Someone"
   const tripName = trip?.name ?? "a trip"
 
-  await serviceClient.from("notifications").insert({
-    user_id: targetUserId,
-    type: "trip_invitation",
-    title: "You've been invited to a trip",
-    message: `${callerName} invited you to join "${tripName}"`,
-    link: `/trips/${tripId}/group`,
-    metadata: { trip_id: tripId, invited_by: user.id },
-  })
+  // Fire email and in-app notification concurrently; don't block the response on either
+  await Promise.allSettled([
+    sendTripInvitationEmail({ toEmail: email, inviterName: callerName, tripName, tripId }),
+    serviceClient.from("notifications").insert({
+      user_id: targetUserId,
+      type: "trip_invitation",
+      title: "You've been invited to a trip",
+      message: `${callerName} invited you to join "${tripName}"`,
+      link: `/trips/${tripId}/group`,
+      metadata: { trip_id: tripId, invited_by: user.id },
+    }),
+  ])
 
   revalidatePath(`/trips/${tripId}/group`)
 

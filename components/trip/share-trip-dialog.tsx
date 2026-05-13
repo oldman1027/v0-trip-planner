@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { inviteToTrip } from "@/app/actions/invite-to-trip"
+import { sendNewUserInvitation } from "@/app/actions/send-new-user-invitation"
 import { createOrRefreshShareLink } from "@/app/actions/create-share-link"
 import { getTripShareLink } from "@/lib/supabase/trip-shares"
 
@@ -49,12 +50,20 @@ export function ShareTripDialog({ tripId, tripName, isOwner, open, onOpenChange 
   function handleInvite() {
     if (!email.trim()) return
     startTransition(async () => {
-      const result = await inviteToTrip(tripId, email.trim())
+      const trimmedEmail = email.trim()
+      const result = await inviteToTrip(tripId, trimmedEmail)
       if (result.status === "success") {
         toast.success(`Invited ${result.memberName}`)
         setEmail("")
       } else if (result.status === "not_found") {
-        toast.error("No account found with that email address")
+        // No Tripletto account yet — send a "sign up to join" email
+        const emailResult = await sendNewUserInvitation(tripId, trimmedEmail)
+        if (emailResult.status === "success") {
+          toast.success(`Invitation sent to ${trimmedEmail}`)
+          setEmail("")
+        } else {
+          toast.error("No Tripletto account found and email could not be sent")
+        }
       } else if (result.status === "already_member") {
         toast.info("That person is already a collaborator")
       } else if (result.status === "unauthorized") {
