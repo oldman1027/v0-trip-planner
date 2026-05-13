@@ -41,10 +41,10 @@ type BlockKey = `${string}::${TimeBlock}`
 type ViewMode = "board" | "calendar"
 
 const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
+  { value: "accommodation", label: "Accommodation" },
+  { value: "transport",     label: "Transport" },
   { value: "food",          label: "Dining" },
   { value: "attraction",    label: "Activities" },
-  { value: "transport",     label: "Transport" },
-  { value: "accommodation", label: "Accommodation" },
   { value: "shopping",      label: "Shopping" },
   { value: "entertainment", label: "Entertainment" },
   { value: "other",         label: "Other" },

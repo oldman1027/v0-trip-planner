@@ -15,12 +15,12 @@ import type {
   MemberWithProfile,
 } from "@/lib/types"
 
-const CATEGORIES: { value: ExpenseCategory; icon: string; label: string }[] = [
-  { value: "accommodation", icon: "🏨", label: "Accommodation" },
-  { value: "transport",     icon: "✈️", label: "Transport" },
-  { value: "food",          icon: "🍜", label: "Food" },
-  { value: "activities",    icon: "🎯", label: "Activities" },
-  { value: "other",         icon: "📦", label: "Other" },
+const CATEGORIES: { value: ExpenseCategory; label: string }[] = [
+  { value: "accommodation", label: "Accommodation" },
+  { value: "transport",     label: "Transport" },
+  { value: "food",          label: "Dining" },
+  { value: "activities",    label: "Activities" },
+  { value: "other",         label: "Other" },
 ]
 
 type SplitMode = "none" | "equal" | "custom"
@@ -302,14 +302,13 @@ export function AddExpenseDialog({
                   type="button"
                   onClick={() => setCategory(cat.value)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition-colors",
+                    "rounded-xl border px-3 py-1.5 text-sm transition-colors",
                     category === cat.value
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>{cat.icon}</span>
-                  <span>{cat.label}</span>
+                  {cat.label}
                 </button>
               ))}
             </div>

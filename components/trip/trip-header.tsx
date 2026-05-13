@@ -32,7 +32,7 @@ export function TripHeader({
           className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-6xl px-6 pb-4">
+        <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-6xl px-4 pb-4 sm:px-6 lg:px-8">
           <Link
             href="/trips"
             className="inline-flex items-center gap-1 text-xs text-white/70 transition-colors hover:text-white"
@@ -49,7 +49,7 @@ export function TripHeader({
 
       {/* Sticky info bar */}
       <div className="sticky top-16 z-20 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto w-full max-w-6xl px-6 py-3">
+        <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
               {trip.destination ? (

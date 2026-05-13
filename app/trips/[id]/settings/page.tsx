@@ -24,7 +24,31 @@ export default async function TripSettingsPage({ params }: { params: Promise<{ i
   ])
 
   if (!trip || !user) return null
-  const members = normalizeMembers(membersRaw)
+  let members = normalizeMembers(membersRaw)
+
+  // If the trip creator isn't in trip_members (can happen with older trips),
+  // synthesize an owner entry so the collaborators list is never empty.
+  const creatorInMembers = members.some((m) => m.user_id === trip.created_by)
+  if (!creatorInMembers) {
+    const { data: creatorProfile } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url, created_at")
+      .eq("id", trip.created_by)
+      .maybeSingle()
+    members = [
+      {
+        trip_id: id,
+        user_id: trip.created_by,
+        role: "owner" as const,
+        joined_at: trip.created_at,
+        last_activity_at: null,
+        invited_by_user_id: null,
+        profile: creatorProfile ?? null,
+      },
+      ...members,
+    ]
+  }
+
   const isOwner = members.find((m) => m.user_id === user.id)?.role === "owner"
 
   const days = daysBetween(trip.start_date, trip.end_date)
