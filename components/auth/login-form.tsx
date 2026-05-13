@@ -10,11 +10,18 @@ import { Mail, Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { getAuthCallbackUrl } from "@/lib/auth-url"
 
-export function LoginForm({ next }: { next?: string }) {
+const ERROR_MESSAGES: Record<string, string> = {
+  auth_failed: "Sign-in link has expired or was already used. Please request a new one.",
+  no_code: "Invalid sign-in link. Please request a new one.",
+}
+
+export function LoginForm({ next, initialError }: { next?: string; initialError?: string }) {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(
+    initialError ? (ERROR_MESSAGES[initialError] ?? "Sign-in failed. Please try again.") : null,
+  )
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()

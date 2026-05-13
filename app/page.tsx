@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { differenceInDays } from "date-fns"
@@ -35,7 +36,19 @@ const BOOKING_META: Record<Booking["type"], { label: string; icon: React.Element
 
 // ─── page ──────────────────────────────────────────────────────────────────
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>
+}) {
+  const params = await searchParams
+
+  // If a PKCE code lands at / instead of /auth/callback, forward it.
+  if (params.code) {
+    const qs = new URLSearchParams(params).toString()
+    redirect(`/auth/callback?${qs}`)
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

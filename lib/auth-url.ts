@@ -11,14 +11,19 @@ export function getSiteUrl(): string {
     return process.env.NEXT_PUBLIC_SITE_URL
   }
 
-  // Fallback to Vercel URL for preview/staging
+  // Fallback to Vercel URL for preview/staging (server-side only)
   const vercelUrl = process.env.VERCEL_URL
   if (vercelUrl) {
-    const protocol = process.env.VERCEL_ENV === "production" ? "https" : "https"
-    return `${protocol}://${vercelUrl}`
+    return `https://${vercelUrl}`
   }
 
-  // Local development
+  // In the browser, use the current origin so the callback URL matches
+  // the domain the user is actually on — avoids localhost leaking into production.
+  if (typeof window !== "undefined") {
+    return window.location.origin
+  }
+
+  // Local development server-side fallback
   return "http://localhost:3000"
 }
 
