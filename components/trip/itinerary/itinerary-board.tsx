@@ -16,7 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { Calendar, LayoutGrid, Plus } from "lucide-react"
+import { Calendar, Eye, EyeOff, LayoutGrid, MapPin, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DaySidebar } from "./day-sidebar"
 import { TimeBlockColumn } from "./time-block-column"
@@ -86,6 +86,8 @@ export function ItineraryBoard({
   const [calendarSelectedId, setCalendarSelectedId] = useState<string | null>(null)
   const [calendarBookingOpen, setCalendarBookingOpen] = useState(false)
   const [calendarTransportOpen, setCalendarTransportOpen] = useState(false)
+  const [showMap, setShowMap] = useState(true)
+  const [mobileTab, setMobileTab] = useState<"calendar" | "map">("calendar")
 
   const conflicts = useMemo(() => detectConflicts(activities), [activities])
 
@@ -604,66 +606,88 @@ export function ItineraryBoard({
       />
 
       {/* Category filter + view mode toggle — sticky */}
-      <div className="sticky top-0 z-20 -mx-6 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-6 py-2 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          {activeCategories.size > 0 && (
-            <button
-              type="button"
-              onClick={() => setActiveCategories(new Set())}
-              className="rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
-            >
-              All
-            </button>
-          )}
-          {CATEGORY_FILTERS.map((f) => {
-            const active = activeCategories.has(f.value)
-            return (
+      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background shadow-sm">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* "All" is always visible; active when nothing is filtered */}
               <button
-                key={f.value}
                 type="button"
-                onClick={() =>
-                  setActiveCategories((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(f.value)) next.delete(f.value)
-                    else next.add(f.value)
-                    return next
-                  })
-                }
+                onClick={() => setActiveCategories(new Set())}
                 className={cn(
-                  "rounded-full border px-4 py-1.5 text-xs font-medium transition-colors",
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground",
+                  "whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-all",
+                  activeCategories.size === 0
+                    ? "bg-teal-500 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
                 )}
               >
-                {f.label}
+                All
               </button>
-            )
-          })}
-        </div>
-        <div className="flex justify-end">
-        <div className="flex gap-0.5 rounded-xl border border-border bg-card p-0.5">
-          {(["board", "calendar"] as ViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setViewMode(mode)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",
-                viewMode === mode
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+              {CATEGORY_FILTERS.map((f) => {
+                const active = activeCategories.has(f.value)
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() =>
+                      setActiveCategories((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(f.value)) next.delete(f.value)
+                        else next.add(f.value)
+                        return next
+                      })
+                    }
+                    className={cn(
+                      "whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-all",
+                      active
+                        ? "bg-teal-500 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                    )}
+                  >
+                    {f.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              {viewMode === "calendar" && (
+                <button
+                  type="button"
+                  onClick={() => setShowMap((v) => !v)}
+                  className="hidden md:flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+                >
+                  {showMap ? (
+                    <EyeOff className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  {showMap ? "Hide map" : "Show map"}
+                </button>
               )}
-            >
-              {mode === "board" ? (
-                <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-              ) : (
-                <Calendar className="h-3.5 w-3.5" aria-hidden />
-              )}
-              {mode}
-            </button>
-          ))}
-        </div>
+              <div className="flex gap-0.5 rounded-xl border border-border bg-card p-0.5">
+                {(["board", "calendar"] as ViewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                      viewMode === mode
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {mode === "board" ? (
+                      <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <Calendar className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -742,13 +766,50 @@ export function ItineraryBoard({
           <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
         </DndContext>
       ) : (
-        <div
-          className="-mx-6 flex overflow-hidden border-t border-border"
-          style={{ height: "80vh", minHeight: 520 }}
-        >
-          {/* Calendar — left 60%, scrollable */}
-          <div className="min-w-0 flex-[6] overflow-y-auto border-r border-border">
-            <div className="px-4 py-4">
+        <div className="flex flex-col gap-4">
+          {/* Mobile tab switcher — hidden on md+ */}
+          <div className="flex border-b border-border md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileTab("calendar")}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors",
+                mobileTab === "calendar"
+                  ? "border-teal-500 text-teal-600"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Calendar className="h-4 w-4" aria-hidden />
+              Calendar
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab("map")}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors",
+                mobileTab === "map"
+                  ? "border-teal-500 text-teal-600"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <MapPin className="h-4 w-4" aria-hidden />
+              Map
+            </button>
+          </div>
+
+          {/* Calendar + Map: responsive grid on desktop */}
+          <div
+            className={cn(
+              showMap ? "md:grid md:grid-cols-[1fr_420px] md:items-start md:gap-4" : "",
+            )}
+          >
+            {/* Calendar */}
+            <div
+              className={cn(
+                "overflow-x-auto",
+                mobileTab === "map" && "hidden md:block",
+              )}
+            >
               <CalendarView
                 days={days}
                 activities={activities}
@@ -764,18 +825,27 @@ export function ItineraryBoard({
                 onAddTransport={() => setCalendarTransportOpen(true)}
               />
             </div>
-          </div>
 
-          {/* Map — right 40%, fills fixed-height container */}
-          <div className="min-w-0 flex-[4] shrink-0">
-            <TripMap
-              activities={activities}
-              destination={trip.destination ?? null}
-              days={days}
-              selectedActivityId={calendarSelectedId}
-              className="h-full w-full"
-              containerClassName="h-full w-full"
-            />
+            {/* Map — mobile: full-height when map tab active; desktop: sticky panel */}
+            <div
+              className={cn(
+                "hidden",
+                mobileTab === "map" &&
+                  "block h-[60vh] rounded-xl overflow-hidden border border-border",
+                showMap
+                  ? "md:block md:self-start md:sticky md:top-4 md:h-[calc(100vh-220px)] md:rounded-xl md:overflow-hidden md:border md:border-border"
+                  : "md:hidden",
+              )}
+            >
+              <TripMap
+                activities={activities}
+                destination={trip.destination ?? null}
+                days={days}
+                selectedActivityId={calendarSelectedId}
+                className="h-full w-full"
+                containerClassName="h-full w-full"
+              />
+            </div>
           </div>
         </div>
       )}

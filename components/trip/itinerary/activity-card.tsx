@@ -72,7 +72,7 @@ export function ActivityCard({
         disabled={dragging}
       >
         <div className="flex w-full items-start justify-between gap-2">
-          <div className="font-medium leading-tight">{activity.title}</div>
+          <div className="min-w-0 truncate font-medium leading-tight">{activity.title}</div>
           <div className="flex shrink-0 items-center gap-1.5">
             {hasBooking && (
               <span

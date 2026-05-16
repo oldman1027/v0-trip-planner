@@ -53,7 +53,7 @@ const HOURS = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_S
 const SLOT_H = 38        // px per hour  →  18 × 38 = 684 px total
 const SNAP_MINS = 15
 const TIME_COL_W = 52
-const DAY_COL_MIN_W = 100  // narrower so 7 days fit without horizontal scroll
+const DAY_COL_MIN_W = 140  // fixed column width — columns scroll horizontally rather than shrinking
 const BLOCK_HOUR: Record<string, number> = { morning: 7, afternoon: 12, night: 19 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -385,7 +385,7 @@ export function CalendarView({
   // ── Render ─────────────────────────────────────────────────────────────────
   const calendarGrid = (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-      <div style={{ minWidth: TIME_COL_W + days.length * DAY_COL_MIN_W }}>
+      <div className="min-w-max">
 
         {/* Sticky day header */}
         <div className="sticky top-0 z-20 flex border-b border-border bg-card">
@@ -393,13 +393,13 @@ export function CalendarView({
           {days.map((day, idx) => (
             <div
               key={day}
-              className="flex-1 border-l border-border px-2 py-2 text-center"
-              style={{ minWidth: DAY_COL_MIN_W }}
+              className="shrink-0 border-l border-border px-2 py-2 text-center"
+              style={{ width: DAY_COL_MIN_W }}
             >
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
                 Day {idx + 1}
               </div>
-              <div className="font-serif text-xs leading-snug">{format(parseDateOnly(day), "EEE, MMM d")}</div>
+              <div className="font-serif text-sm font-medium leading-snug">{format(parseDateOnly(day), "EEE, MMM d")}</div>
             </div>
           ))}
         </div>
@@ -426,8 +426,8 @@ export function CalendarView({
             return (
               <div
                 key={day}
-                className="relative flex-1 border-l border-border cursor-pointer"
-                style={{ minWidth: DAY_COL_MIN_W, height: totalH }}
+                className="relative shrink-0 border-l border-border cursor-pointer"
+                style={{ width: DAY_COL_MIN_W, height: totalH }}
                 onClick={(e) => handleColumnClick(e, day)}
               >
                 {/* Hour grid lines */}
@@ -513,7 +513,7 @@ export function CalendarView({
                     <div
                       key={a.id}
                       className={cn(
-                        "absolute rounded-lg border text-xs select-none group/block overflow-hidden",
+                        "absolute rounded-lg border text-xs select-none group/block",
                         isGhost && "opacity-25",
                         isLive  && "z-30 shadow-lg",
                       )}
@@ -526,11 +526,12 @@ export function CalendarView({
                         width: `calc(${widthPct}% - 4px)`,
                         backgroundColor: cat.bg,
                         borderColor: cat.border,
+                        overflow: "visible",
                       }}
                     >
                       {/* Move handle — whole block except the resize strip */}
                       <div
-                        className="relative cursor-grab px-1.5 py-1 active:cursor-grabbing"
+                        className="relative cursor-grab overflow-hidden rounded-lg px-1.5 py-1 active:cursor-grabbing"
                         style={{ paddingBottom: 10, touchAction: "none" }}
                         onPointerDown={(e) => startDrag(e, a.id, "move")}
                       >
@@ -555,13 +556,10 @@ export function CalendarView({
                         )}
 
                         <div
-                          className="text-[11px] font-semibold leading-snug"
+                          className="text-[11px] font-semibold leading-snug truncate"
                           style={{
                             color: cat.text,
                             marginRight: pinNum ? 17 : 0,
-                            whiteSpace: "normal",
-                            overflowWrap: "break-word",
-                            wordBreak: "break-word",
                           }}
                         >
                           {a.title}
@@ -575,6 +573,22 @@ export function CalendarView({
                             {a.end_time ? ` – ${a.end_time.slice(0, 5)}` : ""}
                           </div>
                         )}
+                      </div>
+
+                      {/* Hover tooltip */}
+                      <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-1 hidden w-max max-w-[200px] group-hover/block:block">
+                        <div className="rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg">
+                          <p className="font-medium leading-snug">{a.title}</p>
+                          {a.location && (
+                            <p className="mt-0.5 max-w-[180px] truncate text-gray-300">{a.location}</p>
+                          )}
+                          {a.start_time && (
+                            <p className="text-gray-300">
+                              {a.start_time.slice(0, 5)}
+                              {a.end_time ? ` – ${a.end_time.slice(0, 5)}` : ""}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Resize handle */}
