@@ -823,6 +823,13 @@ export function ItineraryBoard({
                 }
                 onAddBooking={() => setCalendarBookingOpen(true)}
                 onAddTransport={() => setCalendarTransportOpen(true)}
+                accommodationBookings={bookings.filter(
+                  (b) => b.type === "accommodation" && !!b.booking_date && !!b.check_out_date,
+                )}
+                onViewBooking={(id) => {
+                  const b = bookings.find((b) => b.id === id)
+                  if (b) setBookingOpen(b)
+                }}
               />
             </div>
 

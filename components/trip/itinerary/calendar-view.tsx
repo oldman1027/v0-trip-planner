@@ -6,7 +6,7 @@ import { CalendarPlus, Ticket, Bus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseDateOnly } from "@/lib/dates"
 import { createClient } from "@/lib/supabase/client"
-import type { Activity, TimeBlock } from "@/lib/types"
+import type { Activity, Booking, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 
 // ── Travel-time cache (module-level, persists across re-renders) ───────────
@@ -44,6 +44,43 @@ const CATEGORY_STYLE: Record<
   shopping:      { bg: "#d0ece7", border: "#369383", text: "#1a4a46", badge: "#8AD0C0" },
   entertainment: { bg: "#e2f6f2", border: "#80d8dd", text: "#1a4a50", badge: "#369383" },
   other:         { bg: "#f0faf7", border: "#B1DDC6", text: "#1a5c38", badge: "#8AD0C0" },
+}
+
+// ── Accommodation band colors ───────────────────────────────────────────────
+const HOTEL_COLORS = [
+  { bg: "#E1F5EE", border: "#1D9E75", text: "#085041" },
+  { bg: "#B1DDC6", border: "#369383", text: "#085041" },
+  { bg: "#9FE1CB", border: "#0F6E56", text: "#04342C" },
+  { bg: "#8AD0C0", border: "#27ba76", text: "#04342C" },
+] as const
+
+interface AccommodationBand {
+  id: string
+  name: string
+  nights: number
+  startColIndex: number
+  spanCount: number
+  colorIndex: number
+}
+
+function getAccommodationBands(bookings: Booking[], days: string[]): AccommodationBand[] {
+  if (!days.length) return []
+  const firstDay = days[0]!
+  const lastDay = days[days.length - 1]!
+  return bookings
+    .filter((b) => b.booking_date && b.check_out_date && b.booking_date <= lastDay && b.check_out_date > firstDay)
+    .map((b, idx) => {
+      const checkIn = b.booking_date!
+      const checkOut = b.check_out_date!
+      const startColIndex = Math.max(0, days.findIndex((d) => d >= checkIn))
+      const endIdx = days.findIndex((d) => d >= checkOut)
+      const endColIndex = endIdx < 0 ? days.length : endIdx
+      const spanCount = Math.max(1, endColIndex - startColIndex)
+      const nights = Math.round(
+        (new Date(checkOut + "T00:00:00").getTime() - new Date(checkIn + "T00:00:00").getTime()) / 86_400_000,
+      )
+      return { id: b.id, name: b.title, nights, startColIndex, spanCount, colorIndex: idx % HOTEL_COLORS.length }
+    })
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -167,6 +204,8 @@ export function CalendarView({
   onAddActivity,
   onAddBooking,
   onAddTransport,
+  accommodationBookings,
+  onViewBooking,
 }: {
   days: string[]
   activities: Activity[]
@@ -175,6 +214,8 @@ export function CalendarView({
   onAddActivity?: (day_date: string, start_time: string, time_block: TimeBlock) => void
   onAddBooking?: (day_date: string) => void
   onAddTransport?: (day_date: string) => void
+  accommodationBookings?: Booking[]
+  onViewBooking?: (bookingId: string) => void
 }) {
   // Local copy — initialised once on mount (views are mutually exclusive so
   // CalendarView always remounts with fresh data when switching back to it).
@@ -217,6 +258,11 @@ export function CalendarView({
     sorted.forEach((a, i) => m.set(a.id, i + 1))
     return m
   }, [activities])
+
+  const accommodationBands = useMemo(
+    () => getAccommodationBands(accommodationBookings ?? [], days),
+    [accommodationBookings, days],
+  )
 
   // ── Travel time estimates ──────────────────────────────────────────────────
   const [travelTimes, setTravelTimes] = useState<Map<string, number | null>>(new Map())
@@ -403,6 +449,58 @@ export function CalendarView({
             </div>
           ))}
         </div>
+
+        {/* Accommodation bands */}
+        {accommodationBands.length > 0 && (
+          <div
+            className="border-b border-border bg-background/60 py-1.5"
+            style={{
+              display: "grid",
+              gridTemplateColumns: `${TIME_COL_W}px repeat(${days.length}, ${DAY_COL_MIN_W}px)`,
+            }}
+          >
+            <div /> {/* time column spacer */}
+            {accommodationBands.map((band) => {
+              const color = HOTEL_COLORS[band.colorIndex]!
+              const clampedStart = Math.max(0, band.startColIndex)
+              const clampedSpan = Math.min(band.spanCount, days.length - clampedStart)
+              if (clampedStart >= days.length || clampedSpan <= 0) return null
+              return (
+                <div
+                  key={band.id}
+                  style={{ gridColumn: `${clampedStart + 2} / span ${clampedSpan}`, gridRow: 1, padding: "2px 4px" }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onViewBooking?.(band.id)}
+                    title={`${band.name} · ${band.nights} night${band.nights !== 1 ? "s" : ""}`}
+                    style={{
+                      width: "100%",
+                      background: color.bg,
+                      border: `1px solid ${color.border}`,
+                      borderRadius: "20px",
+                      padding: "3px 10px",
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      color: color.text,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      overflow: "hidden",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span style={{ fontSize: "10px", flexShrink: 0 }}>🏨</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {band.name} · {band.nights} night{band.nights !== 1 ? "s" : ""}
+                    </span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* Body */}
         <div ref={bodyRef} className="flex">

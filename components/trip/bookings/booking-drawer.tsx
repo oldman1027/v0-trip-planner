@@ -48,6 +48,11 @@ export function BookingDrawer({
   const [type, setType] = useState<DrawerType>("accommodation")
   const [title, setTitle] = useState("")
   const [bookingDate, setBookingDate] = useState("")
+  // transport
+  const [transportFrom, setTransportFrom] = useState("")
+  const [transportTo, setTransportTo] = useState("")
+  const [transportDeparture, setTransportDeparture] = useState("")
+  const [transportArrival, setTransportArrival] = useState("")
   // accommodation
   const [checkInTime, setCheckInTime] = useState("")
   const [checkOutTime, setCheckOutTime] = useState("")
@@ -122,6 +127,23 @@ export function BookingDrawer({
         setRestaurantDatetime("")
         setPartySize("")
         setRestaurantLocation("")
+      } else if (t === "transport") {
+        setTitle(booking.title)
+        setBookingDate("")
+        const d2 = (booking.details ?? {}) as Record<string, unknown>
+        setTransportFrom((d2.from_city as string) ?? "")
+        setTransportTo((d2.to_city as string) ?? "")
+        setTransportDeparture(toDatetimeLocal((d2.departure_time as string) ?? ""))
+        setTransportArrival(toDatetimeLocal((d2.arrival_time as string) ?? ""))
+        setAddress("")
+        setCheckInTime("")
+        setCheckOutTime("")
+        setStartTime("")
+        setActivityLocation("")
+        setRestaurantName("")
+        setRestaurantDatetime("")
+        setPartySize("")
+        setRestaurantLocation("")
       } else {
         setTitle(booking.title)
         setBookingDate(booking.booking_date ?? "")
@@ -140,6 +162,10 @@ export function BookingDrawer({
       setType("accommodation")
       setTitle("")
       setBookingDate("")
+      setTransportFrom("")
+      setTransportTo("")
+      setTransportDeparture("")
+      setTransportArrival("")
       setCheckInTime("")
       setCheckOutTime("")
       setCheckOutDate("")
@@ -163,6 +189,7 @@ export function BookingDrawer({
 
   const isDining = type === "dining"
   const isAccommodation = type === "accommodation"
+  const isTransport = type === "transport"
   const isLinked = !!(booking?.details as Record<string, unknown> | null)?.activity_id
 
   const effectiveDateForValidation = isDining
@@ -176,6 +203,23 @@ export function BookingDrawer({
         ? "Booking date must be within trip dates"
         : null
       : null
+
+  function toDatetimeLocal(dt: string | undefined): string {
+    if (!dt) return ""
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dt)) return dt
+    if (dt.includes("T")) return dt.slice(0, 16)
+    return ""
+  }
+
+  function calcDuration(dep: string, arr: string): string {
+    if (!dep || !arr) return ""
+    const diff = new Date(arr).getTime() - new Date(dep).getTime()
+    if (diff <= 0) return ""
+    const h = Math.floor(diff / 3_600_000)
+    const m = Math.floor((diff % 3_600_000) / 60_000)
+    if (h > 0 && m > 0) return `${h}h ${m}m`
+    return h > 0 ? `${h}h` : `${m}m`
+  }
 
   function convertToTHB(value: string): number | null {
     if (!value) return null
@@ -209,6 +253,7 @@ export function BookingDrawer({
     let effectiveCheckOutTime: string | null = null
     let effectiveCheckOutDate: string | null = null
     let effectiveDepartureTime: string | null = null
+    let effectiveArrivalTime: string | null = null
 
     if (type === "dining") {
       effectiveTitle = restaurantName.trim()
@@ -239,6 +284,19 @@ export function BookingDrawer({
       }
       effectiveBookingDate = bookingDate || null
       effectiveDepartureTime = startTime || null
+    } else if (type === "transport") {
+      effectiveTitle = title.trim() || "Transport"
+      effectiveDetails = {
+        transport_type: "transport",
+        from_city: transportFrom.trim() || null,
+        to_city: transportTo.trim() || null,
+        departure_time: transportDeparture || null,
+        arrival_time: transportArrival || null,
+        notes: notes.trim() || null,
+      }
+      effectiveBookingDate = transportDeparture ? transportDeparture.slice(0, 10) : null
+      effectiveDepartureTime = transportDeparture ? transportDeparture.slice(11, 16) : null
+      effectiveArrivalTime = transportArrival ? transportArrival.slice(11, 16) : null
     } else {
       effectiveTitle = title.trim()
       effectiveDetails = notes.trim() ? { notes: notes.trim() } : null
@@ -262,7 +320,7 @@ export function BookingDrawer({
         check_out_time: effectiveCheckOutTime,
         check_out_date: effectiveCheckOutDate,
         departure_time: effectiveDepartureTime,
-        arrival_time: null,
+        arrival_time: effectiveArrivalTime,
         trackInCosts: !booking && trackInCosts,
       })
       onClose()
@@ -292,6 +350,8 @@ export function BookingDrawer({
     !!dateError ||
     (isDining
       ? !restaurantName.trim() || !restaurantDatetime || !partySize
+      : isTransport
+      ? false
       : !title.trim())
 
   return (
@@ -566,6 +626,78 @@ export function BookingDrawer({
                     />
                     {dateError && <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>}
                   </Field>
+                </>
+              )}
+
+              {/* ── Transport fields ── */}
+              {isTransport && (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="transport-title">Transport name / ref (optional)</FieldLabel>
+                    <Input
+                      id="transport-title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="AK 123 / Grab / Bus"
+                      className="rounded-xl"
+                    />
+                  </Field>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="transport-from">From</FieldLabel>
+                      <Input
+                        id="transport-from"
+                        value={transportFrom}
+                        onChange={(e) => setTransportFrom(e.target.value)}
+                        placeholder="Kuala Lumpur"
+                        className="rounded-xl"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="transport-to">To</FieldLabel>
+                      <Input
+                        id="transport-to"
+                        value={transportTo}
+                        onChange={(e) => setTransportTo(e.target.value)}
+                        placeholder="Bangkok"
+                        className="rounded-xl"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="transport-dep">Departure</FieldLabel>
+                      <Input
+                        id="transport-dep"
+                        type="datetime-local"
+                        min={tripStart ? `${tripStart}T00:00` : undefined}
+                        max={tripEnd ? `${tripEnd}T23:59` : undefined}
+                        value={transportDeparture}
+                        onChange={(e) => setTransportDeparture(e.target.value)}
+                        className="rounded-xl"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="transport-arr">Arrival</FieldLabel>
+                      <Input
+                        id="transport-arr"
+                        type="datetime-local"
+                        min={transportDeparture || (tripStart ? `${tripStart}T00:00` : undefined)}
+                        max={tripEnd ? `${tripEnd}T23:59` : undefined}
+                        value={transportArrival}
+                        onChange={(e) => setTransportArrival(e.target.value)}
+                        className="rounded-xl"
+                      />
+                    </Field>
+                  </div>
+
+                  {transportDeparture && transportArrival && calcDuration(transportDeparture, transportArrival) && (
+                    <p className="text-xs text-muted-foreground">
+                      Duration: {calcDuration(transportDeparture, transportArrival)}
+                    </p>
+                  )}
                 </>
               )}
 
