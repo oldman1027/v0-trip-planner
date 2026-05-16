@@ -606,7 +606,7 @@ export function ItineraryBoard({
       />
 
       {/* Category filter + view mode toggle — sticky */}
-      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background shadow-sm">
+      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-2 py-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -615,10 +615,10 @@ export function ItineraryBoard({
                 type="button"
                 onClick={() => setActiveCategories(new Set())}
                 className={cn(
-                  "whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-all",
+                  "whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                   activeCategories.size === 0
-                    ? "bg-teal-500 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground",
                 )}
               >
                 All
@@ -638,10 +638,10 @@ export function ItineraryBoard({
                       })
                     }
                     className={cn(
-                      "whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-all",
+                      "whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                       active
-                        ? "bg-teal-500 text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground",
                     )}
                   >
                     {f.label}
