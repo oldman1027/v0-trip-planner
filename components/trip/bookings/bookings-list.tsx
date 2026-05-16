@@ -119,6 +119,7 @@ export function BookingsList({
           booking_url: bookingData.booking_url,
           check_in_time: bookingData.check_in_time,
           check_out_time: bookingData.check_out_time,
+          check_out_date: bookingData.check_out_date,
           departure_time: bookingData.departure_time,
           arrival_time: bookingData.arrival_time,
         })

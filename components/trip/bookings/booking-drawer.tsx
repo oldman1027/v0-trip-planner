@@ -48,6 +48,7 @@ export function BookingDrawer({
   // accommodation
   const [checkInTime, setCheckInTime] = useState("")
   const [checkOutTime, setCheckOutTime] = useState("")
+  const [checkOutDate, setCheckOutDate] = useState("")
   const [address, setAddress] = useState("")
   // dining
   const [restaurantName, setRestaurantName] = useState("")
@@ -96,6 +97,7 @@ export function BookingDrawer({
       } else if (t === "accommodation") {
         setTitle(booking.title)
         setBookingDate(booking.booking_date ?? "")
+        setCheckOutDate(booking.check_out_date ?? "")
         setCheckInTime(booking.check_in_time ?? "")
         setCheckOutTime(booking.check_out_time ?? "")
         setAddress((d.address as string) ?? "")
@@ -137,6 +139,7 @@ export function BookingDrawer({
       setBookingDate("")
       setCheckInTime("")
       setCheckOutTime("")
+      setCheckOutDate("")
       setAddress("")
       setRestaurantName("")
       setRestaurantDatetime("")
@@ -177,6 +180,19 @@ export function BookingDrawer({
     return selectedCurrency === "MYR" ? num * 7.69 : num
   }
 
+  function addDays(dateStr: string, n: number): string {
+    const d = new Date(dateStr + "T00:00:00")
+    d.setDate(d.getDate() + n)
+    return d.toISOString().slice(0, 10)
+  }
+
+  function calcNights(checkIn: string, checkOut: string): number {
+    if (!checkIn || !checkOut) return 0
+    return Math.round(
+      (new Date(checkOut + "T00:00:00").getTime() - new Date(checkIn + "T00:00:00").getTime()) / 86_400_000,
+    )
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -188,6 +204,7 @@ export function BookingDrawer({
     let effectiveBookingDate: string | null
     let effectiveCheckInTime: string | null = null
     let effectiveCheckOutTime: string | null = null
+    let effectiveCheckOutDate: string | null = null
     let effectiveDepartureTime: string | null = null
 
     if (type === "dining") {
@@ -210,6 +227,7 @@ export function BookingDrawer({
       effectiveBookingDate = isLinked ? (booking?.booking_date ?? null) : bookingDate || null
       effectiveCheckInTime = checkInTime || null
       effectiveCheckOutTime = checkOutTime || null
+      effectiveCheckOutDate = checkOutDate || null
     } else if (type === "activities") {
       effectiveTitle = title.trim()
       effectiveDetails = {
@@ -239,13 +257,17 @@ export function BookingDrawer({
         booking_url: bookingUrl.trim() || null,
         check_in_time: effectiveCheckInTime,
         check_out_time: effectiveCheckOutTime,
+        check_out_date: effectiveCheckOutDate,
         departure_time: effectiveDepartureTime,
         arrival_time: null,
         trackInCosts: !booking && trackInCosts,
       })
       onClose()
     } catch (err) {
-      toast.error("Could not save booking", { description: err instanceof Error ? err.message : "Unknown" })
+      const e = err as { message?: string; details?: string }
+      toast.error("Could not save booking", {
+        description: e?.message ?? e?.details ?? JSON.stringify(err),
+      })
     } finally {
       setSaving(false)
     }
@@ -326,19 +348,45 @@ export function BookingDrawer({
                       </div>
                     ) : null
                   ) : (
-                    <Field>
-                      <FieldLabel htmlFor="booking-date">Check-in date</FieldLabel>
-                      <Input
-                        id="booking-date"
-                        type="date"
-                        min={tripStart || undefined}
-                        max={tripEnd || undefined}
-                        value={bookingDate}
-                        onChange={(e) => setBookingDate(e.target.value)}
-                        className={cn("rounded-xl", dateError && "border-destructive")}
-                      />
-                      {dateError && <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>}
-                    </Field>
+                    <>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field>
+                          <FieldLabel htmlFor="booking-date">Check-in date</FieldLabel>
+                          <Input
+                            id="booking-date"
+                            type="date"
+                            min={tripStart || undefined}
+                            max={tripEnd || undefined}
+                            value={bookingDate}
+                            onChange={(e) => {
+                              const d = e.target.value
+                              setBookingDate(d)
+                              if (!checkOutDate && d) setCheckOutDate(addDays(d, 1))
+                            }}
+                            className={cn("rounded-xl", dateError && "border-destructive")}
+                          />
+                          {dateError && <p className="mt-1 text-xs text-destructive" role="alert">{dateError}</p>}
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="check-out-date">Check-out date</FieldLabel>
+                          <Input
+                            id="check-out-date"
+                            type="date"
+                            min={bookingDate || tripStart || undefined}
+                            max={tripEnd || undefined}
+                            value={checkOutDate}
+                            onChange={(e) => setCheckOutDate(e.target.value)}
+                            className="rounded-xl"
+                          />
+                        </Field>
+                      </div>
+                      {(() => {
+                        const n = calcNights(bookingDate, checkOutDate)
+                        return n > 0 ? (
+                          <p className="text-xs text-muted-foreground">{n} night{n !== 1 ? "s" : ""}</p>
+                        ) : null
+                      })()}
+                    </>
                   )}
 
                   <div className="grid gap-4 sm:grid-cols-2">

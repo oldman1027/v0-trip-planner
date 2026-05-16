@@ -78,6 +78,7 @@ export type Booking = {
   booking_url: string | null
   check_in_time: string | null
   check_out_time: string | null
+  check_out_date: string | null
   departure_time: string | null
   arrival_time: string | null
   created_at: string

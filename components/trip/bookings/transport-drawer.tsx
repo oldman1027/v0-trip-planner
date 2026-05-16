@@ -100,6 +100,7 @@ export function TransportDrawer({
   const [departureTime, setDepartureTime] = useState("")
   const [arrivalTime, setArrivalTime] = useState("")
   const [amount, setAmount] = useState("")
+  const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
   const [paymentStatus, setPaymentStatus] = useState<Booking["payment_status"]>("pending")
   const [cancellationDeadline, setCancellationDeadline] = useState("")
   const [editingField, setEditingField] = useState<EditingField>(null)
@@ -136,6 +137,7 @@ export function TransportDrawer({
       setDepartureTime("")
       setArrivalTime("")
       setAmount("")
+      setSelectedCurrency("THB")
       setPaymentStatus("pending")
       setCancellationDeadline("")
     }
@@ -165,10 +167,11 @@ export function TransportDrawer({
         booking_url: null,
         check_in_time: null,
         check_out_time: null,
+        check_out_date: null,
         departure_time: null,
         arrival_time: null,
-        amount: amount ? Number(amount) : null,
-        currency: booking?.currency ?? currency,
+        amount: amount ? (selectedCurrency === "MYR" ? Number(amount) * 7.69 : Number(amount)) : null,
+        currency: "THB",
         payment_status: paymentStatus,
         cancellation_deadline: cancellationDeadline
           ? new Date(cancellationDeadline + "T23:59:00").toISOString()
@@ -177,8 +180,9 @@ export function TransportDrawer({
       })
       onClose()
     } catch (err) {
+      const e = err as { message?: string; details?: string }
       toast.error("Could not save transport", {
-        description: err instanceof Error ? err.message : "Unknown",
+        description: e?.message ?? e?.details ?? JSON.stringify(err),
       })
     } finally {
       setSaving(false)
@@ -502,9 +506,37 @@ export function TransportDrawer({
             {/* ── Cost + status ── */}
             <div className="grid grid-cols-2 gap-4 px-5 py-5">
               <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Amount ({currency})
-                </p>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Amount ({selectedCurrency})
+                  </p>
+                  <div className="flex overflow-hidden rounded-md border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCurrency("THB")}
+                      className={cn(
+                        "px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        selectedCurrency === "THB"
+                          ? "bg-teal-500 text-white"
+                          : "bg-card text-muted-foreground hover:bg-secondary",
+                      )}
+                    >
+                      THB
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCurrency("MYR")}
+                      className={cn(
+                        "px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        selectedCurrency === "MYR"
+                          ? "bg-teal-500 text-white"
+                          : "bg-card text-muted-foreground hover:bg-secondary",
+                      )}
+                    >
+                      MYR
+                    </button>
+                  </div>
+                </div>
                 {editingField === "amount" ? (
                   <Input
                     autoFocus
@@ -526,7 +558,7 @@ export function TransportDrawer({
                   >
                     <span className="font-semibold">
                       {amount ? (
-                        `${currency} ${amount}`
+                        `${selectedCurrency} ${amount}`
                       ) : (
                         <span className="font-normal text-muted-foreground text-sm">
                           Add amount
@@ -535,6 +567,13 @@ export function TransportDrawer({
                     </span>
                     <Pencil className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-40" />
                   </button>
+                )}
+                {amount && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {selectedCurrency === "THB"
+                      ? `≈ MYR ${(Number(amount) * 0.13).toFixed(2)}`
+                      : `≈ THB ${(Number(amount) * 7.69).toFixed(0)}`}
+                  </p>
                 )}
               </div>
 
