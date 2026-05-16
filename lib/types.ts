@@ -63,6 +63,19 @@ export type Activity = {
   created_at: string
 }
 
+export type BookingAttachment = {
+  id: string
+  booking_id: string
+  trip_id: string
+  user_id: string
+  file_name: string
+  file_type: string
+  file_size: number
+  storage_path: string
+  public_url: string
+  created_at: string
+}
+
 export type Booking = {
   id: string
   trip_id: string
@@ -82,6 +95,7 @@ export type Booking = {
   departure_time: string | null
   arrival_time: string | null
   created_at: string
+  booking_attachments?: BookingAttachment[]
 }
 
 export type ExpenseCategory = "accommodation" | "transport" | "food" | "activities" | "other"

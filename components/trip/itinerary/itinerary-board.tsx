@@ -864,6 +864,7 @@ export function ItineraryBoard({
       <BookingDrawer
         open={bookingOpen !== null}
         booking={bookingOpen}
+        tripId={trip.id}
         currency={trip.default_currency ?? "USD"}
         tripStart={trip.start_date}
         tripEnd={trip.end_date}
@@ -876,6 +877,7 @@ export function ItineraryBoard({
       <BookingDrawer
         open={calendarBookingOpen}
         booking={null}
+        tripId={trip.id}
         currency={trip.default_currency ?? "USD"}
         tripStart={trip.start_date}
         tripEnd={trip.end_date}

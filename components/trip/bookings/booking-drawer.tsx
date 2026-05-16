@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Trash2, Lock, ExternalLink } from "lucide-react"
+import { Trash2, Lock, ExternalLink, Paperclip } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,8 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { LocationAutocomplete } from "@/components/trip/itinerary/location-autocomplete"
-import type { Booking } from "@/lib/types"
+import type { Booking, BookingAttachment } from "@/lib/types"
+import { BookingAttachments } from "./booking-attachments"
 import { formatDayLabel } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -26,6 +27,7 @@ export type BookingSaveInput = Omit<Booking, "id" | "trip_id" | "created_at"> & 
 export function BookingDrawer({
   open,
   booking,
+  tripId,
   currency,
   tripStart,
   tripEnd,
@@ -35,6 +37,7 @@ export function BookingDrawer({
 }: {
   open: boolean
   booking: Booking | null
+  tripId: string
   currency: string
   tripStart: string
   tripEnd: string
@@ -695,6 +698,21 @@ export function BookingDrawer({
                   className="min-h-[80px] rounded-xl resize-none"
                 />
               </Field>
+
+              {/* ── Attachments (existing bookings only) ── */}
+              {booking && (
+                <div className="space-y-2 border-t border-border pt-4">
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    Attachments
+                  </p>
+                  <BookingAttachments
+                    bookingId={booking.id}
+                    tripId={tripId}
+                    initialAttachments={booking.booking_attachments ?? []}
+                  />
+                </div>
+              )}
 
               {/* ── Track in Costs (new bookings only) ── */}
               {!booking && amount && (

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Hotel, Bus, Plane, Utensils, Star, Package, AlertTriangle, Calendar, List, LayoutGrid, Ticket } from "lucide-react"
+import { Plus, Hotel, Bus, Plane, Utensils, Star, Package, AlertTriangle, Calendar, List, LayoutGrid, Ticket, Paperclip } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -403,6 +403,12 @@ export function BookingsList({
                           <span className="font-mono">#{b.confirmation_number}</span>
                         )}
                         {diningSubtitle && <span>{diningSubtitle}</span>}
+                        {(b.booking_attachments?.length ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1">
+                            <Paperclip className="h-3 w-3" aria-hidden />
+                            {b.booking_attachments!.length}
+                          </span>
+                        )}
 
                         {upcoming && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400">
@@ -451,6 +457,7 @@ export function BookingsList({
       <BookingDrawer
         open={open !== null && !isTransportOpen}
         booking={open === "new" || isTransportOpen ? null : (open as Booking | null)}
+        tripId={tripId}
         currency={currency}
         tripStart={tripStart}
         tripEnd={tripEnd}

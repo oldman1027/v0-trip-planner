@@ -11,7 +11,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
       .select("default_currency, start_date, end_date")
       .eq("id", id)
       .maybeSingle<Pick<Trip, "default_currency" | "start_date" | "end_date">>(),
-    supabase.from("bookings").select("*").eq("trip_id", id).order("created_at", { ascending: false }),
+    supabase.from("bookings").select("*, booking_attachments(*)").eq("trip_id", id).order("created_at", { ascending: false }),
   ])
 
   return (

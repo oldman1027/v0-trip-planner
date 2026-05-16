@@ -311,6 +311,7 @@ export function CalendarPageClient({
       <BookingDrawer
         open={bookingOpen}
         booking={null}
+        tripId={trip.id}
         currency={currency}
         tripStart={trip.start_date}
         tripEnd={trip.end_date}
