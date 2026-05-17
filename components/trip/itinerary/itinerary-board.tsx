@@ -28,6 +28,8 @@ import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
 import { TransportDrawer } from "@/components/trip/bookings/transport-drawer"
 import { TripMap } from "@/components/trip/overview/trip-map"
 import { TriplettoAI } from "@/components/trip/TriplettoAI"
+import { useRealtimeActivities } from "@/hooks/use-realtime-activities"
+import { usePresence } from "@/hooks/use-presence"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
 import { daysBetween } from "@/lib/dates"
@@ -90,6 +92,28 @@ export function ItineraryBoard({
   const [mobileTab, setMobileTab] = useState<"calendar" | "map">("calendar")
 
   const conflicts = useMemo(() => detectConflicts(activities), [activities])
+
+  // Real-time: sync activity changes from other collaborators
+  const handleRealtimeInsert = useCallback((activity: Activity) => {
+    setActivities((prev) => prev.some((a) => a.id === activity.id) ? prev : [...prev, activity])
+  }, [])
+
+  const handleRealtimeUpdate = useCallback((activity: Activity) => {
+    setActivities((prev) => prev.map((a) => a.id === activity.id ? activity : a))
+  }, [])
+
+  const handleRealtimeDelete = useCallback((activityId: string) => {
+    setActivities((prev) => prev.filter((a) => a.id !== activityId))
+  }, [])
+
+  useRealtimeActivities({
+    tripId: trip.id,
+    onInsert: handleRealtimeInsert,
+    onUpdate: handleRealtimeUpdate,
+    onDelete: handleRealtimeDelete,
+  })
+
+  const { onlineUsers } = usePresence(trip.id)
 
   // Weather per day for sidebar chips
   const [weatherByDay, setWeatherByDay] = useState<Map<string, { icon: string; high: number }>>(new Map())
@@ -650,6 +674,27 @@ export function ItineraryBoard({
               })}
             </div>
             <div className="flex items-center gap-2">
+              {/* Presence: who else is viewing this trip */}
+              {onlineUsers.length > 0 && (
+                <div className="hidden sm:flex items-center gap-1.5">
+                  <div className="flex -space-x-1.5">
+                    {onlineUsers.slice(0, 4).map((user) => (
+                      <div
+                        key={user.userId}
+                        className="w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                        style={{ background: user.color }}
+                        title={`${user.name} is viewing`}
+                      >
+                        {user.name[0]?.toUpperCase() ?? "?"}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] text-green-600 font-medium">LIVE</span>
+                  </div>
+                </div>
+              )}
               {viewMode === "calendar" && (
                 <button
                   type="button"
