@@ -16,7 +16,7 @@ import { EditTripDrawer } from "./edit-trip-drawer"
 import { toast } from "sonner"
 import type { Trip } from "@/lib/types"
 
-export function TripActionsMenu({ trip, isSample }: { trip: Trip; isSample?: boolean }) {
+export function TripActionsMenu({ trip, isSample, isOwner = false }: { trip: Trip; isSample?: boolean; isOwner?: boolean }) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
 
@@ -53,10 +53,12 @@ export function TripActionsMenu({ trip, isSample }: { trip: Trip; isSample?: boo
             <Pencil className="mr-2 h-4 w-4" />
             Edit trip
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-            <Trash2 className="mr-2 h-4 w-4" />
-            {isSample ? "Delete sample trip" : "Delete trip"}
-          </DropdownMenuItem>
+          {isOwner && (
+            <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              {isSample ? "Delete sample trip" : "Delete trip"}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

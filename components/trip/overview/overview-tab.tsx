@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Printer, MapPin, Clock, CalendarCheck, AlertTriangle, Calendar } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { MapPin, Clock, CalendarCheck, AlertTriangle, Calendar } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { TripMap } from "@/components/trip/overview/trip-map"
@@ -104,19 +103,6 @@ export function OverviewTab({
         <p className="text-sm text-muted-foreground">
           {formatLongDate(trip.start_date)} – {formatLongDate(trip.end_date)}
         </p>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex items-center justify-end print:hidden">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 rounded-xl"
-          onClick={() => window.print()}
-        >
-          <Printer className="h-4 w-4" aria-hidden />
-          Export PDF
-        </Button>
       </div>
 
       {/* Key bookings */}

@@ -79,7 +79,7 @@ export function TripHeader({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <TripHeroActions trip={trip} isOwner={isOwner} />
-              <TripActionsMenu trip={trip} isSample={trip.is_sample} />
+              <TripActionsMenu trip={trip} isSample={trip.is_sample} isOwner={isOwner} />
             </div>
           </div>
         </div>

@@ -10,7 +10,17 @@ export async function deleteTrip(tripId: string) {
 
   if (!user) throw new Error("Not authenticated")
 
-  const { error } = await supabase.from("trips").delete().eq("id", tripId).eq("created_by", user.id)
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("created_by")
+    .eq("id", tripId)
+    .single()
+
+  if (trip?.created_by !== user.id) {
+    throw new Error("Only the trip owner can delete this trip")
+  }
+
+  const { error } = await supabase.from("trips").delete().eq("id", tripId)
 
   if (error) {
     console.error("[v0] Delete trip error:", error)
