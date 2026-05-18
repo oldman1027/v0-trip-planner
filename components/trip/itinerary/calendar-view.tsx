@@ -217,9 +217,22 @@ export function CalendarView({
   accommodationBookings?: Booking[]
   onViewBooking?: (bookingId: string) => void
 }) {
-  // Local copy — initialised once on mount (views are mutually exclusive so
-  // CalendarView always remounts with fresh data when switching back to it).
+  // Local copy for drag-to-reschedule optimistic updates.
+  // Kept in sync with the parent prop via the effect below so that realtime
+  // events handled by ItineraryBoard flow through here too.
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
+
+  // Sync board-level state changes (realtime inserts/updates/deletes) into the
+  // local copy. Skip while a drag is in progress to avoid overwriting the
+  // optimistic position mid-gesture; the effect will re-run once the drag
+  // finishes and the parent prop stabilises.
+  useEffect(() => {
+    if (!dragRef.current) {
+      setActivities(initialActivities)
+    }
+  }, [initialActivities])
+
+  console.log("[calendar] rendering:", activities.length, "activities")
 
   // Drag state lives in a ref so the always-attached window handlers always
   // read the latest value without stale-closure issues.
