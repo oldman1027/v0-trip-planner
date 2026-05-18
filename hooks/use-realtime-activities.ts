@@ -29,7 +29,12 @@ export function useRealtimeActivities({
 
   useEffect(() => {
     const supabase = createClient()
-    const channelName = `activities:trip:${tripId}`
+    // Each effect invocation gets a unique suffix so React StrictMode's
+    // cleanup+remount never reuses the same channel name on the singleton client.
+    // Reusing a name on the same client instance can produce a stale channel
+    // object whose postgres_changes bindings were never re-registered server-side,
+    // leaving the subscription showing SUBSCRIBED but silently dropping all events.
+    const channelName = `activities:trip:${tripId}:${Math.random().toString(36).slice(2, 8)}`
     console.log(`[realtime] subscribing to ${channelName}`)
 
     const channel = supabase
@@ -38,16 +43,26 @@ export function useRealtimeActivities({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activities", filter: `trip_id=eq.${tripId}` },
         (payload: RealtimePostgresChangesPayload<Activity>) => {
-          console.log("[realtime] INSERT received:", (payload.new as Activity)?.id, payload.new)
-          onInsertRef.current(payload.new as Activity)
+          console.log("[board] INSERT received:", payload.new)
+          console.log("[realtime] INSERT received:", (payload.new as Activity)?.id)
+          try {
+            onInsertRef.current(payload.new as Activity)
+          } catch (e) {
+            console.error("[realtime] onInsert callback threw:", e)
+          }
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "activities", filter: `trip_id=eq.${tripId}` },
         (payload: RealtimePostgresChangesPayload<Activity>) => {
-          console.log("[realtime] UPDATE received:", (payload.new as Activity)?.id, payload.new)
-          onUpdateRef.current(payload.new as Activity)
+          console.log("[board] UPDATE received:", payload.new)
+          console.log("[realtime] UPDATE received:", (payload.new as Activity)?.id)
+          try {
+            onUpdateRef.current(payload.new as Activity)
+          } catch (e) {
+            console.error("[realtime] onUpdate callback threw:", e)
+          }
         },
       )
       .on(
@@ -56,8 +71,13 @@ export function useRealtimeActivities({
         (payload: RealtimePostgresChangesPayload<Activity>) => {
           // payload.old contains all columns because activities uses REPLICA IDENTITY FULL
           const id = (payload.old as { id: string }).id
-          console.log("[realtime] DELETE received:", id, payload.old)
-          onDeleteRef.current(id)
+          console.log("[board] DELETE received:", payload.old)
+          console.log("[realtime] DELETE received:", id)
+          try {
+            onDeleteRef.current(id)
+          } catch (e) {
+            console.error("[realtime] onDelete callback threw:", e)
+          }
         },
       )
       .subscribe((status, err) => {
