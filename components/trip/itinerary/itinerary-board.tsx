@@ -333,6 +333,8 @@ export function ItineraryBoard({
       )
     })
 
+    console.log('[board] drag save:', activityId, day, block)
+
     // Persist using server action
     try {
       // Update the moved activity itself
@@ -634,6 +636,10 @@ export function ItineraryBoard({
     setActivities((prev) => [...prev, ...added])
   }, [])
 
+  const handleCalendarActivityUpdated = useCallback((activity: Activity) => {
+    setActivities((prev) => prev.map((a) => (a.id === activity.id ? activity : a)))
+  }, [])
+
   return (
     <div className="flex flex-col gap-4">
       <TriplettoAI
@@ -888,6 +894,7 @@ export function ItineraryBoard({
                   const b = bookings.find((b) => b.id === id)
                   if (b) setBookingOpen(b)
                 }}
+                onActivityUpdated={handleCalendarActivityUpdated}
               />
             </div>
 

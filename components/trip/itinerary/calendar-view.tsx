@@ -206,6 +206,7 @@ export function CalendarView({
   onAddTransport,
   accommodationBookings,
   onViewBooking,
+  onActivityUpdated,
 }: {
   days: string[]
   activities: Activity[]
@@ -216,6 +217,7 @@ export function CalendarView({
   onAddTransport?: (day_date: string) => void
   accommodationBookings?: Booking[]
   onViewBooking?: (bookingId: string) => void
+  onActivityUpdated?: (activity: Activity) => void
 }) {
   // Local copy for drag-to-reschedule optimistic updates.
   // Kept in sync with the parent prop via the effect below so that realtime
@@ -243,8 +245,10 @@ export function CalendarView({
   const bodyRef = useRef<HTMLDivElement>(null)
   const daysRef = useRef(days)
   const onClickRef = useRef(onActivityClick)
+  const onActivityUpdatedRef = useRef(onActivityUpdated)
   useEffect(() => { daysRef.current = days }, [days])
   useEffect(() => { onClickRef.current = onActivityClick }, [onActivityClick])
+  useEffect(() => { onActivityUpdatedRef.current = onActivityUpdated }, [onActivityUpdated])
 
   const byDay = useMemo(() => {
     const m = new Map<string, Activity[]>()
@@ -392,15 +396,17 @@ export function CalendarView({
       const startH = timeToMins(newStartTime) / 60
       const newBlock: TimeBlock = startH < 12 ? "morning" : startH < 18 ? "afternoon" : "night"
 
+      const updatedActivity: Activity = {
+        ...d.origActivity,
+        start_time: newStartTime,
+        end_time: newEndTime,
+        day_date: newDay,
+        time_block: newBlock,
+      }
+
       // Optimistic update — applied before the async DB call so there is no
       // visual snap-back while we wait for the network.
-      setActivities((prev) =>
-        prev.map((a) =>
-          a.id === d.activityId
-            ? { ...a, start_time: newStartTime, end_time: newEndTime, day_date: newDay, time_block: newBlock }
-            : a,
-        ),
-      )
+      setActivities((prev) => prev.map((a) => (a.id === d.activityId ? updatedActivity : a)))
 
       const supabase = createClient()
       const { error } = await supabase
@@ -412,6 +418,8 @@ export function CalendarView({
         toast.error("Could not save changes")
         // Revert optimistic update on failure
         setActivities((prev) => prev.map((a) => (a.id === d.activityId ? d.origActivity : a)))
+      } else {
+        onActivityUpdatedRef.current?.(updatedActivity)
       }
     }
 
