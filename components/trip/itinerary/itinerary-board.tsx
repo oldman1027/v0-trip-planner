@@ -94,23 +94,19 @@ export function ItineraryBoard({
   const conflicts = useMemo(() => detectConflicts(activities), [activities])
 
   // Real-time: sync activity changes from other collaborators
-  const handleRealtimeInsert = useCallback((activity: Activity) => {
-    setActivities((prev) => prev.some((a) => a.id === activity.id) ? prev : [...prev, activity])
-  }, [])
-
-  const handleRealtimeUpdate = useCallback((activity: Activity) => {
-    setActivities((prev) => prev.map((a) => a.id === activity.id ? activity : a))
-  }, [])
-
-  const handleRealtimeDelete = useCallback((activityId: string) => {
-    setActivities((prev) => prev.filter((a) => a.id !== activityId))
-  }, [])
-
+  // Callbacks use functional state updates so no deps needed — the hook reads
+  // them via refs and won't re-subscribe when the board re-renders.
   useRealtimeActivities({
     tripId: trip.id,
-    onInsert: handleRealtimeInsert,
-    onUpdate: handleRealtimeUpdate,
-    onDelete: handleRealtimeDelete,
+    onInsert: (activity) => {
+      setActivities((prev) => prev.some((a) => a.id === activity.id) ? prev : [...prev, activity])
+    },
+    onUpdate: (activity) => {
+      setActivities((prev) => prev.map((a) => a.id === activity.id ? activity : a))
+    },
+    onDelete: (activityId) => {
+      setActivities((prev) => prev.filter((a) => a.id !== activityId))
+    },
   })
 
   const { onlineUsers } = usePresence(trip.id)
@@ -621,12 +617,16 @@ export function ItineraryBoard({
 
   const dragging = activeId ? findActivity(activeId) : null
 
+  const handleActivitiesAdded = useCallback((added: Activity[]) => {
+    setActivities((prev) => [...prev, ...added])
+  }, [])
+
   return (
     <div className="flex flex-col gap-4">
       <TriplettoAI
         trip={trip}
         activities={activities}
-        onActivitiesAdded={(added) => setActivities((prev) => [...prev, ...added])}
+        onActivitiesAdded={handleActivitiesAdded}
       />
 
       {/* Category filter + view mode toggle — sticky */}
