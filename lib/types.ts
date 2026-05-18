@@ -59,6 +59,7 @@ export type Activity = {
   photo_url: string | null
   category: "food" | "attraction" | "transport" | "accommodation" | "shopping" | "entertainment" | "other"
   booking_id: string | null
+  linked_booking_id: string | null
   is_wishlist: boolean
   created_at: string
 }

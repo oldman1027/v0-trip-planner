@@ -22,6 +22,7 @@ type DrawerType = "accommodation" | "transport" | "dining" | "activities" | "oth
 export type BookingSaveInput = Omit<Booking, "id" | "trip_id" | "created_at"> & {
   id?: string
   trackInCosts?: boolean
+  addToItinerary?: boolean
 }
 
 export function BookingDrawer({
@@ -74,6 +75,7 @@ export function BookingDrawer({
   const [deadline, setDeadline] = useState("")
   const [notes, setNotes] = useState("")
   const [trackInCosts, setTrackInCosts] = useState(false)
+  const [addToItinerary, setAddToItinerary] = useState(true)
   const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -158,6 +160,7 @@ export function BookingDrawer({
         setRestaurantLocation("")
       }
       setTrackInCosts(false)
+      setAddToItinerary(false)
     } else {
       setType("accommodation")
       setTitle("")
@@ -183,6 +186,7 @@ export function BookingDrawer({
       setDeadline("")
       setNotes("")
       setTrackInCosts(false)
+      setAddToItinerary(true)
       setSelectedCurrency("THB")
     }
   }, [booking, open])
@@ -322,6 +326,7 @@ export function BookingDrawer({
         departure_time: effectiveDepartureTime,
         arrival_time: effectiveArrivalTime,
         trackInCosts: !booking && trackInCosts,
+        addToItinerary: !booking && addToItinerary,
       })
       onClose()
     } catch (err) {
@@ -844,6 +849,22 @@ export function BookingDrawer({
                     initialAttachments={booking.booking_attachments ?? []}
                   />
                 </div>
+              )}
+
+              {/* ── Add to itinerary (new bookings only) ── */}
+              {!booking && (
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#8AD0C0]/60 bg-[#8AD0C0]/10 px-4 py-3">
+                  <Checkbox
+                    id="add-itinerary"
+                    checked={addToItinerary}
+                    onCheckedChange={(v) => setAddToItinerary(!!v)}
+                    className="border-[#27ba76] data-[state=checked]:bg-[#27ba76] data-[state=checked]:border-[#27ba76]"
+                  />
+                  <div>
+                    <p className="text-sm font-medium leading-none">Add to itinerary</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Create a matching activity on the itinerary board</p>
+                  </div>
+                </label>
               )}
 
               {/* ── Track in Costs (new bookings only) ── */}

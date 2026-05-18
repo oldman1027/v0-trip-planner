@@ -5,8 +5,9 @@ import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Spinner } from "@/components/ui/spinner"
-import { Trash2, Pencil, Plane, Bus } from "lucide-react"
+import { Trash2, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Booking } from "@/lib/types"
@@ -103,6 +104,7 @@ export function TransportDrawer({
   const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
   const [paymentStatus, setPaymentStatus] = useState<Booking["payment_status"]>("pending")
   const [cancellationDeadline, setCancellationDeadline] = useState("")
+  const [addToItinerary, setAddToItinerary] = useState(true)
   const [editingField, setEditingField] = useState<EditingField>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -115,6 +117,7 @@ export function TransportDrawer({
     if (booking) {
       const d = (booking.details ?? {}) as TransportDetails & { transport_type?: string }
       setType(d.transport_type === "flight" ? "flight" : "transport")
+      setAddToItinerary(false)
       setFlightNumber(booking.title ?? "")
       setFromCode(d.from_code ?? "")
       setFromCity(d.from_city ?? "")
@@ -129,6 +132,7 @@ export function TransportDrawer({
       )
     } else {
       setType(defaultType)
+      setAddToItinerary(true)
       setFlightNumber("")
       setFromCode("")
       setFromCity("")
@@ -154,6 +158,7 @@ export function TransportDrawer({
         id: booking?.id,
         type: "transport",
         title: flightNumber.trim() || (type === "flight" ? "Flight" : "Transport"),
+        addToItinerary: !booking && addToItinerary,
         details: {
           transport_type: type,
           from_code: fromCode.trim().toUpperCase() || null,
@@ -218,38 +223,9 @@ export function TransportDrawer({
           {/* ── Scrollable body ── */}
           <div className="flex-1 overflow-y-auto">
 
-            {/* Type toggle + delete */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-4">
-              <div className="flex overflow-hidden rounded-xl border border-border">
-                <button
-                  type="button"
-                  onClick={() => setType("transport")}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
-                    type === "transport"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card text-muted-foreground hover:bg-secondary"
-                  )}
-                >
-                  <Bus className="h-3.5 w-3.5" />
-                  Transport
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setType("flight")}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
-                    type === "flight"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card text-muted-foreground hover:bg-secondary"
-                  )}
-                >
-                  <Plane className="h-3.5 w-3.5" />
-                  Flight
-                </button>
-              </div>
-
-              {booking && (
+            {/* Header row — delete button (edit only) */}
+            {booking && (
+              <div className="flex items-center justify-end px-5 pt-5 pb-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -260,11 +236,11 @@ export function TransportDrawer({
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* ── Flight card ── */}
-            <div className="mx-5 mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className={cn("mx-5 mb-6 rounded-xl border border-border bg-card p-5 shadow-sm", !booking && "mt-5")}>
               {/* Flight / ref number */}
               {editingField === "flightNumber" ? (
                 <Input
@@ -598,7 +574,7 @@ export function TransportDrawer({
             </div>
 
             {/* ── Cancel by ── */}
-            <div className="px-5 pb-8">
+            <div className="px-5 pb-5">
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Cancel by (optional)
               </p>
@@ -609,6 +585,24 @@ export function TransportDrawer({
                 className="rounded-xl"
               />
             </div>
+
+            {/* ── Add to itinerary (new only) ── */}
+            {!booking && (
+              <div className="px-5 pb-6">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#8AD0C0]/60 bg-[#8AD0C0]/10 px-4 py-3">
+                  <Checkbox
+                    id="transport-add-itinerary"
+                    checked={addToItinerary}
+                    onCheckedChange={(v) => setAddToItinerary(!!v)}
+                    className="border-[#27ba76] data-[state=checked]:bg-[#27ba76] data-[state=checked]:border-[#27ba76]"
+                  />
+                  <div>
+                    <p className="text-sm font-medium leading-none">Add to itinerary</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Create a matching activity on the itinerary board</p>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
 
           {/* ── Sticky CTA ── */}

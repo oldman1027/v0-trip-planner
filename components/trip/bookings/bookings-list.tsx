@@ -60,6 +60,56 @@ function getTimeBlock(time: string): "morning" | "afternoon" | "night" {
   return "night"
 }
 
+function buildActivityInsert(
+  input: Omit<BookingSaveInput, "trackInCosts" | "addToItinerary">,
+  tripId: string,
+  currency: string,
+) {
+  const details = (input.details ?? {}) as Record<string, unknown>
+  const base = { trip_id: tripId, position: 999, is_wishlist: false, cost_currency: currency, end_time: null as string | null }
+
+  if (input.type === "accommodation") {
+    const startTime = input.check_in_time ?? null
+    return { ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "accommodation" as const,
+      location: (details.address as string | null) ?? null, cost_amount: input.amount ?? null }
+  }
+
+  if (input.type === "transport") {
+    const deptFull = (details.departure_time as string | null) ?? null
+    const dayDate = deptFull ? deptFull.slice(0, 10) : (input.booking_date ?? null)
+    const startTime = deptFull ? deptFull.slice(11, 16) : null
+    return { ...base, title: input.title, day_date: dayDate, start_time: startTime,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "transport" as const,
+      location: (details.from_city as string | null) ?? (details.from_code as string | null) ?? null,
+      cost_amount: input.amount ?? null }
+  }
+
+  if (input.type === "dining") {
+    const datetime = (details.datetime as string) ?? ""
+    const dayDate = datetime ? datetime.slice(0, 10) : null
+    const startTime = datetime ? datetime.slice(11, 16) : null
+    return { ...base, title: input.title, day_date: dayDate, start_time: startTime,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "food" as const,
+      location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null }
+  }
+
+  if (input.type === "activities") {
+    const startTime = input.departure_time ?? null
+    return { ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "attraction" as const,
+      location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null }
+  }
+
+  if (input.type === "other") {
+    return { ...base, title: input.title, day_date: input.booking_date ?? null, start_time: null as string | null,
+      time_block: "morning" as const, category: "other" as const, location: null as string | null,
+      cost_amount: input.amount ?? null }
+  }
+
+  return null
+}
+
 export function BookingsList({
   tripId,
   initialBookings,
@@ -94,7 +144,7 @@ export function BookingsList({
 
   async function handleSave(input: BookingSaveInput) {
     const supabase = createClient()
-    const { trackInCosts, ...bookingData } = input
+    const { trackInCosts, addToItinerary, ...bookingData } = input
 
     const isLinked = !!(bookingData.details as Record<string, unknown> | null)?.activity_id
     if (!isLinked && bookingData.booking_date && tripStart && tripEnd) {
@@ -159,53 +209,24 @@ export function BookingsList({
       )
       toast.success("Booking updated")
     } else {
-      let bookingDetails = bookingData.details
-
-      if (bookingData.type === "dining") {
-        const d = (bookingData.details ?? {}) as Record<string, unknown>
-        const datetime = (d.datetime as string) ?? ""
-        const dayDate = datetime ? datetime.slice(0, 10) : null
-        const startTime = datetime ? datetime.slice(11, 16) : null
-        const timeBlock = startTime ? getTimeBlock(startTime) : "morning"
-
-        const { data: newActivity, error: activityError } = await supabase
-          .from("activities")
-          .insert({
-            trip_id: tripId,
-            day_date: dayDate,
-            time_block: timeBlock,
-            position: 999,
-            title: bookingData.title,
-            location: (d.location as string | null) ?? null,
-            start_time: startTime,
-            end_time: null,
-            category: "food",
-            cost_currency: currency,
-            is_wishlist: false,
-          })
-          .select()
-          .single()
-
-        if (!activityError && newActivity) {
-          bookingDetails = { ...(d as Record<string, unknown>), activity_id: newActivity.id }
-        }
-      }
-
       const { data, error } = await supabase
         .from("bookings")
         .insert({
           ...bookingData,
           trip_id: tripId,
-          details: bookingDetails,
         })
         .select()
         .single()
       if (error || !data) throw error ?? new Error("Insert failed")
 
-      if (bookingData.type === "dining") {
-        const activityId = (bookingDetails as Record<string, unknown> | null)?.activity_id as string | undefined
-        if (activityId) {
-          await supabase.from("activities").update({ booking_id: (data as Booking).id }).eq("id", activityId)
+      // Create matching itinerary activity if requested
+      if (addToItinerary) {
+        const activityInsert = buildActivityInsert(bookingData, tripId, currency)
+        if (activityInsert) {
+          await supabase.from("activities").insert({
+            ...activityInsert,
+            linked_booking_id: (data as Booking).id,
+          })
         }
       }
 
