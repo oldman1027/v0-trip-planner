@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Car, Footprints, MapPin } from "lucide-react"
+import { MapPin } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import type { Activity } from "@/lib/types"
@@ -9,7 +9,6 @@ import type { Activity } from "@/lib/types"
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type Pinned = { activity: Activity; lat: number; lng: number; color: PinColor }
-type RouteMode = "DRIVING" | "WALKING" | null
 type PinColor = { bg: string; border: string }
 type MarkerEntry = {
   marker: google.maps.marker.AdvancedMarkerElement
@@ -136,8 +135,6 @@ export function TripMap({
   // and selection can work without re-geocoding.
   const markersRef    = useRef<Map<string, MarkerEntry>>(new Map())
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
-  const renderersRef  = useRef<google.maps.DirectionsRenderer[]>([])
-  const routeLabelsRef= useRef<google.maps.marker.AdvancedMarkerElement[]>([])
 
   // Stable mirrors of state — safe to read inside async callbacks.
   const filterDayRef    = useRef<string | null>(null)
@@ -147,10 +144,8 @@ export function TripMap({
   const [loading,     setLoading]     = useState(true)
   const [pinCount,    setPinCount]    = useState(0)
   const [activeDays,  setActiveDays]  = useState<string[]>([])
-  const [routeMode,   setRouteMode]   = useState<RouteMode>(null)
   const [filterDay,   setFilterDay]   = useState<string | null>(null)
   const [selectedId,  setSelectedId]  = useState<string | null>(null)
-  const [routeStats,  setRouteStats]  = useState<{ distM: number; durS: number } | null>(null)
 
   // Keep refs in sync on every render so async callbacks always see fresh values.
   filterDayRef.current  = filterDay
@@ -264,12 +259,6 @@ export function TripMap({
         // Tear down any previous map instance
         markersRef.current.forEach(({ marker }) => { marker.map = null })
         markersRef.current.clear()
-        renderersRef.current.forEach((r) => r.setMap(null))
-        renderersRef.current = []
-        routeLabelsRef.current.forEach((m) => { m.map = null })
-        routeLabelsRef.current = []
-        setRouteMode(null)
-        setRouteStats(null)
         setSelectedId(null)
         setFilterDay(null)
 
@@ -332,83 +321,6 @@ export function TripMap({
     return () => { cancelled = true }
   }, [activities, destination, days]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Route drawing ───────────────────────────────────────────────────────
-  useEffect(() => {
-    const map  = mapRef.current
-    const pins = filterDayRef.current
-      ? geocodedRef.current.filter((p) => p.activity.day_date === filterDayRef.current)
-      : geocodedRef.current
-
-    renderersRef.current.forEach((r) => r.setMap(null))
-    renderersRef.current = []
-    routeLabelsRef.current.forEach((m) => { m.map = null })
-    routeLabelsRef.current = []
-    setRouteStats(null)
-
-    if (!map || !routeMode || pins.length < 2) return
-
-    let cancelled = false
-
-    async function drawSegments() {
-      const [{ AdvancedMarkerElement }, { DirectionsService, DirectionsRenderer }] = await Promise.all([
-        google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
-        google.maps.importLibrary("routes") as Promise<google.maps.RoutesLibrary>,
-      ])
-      if (cancelled) return
-
-      const service    = new DirectionsService()
-      const travelMode = routeMode === "DRIVING"
-        ? google.maps.TravelMode.DRIVING
-        : google.maps.TravelMode.WALKING
-
-      let totalDistM = 0
-      let totalDurS  = 0
-
-      await Promise.allSettled(
-        pins.slice(0, -1).map(async (pin, i) => {
-          try {
-            const result = await service.route({
-              origin:      { lat: pin.lat,         lng: pin.lng },
-              destination: { lat: pins[i+1].lat,   lng: pins[i+1].lng },
-              travelMode,
-            })
-            if (cancelled) return
-
-            const renderer = new DirectionsRenderer({
-              map,
-              suppressMarkers: true,
-              polylineOptions: { strokeColor: "#4a7c35", strokeWeight: 5, strokeOpacity: 0.85 },
-            })
-            renderer.setDirections(result)
-            renderersRef.current.push(renderer)
-
-            const leg = result.routes[0]?.legs[0]
-            if (leg?.distance && leg?.duration) {
-              totalDistM += leg.distance.value
-              totalDurS  += leg.duration.value
-
-              const midLat = (leg.start_location.lat() + leg.end_location.lat()) / 2
-              const midLng = (leg.start_location.lng() + leg.end_location.lng()) / 2
-              const label  = new AdvancedMarkerElement({
-                map,
-                position: { lat: midLat, lng: midLng },
-                content:  makeRouteLabelElement(`${fmtDur(leg.duration.value)} · ${fmtDist(leg.distance.value)}`),
-              })
-              routeLabelsRef.current.push(label)
-            }
-          } catch {
-            // segment unavailable — skip silently
-          }
-        }),
-      )
-
-      if (!cancelled && totalDistM > 0) setRouteStats({ distM: totalDistM, durS: totalDurS })
-    }
-
-    drawSegments()
-    return () => { cancelled = true }
-  }, [routeMode, filterDay]) // re-draw when day filter changes while route is active
-
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className={className ?? "relative mt-4 overflow-hidden rounded-2xl border border-border"}>
@@ -430,31 +342,6 @@ export function TripMap({
           <p className="max-w-sm text-sm text-muted-foreground">
             Add a location to your activities and they&apos;ll appear here.
           </p>
-        </div>
-      )}
-
-      {/* Route mode — top-left */}
-      {!loading && pinCount >= 2 && (
-        <div className="absolute left-3 top-3 flex gap-1.5">
-          {(["DRIVING", "WALKING"] as const).map((mode) => {
-            const Icon   = mode === "DRIVING" ? Car : Footprints
-            const label  = mode === "DRIVING" ? "Driving" : "Walking"
-            const active = routeMode === mode
-            return (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setRouteMode((m) => (m === mode ? null : mode))}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors",
-                  active ? "bg-primary text-primary-foreground" : "bg-card/90 text-muted-foreground hover:bg-card",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-                {label}
-              </button>
-            )
-          })}
         </div>
       )}
 
@@ -494,9 +381,7 @@ export function TripMap({
       {!loading && pinCount > 0 && (
         <div className="absolute bottom-3 right-3">
           <div className="rounded-full bg-card/90 px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
-            {routeStats
-              ? `${fmtDist(routeStats.distM)} · ${fmtDur(routeStats.durS)} total`
-              : `${pinCount} ${pinCount === 1 ? "location" : "locations"}`}
+            {`${pinCount} ${pinCount === 1 ? "location" : "locations"}`}
           </div>
         </div>
       )}
@@ -506,31 +391,7 @@ export function TripMap({
 
 // ── DOM helpers ────────────────────────────────────────────────────────────
 
-function makeRouteLabelElement(text: string): HTMLElement {
-  const el = document.createElement("div")
-  el.style.cssText = [
-    "background:#4a7c35", "color:white",
-    "font-size:11px", "font-weight:600",
-    "font-family:ui-sans-serif,system-ui,sans-serif",
-    "padding:4px 10px", "border-radius:12px",
-    "box-shadow:0 2px 6px rgba(0,0,0,0.35)",
-    "white-space:nowrap", "pointer-events:none",
-    "transform:translateX(-50%)", "letter-spacing:0.01em",
-  ].join(";")
-  el.textContent = text
-  return el
-}
-
 function escHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 }
 
-function fmtDist(meters: number) {
-  return meters < 1000 ? `${meters}m` : `${(meters / 1000).toFixed(1)}km`
-}
-
-function fmtDur(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
-}
