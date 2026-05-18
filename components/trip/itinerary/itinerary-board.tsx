@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   DndContext,
   type CollisionDetection,
@@ -74,6 +74,8 @@ export function ItineraryBoard({
   const days = useMemo(() => daysBetween(trip.start_date, trip.end_date), [trip.start_date, trip.end_date])
 
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
+  const activitiesRef = useRef(activities)
+  activitiesRef.current = activities
   const [bookings, setBookings] = useState<Booking[]>(initialBookings)
   const [selectedDay, setSelectedDay] = useState<string>(days[0])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -99,13 +101,27 @@ export function ItineraryBoard({
   useRealtimeActivities({
     tripId: trip.id,
     onInsert: (activity) => {
-      setActivities((prev) => prev.some((a) => a.id === activity.id) ? prev : [...prev, activity])
+      console.log("[board] onInsert called:", activity.id)
+      setActivities((prev) => {
+        const isDupe = prev.some((a) => a.id === activity.id)
+        console.log("[board] onInsert setActivities — isDupe:", isDupe, "prevCount:", prev.length)
+        return isDupe ? prev : [...prev, activity]
+      })
     },
     onUpdate: (activity) => {
-      setActivities((prev) => prev.map((a) => a.id === activity.id ? activity : a))
+      console.log("[board] onUpdate called:", activity.id)
+      setActivities((prev) => {
+        const exists = prev.some((a) => a.id === activity.id)
+        console.log("[board] onUpdate setActivities — exists:", exists, "prevCount:", prev.length)
+        return prev.map((a) => a.id === activity.id ? activity : a)
+      })
     },
     onDelete: (activityId) => {
-      setActivities((prev) => prev.filter((a) => a.id !== activityId))
+      console.log("[board] onDelete called:", activityId)
+      setActivities((prev) => {
+        console.log("[board] onDelete setActivities — prevCount:", prev.length)
+        return prev.filter((a) => a.id !== activityId)
+      })
     },
   })
 
@@ -322,15 +338,12 @@ export function ItineraryBoard({
       // Update the moved activity itself
       await moveActivity(activityId, day, block, targetIndex)
 
-      // Renumber the bucket positions for stability
-      setActivities((latest) => {
-        const bucket = latest
-          .filter((a) => a.day_date === day && a.time_block === block)
-          .sort((a, b) => a.position - b.position)
-        // Fire-and-forget renumber for the bucket
-        reorderActivities(bucket.map((a, idx) => ({ id: a.id, position: idx }))).catch(() => null)
-        return latest
-      })
+      // Renumber the bucket positions for stability — read via ref so we don't
+      // trigger a re-render and don't put async work inside a setState updater.
+      const bucket = activitiesRef.current
+        .filter((a) => a.day_date === day && a.time_block === block)
+        .sort((a, b) => a.position - b.position)
+      reorderActivities(bucket.map((a, idx) => ({ id: a.id, position: idx }))).catch(() => null)
     } catch (err) {
       toast.error("Could not save order", { description: err instanceof Error ? err.message : "Unknown" })
     }

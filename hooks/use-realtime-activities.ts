@@ -29,13 +29,16 @@ export function useRealtimeActivities({
 
   useEffect(() => {
     const supabase = createClient()
+    const channelName = `activities:trip:${tripId}`
+    console.log(`[realtime] subscribing to ${channelName}`)
 
     const channel = supabase
-      .channel(`activities:trip:${tripId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activities", filter: `trip_id=eq.${tripId}` },
         (payload: RealtimePostgresChangesPayload<Activity>) => {
+          console.log("[realtime] INSERT received:", (payload.new as Activity)?.id, payload.new)
           onInsertRef.current(payload.new as Activity)
         },
       )
@@ -43,6 +46,7 @@ export function useRealtimeActivities({
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "activities", filter: `trip_id=eq.${tripId}` },
         (payload: RealtimePostgresChangesPayload<Activity>) => {
+          console.log("[realtime] UPDATE received:", (payload.new as Activity)?.id, payload.new)
           onUpdateRef.current(payload.new as Activity)
         },
       )
@@ -51,12 +55,21 @@ export function useRealtimeActivities({
         { event: "DELETE", schema: "public", table: "activities", filter: `trip_id=eq.${tripId}` },
         (payload: RealtimePostgresChangesPayload<Activity>) => {
           // payload.old contains all columns because activities uses REPLICA IDENTITY FULL
-          onDeleteRef.current((payload.old as { id: string }).id)
+          const id = (payload.old as { id: string }).id
+          console.log("[realtime] DELETE received:", id, payload.old)
+          onDeleteRef.current(id)
         },
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        if (err) {
+          console.error(`[realtime] channel error (${channelName}):`, err)
+        } else {
+          console.log(`[realtime] channel status (${channelName}):`, status)
+        }
+      })
 
     return () => {
+      console.log(`[realtime] removing channel ${channelName}`)
       supabase.removeChannel(channel)
     }
   // Only re-subscribe when the trip changes. Callbacks are read from refs.
