@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner"
 import { LocationAutocomplete } from "@/components/trip/itinerary/location-autocomplete"
 import type { Booking, BookingAttachment } from "@/lib/types"
-import { BookingAttachments } from "./booking-attachments"
+import { BookingAttachments, PendingAttachments } from "./booking-attachments"
+import { uploadBookingAttachment } from "@/lib/supabase/booking-attachments"
 import { formatDayLabel } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -43,7 +44,7 @@ export function BookingDrawer({
   tripStart: string
   tripEnd: string
   onClose: () => void
-  onSave: (input: BookingSaveInput) => Promise<void>
+  onSave: (input: BookingSaveInput) => Promise<string | undefined>
   onDelete: (id: string) => Promise<void>
 }) {
   const [type, setType] = useState<DrawerType>("accommodation")
@@ -77,6 +78,7 @@ export function BookingDrawer({
   const [trackInCosts, setTrackInCosts] = useState(false)
   const [addToItinerary, setAddToItinerary] = useState(true)
   const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -188,6 +190,7 @@ export function BookingDrawer({
       setTrackInCosts(false)
       setAddToItinerary(true)
       setSelectedCurrency("THB")
+      setPendingFiles([])
     }
   }, [booking, open])
 
@@ -308,7 +311,7 @@ export function BookingDrawer({
     }
 
     try {
-      await onSave({
+      const newId = await onSave({
         id: booking?.id,
         type,
         title: effectiveTitle,
@@ -328,6 +331,11 @@ export function BookingDrawer({
         trackInCosts: !booking && trackInCosts,
         addToItinerary: !booking && addToItinerary,
       })
+      if (!booking && newId && pendingFiles.length > 0) {
+        for (const file of pendingFiles) {
+          try { await uploadBookingAttachment(newId, tripId, file) } catch { /* ignore per-file errors */ }
+        }
+      }
       onClose()
     } catch (err) {
       const e = err as { message?: string; details?: string }
@@ -836,20 +844,22 @@ export function BookingDrawer({
                 />
               </Field>
 
-              {/* ── Attachments (existing bookings only) ── */}
-              {booking && (
-                <div className="space-y-2 border-t border-border pt-4">
-                  <p className="flex items-center gap-1.5 text-sm font-medium">
-                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                    Attachments
-                  </p>
+              {/* ── Attachments ── */}
+              <div className="space-y-2 border-t border-border pt-4">
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                  <Paperclip className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                  Attachments
+                </p>
+                {booking ? (
                   <BookingAttachments
                     bookingId={booking.id}
                     tripId={tripId}
                     initialAttachments={booking.booking_attachments ?? []}
                   />
-                </div>
-              )}
+                ) : (
+                  <PendingAttachments files={pendingFiles} onChange={setPendingFiles} />
+                )}
+              </div>
 
               {/* ── Add to itinerary (new bookings only) ── */}
               {!booking && (

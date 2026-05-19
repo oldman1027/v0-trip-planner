@@ -132,18 +132,25 @@ export function CalendarPageClient({
 
   async function handleBookingSave(
     input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string },
-  ) {
+  ): Promise<string | undefined> {
     const supabase = createClient()
     if (input.id) {
       const { error } = await supabase.from("bookings").update({ ...input }).eq("id", input.id)
       if (error) throw error
       toast.success("Booking updated")
+      setBookingOpen(false)
+      return undefined
     } else {
-      const { error } = await supabase.from("bookings").insert({ ...input, trip_id: trip.id })
-      if (error) throw error
+      const { data, error } = await supabase
+        .from("bookings")
+        .insert({ ...input, trip_id: trip.id })
+        .select()
+        .single()
+      if (error || !data) throw error ?? new Error("Insert failed")
       toast.success("Booking added")
+      setBookingOpen(false)
+      return (data as Booking).id
     }
-    setBookingOpen(false)
   }
 
   async function handleBookingDelete(id: string) {
@@ -324,6 +331,7 @@ export function CalendarPageClient({
         open={transportOpen}
         booking={null}
         defaultType="transport"
+        tripId={trip.id}
         currency={currency}
         tripStart={trip.start_date}
         tripEnd={trip.end_date}

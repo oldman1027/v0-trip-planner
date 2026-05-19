@@ -251,3 +251,81 @@ export function BookingAttachments({
     </div>
   )
 }
+
+interface PendingAttachmentsProps {
+  files: File[]
+  onChange: (files: File[]) => void
+}
+
+export function PendingAttachments({ files, onChange }: PendingAttachmentsProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function addFiles(incoming: FileList | null) {
+    if (!incoming?.length) return
+    onChange([...files, ...Array.from(incoming)])
+  }
+
+  function removeFile(index: number) {
+    onChange(files.filter((_, i) => i !== index))
+  }
+
+  return (
+    <div className="space-y-3">
+      {files.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {files.map((file, i) => (
+            <div key={i} className="group relative">
+              <div className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-secondary p-1">
+                {isImageFile(file.type) ? (
+                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                ) : isPdfFile(file.type) ? (
+                  <FileText className="h-4 w-4 text-red-500" />
+                ) : (
+                  <File className="h-4 w-4 text-blue-500" />
+                )}
+                <span className="w-full truncate px-1 text-center text-[9px] text-muted-foreground">
+                  {file.name.split(".").pop()?.toUpperCase()}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border transition-colors hover:border-primary hover:bg-primary/5"
+          >
+            <Upload className="h-4 w-4 text-muted-foreground" />
+            <span className="text-[9px] text-muted-foreground">Add</span>
+          </button>
+        </div>
+      ) : (
+        <div
+          onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files) }}
+          onDragOver={(e) => e.preventDefault()}
+          onClick={() => fileInputRef.current?.click()}
+          className="cursor-pointer rounded-xl border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <Paperclip className="h-6 w-6 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">Attach files</p>
+            <p className="text-xs text-muted-foreground">Drag & drop or click · Uploads on save</p>
+          </div>
+        </div>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => addFiles(e.target.files)}
+      />
+    </div>
+  )
+}

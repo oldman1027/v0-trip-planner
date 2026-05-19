@@ -4,10 +4,13 @@ import { useState, useEffect } from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Spinner } from "@/components/ui/spinner"
-import { Trash2, Pencil } from "lucide-react"
+import { Trash2, Pencil, Paperclip } from "lucide-react"
+import { BookingAttachments, PendingAttachments } from "./booking-attachments"
+import { uploadBookingAttachment } from "@/lib/supabase/booking-attachments"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Booking } from "@/lib/types"
@@ -20,6 +23,7 @@ type TransportDetails = {
   to_city?: string
   departure_time?: string
   arrival_time?: string
+  notes?: string
 }
 
 type EditingField =
@@ -75,6 +79,7 @@ export function TransportDrawer({
   open,
   booking,
   defaultType = "transport",
+  tripId,
   currency,
   tripStart,
   tripEnd,
@@ -85,11 +90,12 @@ export function TransportDrawer({
   open: boolean
   booking: Booking | null
   defaultType?: "transport" | "flight"
+  tripId: string
   currency: string
   tripStart: string
   tripEnd: string
   onClose: () => void
-  onSave: (input: BookingSaveInput) => Promise<void>
+  onSave: (input: BookingSaveInput) => Promise<string | undefined>
   onDelete: (id: string) => Promise<void>
 }) {
   const [type, setType] = useState<"transport" | "flight">(defaultType)
@@ -104,6 +110,10 @@ export function TransportDrawer({
   const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
   const [paymentStatus, setPaymentStatus] = useState<Booking["payment_status"]>("pending")
   const [cancellationDeadline, setCancellationDeadline] = useState("")
+  const [confirmationNumber, setConfirmationNumber] = useState("")
+  const [bookingUrl, setBookingUrl] = useState("")
+  const [notes, setNotes] = useState("")
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [addToItinerary, setAddToItinerary] = useState(true)
   const [editingField, setEditingField] = useState<EditingField>(null)
   const [saving, setSaving] = useState(false)
@@ -130,6 +140,9 @@ export function TransportDrawer({
       setCancellationDeadline(
         booking.cancellation_deadline ? booking.cancellation_deadline.slice(0, 10) : ""
       )
+      setConfirmationNumber(booking.confirmation_number ?? "")
+      setBookingUrl(booking.booking_url ?? "")
+      setNotes(d.notes ?? "")
     } else {
       setType(defaultType)
       setAddToItinerary(true)
@@ -144,6 +157,10 @@ export function TransportDrawer({
       setSelectedCurrency("THB")
       setPaymentStatus("pending")
       setCancellationDeadline("")
+      setConfirmationNumber("")
+      setBookingUrl("")
+      setNotes("")
+      setPendingFiles([])
     }
     setEditingField(null)
   }, [booking, open, defaultType])
@@ -154,7 +171,7 @@ export function TransportDrawer({
     e.preventDefault()
     setSaving(true)
     try {
-      await onSave({
+      const newId = await onSave({
         id: booking?.id,
         type: "transport",
         title: flightNumber.trim() || (type === "flight" ? "Flight" : "Transport"),
@@ -167,9 +184,10 @@ export function TransportDrawer({
           to_city: toCity.trim() || null,
           departure_time: departureTime || null,
           arrival_time: arrivalTime || null,
+          notes: notes.trim() || null,
         },
-        confirmation_number: null,
-        booking_url: null,
+        confirmation_number: confirmationNumber.trim() || null,
+        booking_url: bookingUrl.trim() || null,
         check_in_time: null,
         check_out_time: null,
         check_out_date: null,
@@ -183,6 +201,11 @@ export function TransportDrawer({
           : null,
         booking_date: departureTime ? departureTime.slice(0, 10) : null,
       })
+      if (!booking && newId && pendingFiles.length > 0) {
+        for (const file of pendingFiles) {
+          try { await uploadBookingAttachment(newId, tripId, file) } catch { /* ignore per-file errors */ }
+        }
+      }
       onClose()
     } catch (err) {
       const e = err as { message?: string; details?: string }
@@ -584,6 +607,63 @@ export function TransportDrawer({
                 onChange={(e) => setCancellationDeadline(e.target.value)}
                 className="rounded-xl"
               />
+            </div>
+
+            {/* ── Confirmation # + Booking URL ── */}
+            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+              <div>
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Confirmation #
+                </p>
+                <Input
+                  value={confirmationNumber}
+                  onChange={(e) => setConfirmationNumber(e.target.value)}
+                  placeholder="ABC123"
+                  className="rounded-xl"
+                />
+              </div>
+              <div>
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Booking URL
+                </p>
+                <Input
+                  type="url"
+                  value={bookingUrl}
+                  onChange={(e) => setBookingUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+
+            {/* ── Notes ── */}
+            <div className="px-5 pb-5">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Notes (optional)
+              </p>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any notes..."
+                className="min-h-[80px] rounded-xl resize-none"
+              />
+            </div>
+
+            {/* ── Attachments ── */}
+            <div className="px-5 pb-5 space-y-2">
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <Paperclip className="h-3 w-3" aria-hidden />
+                Attachments
+              </p>
+              {booking ? (
+                <BookingAttachments
+                  bookingId={booking.id}
+                  tripId={tripId}
+                  initialAttachments={booking.booking_attachments ?? []}
+                />
+              ) : (
+                <PendingAttachments files={pendingFiles} onChange={setPendingFiles} />
+              )}
             </div>
 
             {/* ── Add to itinerary (new only) ── */}

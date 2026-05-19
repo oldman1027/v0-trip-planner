@@ -142,7 +142,7 @@ export function BookingsList({
     [bookings, filter],
   )
 
-  async function handleSave(input: BookingSaveInput) {
+  async function handleSave(input: BookingSaveInput): Promise<string | undefined> {
     const supabase = createClient()
     const { trackInCosts, addToItinerary, ...bookingData } = input
 
@@ -249,6 +249,7 @@ export function BookingsList({
 
       setBookings((prev) => [data as Booking, ...prev])
       toast.success(trackInCosts && bookingData.amount ? "Booking added and expense created" : "Booking added")
+      return (data as Booking).id
     }
   }
 
@@ -490,6 +491,7 @@ export function BookingsList({
       <TransportDrawer
         open={isTransportOpen}
         booking={transportBooking}
+        tripId={tripId}
         currency={currency}
         tripStart={tripStart}
         tripEnd={tripEnd}

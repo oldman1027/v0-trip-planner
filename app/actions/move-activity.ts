@@ -7,13 +7,14 @@ export async function moveActivity(
   activityId: string,
   day: string,
   block: TimeBlock,
-  position: number
+  position: number,
+  startTime?: string
 ) {
   const supabase = await createServiceClient()
 
   const { error } = await supabase
     .from("activities")
-    .update({ day_date: day, time_block: block, position })
+    .update({ day_date: day, time_block: block, position, start_time: startTime ?? null })
     .eq("id", activityId)
 
   if (error) {

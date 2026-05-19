@@ -20,7 +20,7 @@ export default async function TripSettingsPage({ params }: { params: Promise<{ i
     supabase.from("trips").select("*").eq("id", id).maybeSingle<Trip>(),
     serviceClient
       .from("trip_members")
-      .select("trip_id, user_id, role, joined_at, last_activity_at, invited_by_user_id, profile:profiles(id, full_name, avatar_url, created_at)")
+      .select("trip_id, user_id, role, joined_at, last_activity_at, invited_by_user_id, profile:profiles!trip_members_user_id_profiles_fkey(id, full_name, avatar_url, created_at)")
       .eq("trip_id", id)
       .order("joined_at", { ascending: true }),
     supabase

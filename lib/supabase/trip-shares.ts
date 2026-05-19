@@ -5,7 +5,7 @@ export async function getTripCollaborators(tripId: string): Promise<MemberWithPr
   const supabase = createClient()
   const { data, error } = await supabase
     .from("trip_members")
-    .select("trip_id, user_id, role, joined_at, last_activity_at, invited_by_user_id, profile:profiles(id, full_name, avatar_url, created_at)")
+    .select("trip_id, user_id, role, joined_at, last_activity_at, invited_by_user_id, profile:profiles!trip_members_user_id_profiles_fkey(id, full_name, avatar_url, created_at)")
     .eq("trip_id", tripId)
     .order("joined_at", { ascending: true })
   if (error) throw error

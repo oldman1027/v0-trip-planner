@@ -62,6 +62,12 @@ function categoryToBookingType(cat: Activity["category"]): Booking["type"] {
 
 const TIME_BLOCKS: TimeBlock[] = ["morning", "afternoon", "night"]
 
+const BLOCK_START_TIMES: Record<TimeBlock, string> = {
+  morning: "08:00",
+  afternoon: "13:00",
+  night: "19:00",
+}
+
 export function ItineraryBoard({
   trip,
   initialActivities,
@@ -261,7 +267,7 @@ export function ItineraryBoard({
     // Move card to a new container during hover
     const [day, block] = overContainer.split("::") as [string, TimeBlock]
     setActivities((prev) =>
-      prev.map((a) => (a.id === activeIdStr ? { ...a, day_date: day, time_block: block } : a)),
+      prev.map((a) => (a.id === activeIdStr ? { ...a, day_date: day, time_block: block, start_time: BLOCK_START_TIMES[block] } : a)),
     )
   }
 
@@ -315,9 +321,10 @@ export function ItineraryBoard({
   }
 
   async function applyMove(activityId: string, day: string, block: TimeBlock, targetIndex: number) {
+    const startTime = BLOCK_START_TIMES[block]
     // Reorder optimistically: build new bucket order
     setActivities((prev) => {
-      const updated = prev.map((a) => (a.id === activityId ? { ...a, day_date: day, time_block: block } : a))
+      const updated = prev.map((a) => (a.id === activityId ? { ...a, day_date: day, time_block: block, start_time: startTime } : a))
       const inBucket = updated
         .filter((a) => a.day_date === day && a.time_block === block)
         .sort((a, b) => (a.id === activityId ? -0.5 : a.position) - (b.id === activityId ? -0.5 : b.position))
@@ -338,7 +345,7 @@ export function ItineraryBoard({
     // Persist using server action
     try {
       // Update the moved activity itself
-      await moveActivity(activityId, day, block, targetIndex)
+      await moveActivity(activityId, day, block, targetIndex, startTime)
 
       // Renumber the bucket positions for stability — read via ref so we don't
       // trigger a re-render and don't put async work inside a setState updater.
@@ -540,9 +547,9 @@ export function ItineraryBoard({
     toast.success("Activity removed")
   }
 
-  async function handleBookingSave(input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string }) {
+  async function handleBookingSave(input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string }): Promise<string | undefined> {
     const supabase = createClient()
-    if (!input.id) return
+    if (!input.id) return undefined
     // All bookings opened from the itinerary board are activity-linked;
     // the trigger auto-corrects their booking_date. Still validate standalone ones.
     const isLinked = !!(input.details as Record<string, unknown> | null)?.activity_id
@@ -598,7 +605,7 @@ export function ItineraryBoard({
 
   async function handleCalendarBookingSave(
     input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string },
-  ) {
+  ): Promise<string | undefined> {
     const supabase = createClient()
     if (input.id) {
       const { error } = await supabase.from("bookings").update({ ...input }).eq("id", input.id)
@@ -606,6 +613,10 @@ export function ItineraryBoard({
       setBookings((prev) =>
         prev.map((b) => (b.id === input.id ? ({ ...b, ...input, id: input.id! } as Booking) : b)),
       )
+      setCalendarBookingOpen(false)
+      setCalendarTransportOpen(false)
+      toast.success("Booking saved")
+      return undefined
     } else {
       const { data, error } = await supabase
         .from("bookings")
@@ -614,10 +625,11 @@ export function ItineraryBoard({
         .single()
       if (error || !data) throw error ?? new Error("Insert failed")
       setBookings((prev) => [data as Booking, ...prev])
+      setCalendarBookingOpen(false)
+      setCalendarTransportOpen(false)
+      toast.success("Booking saved")
+      return (data as Booking).id
     }
-    setCalendarBookingOpen(false)
-    setCalendarTransportOpen(false)
-    toast.success("Booking saved")
   }
 
   async function handleCalendarBookingDelete(id: string) {
@@ -961,6 +973,7 @@ export function ItineraryBoard({
         open={calendarTransportOpen}
         booking={null}
         defaultType="transport"
+        tripId={trip.id}
         currency={trip.default_currency ?? "USD"}
         tripStart={trip.start_date}
         tripEnd={trip.end_date}
