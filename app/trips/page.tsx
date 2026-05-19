@@ -27,7 +27,7 @@ export default async function TripsPage() {
     ? (
         await supabase
           .from("trip_members")
-          .select("trip_id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, created_at)")
+          .select("trip_id, user_id, role, joined_at, profile:profiles!trip_members_user_id_profiles_fkey(id, full_name, avatar_url, created_at)")
           .in("trip_id", tripIds)
       ).data
     : []

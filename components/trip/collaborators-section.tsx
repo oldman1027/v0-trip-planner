@@ -22,6 +22,7 @@ import {
 import { removeCollaborator, leaveTrip } from "@/lib/supabase/trip-shares"
 import { cancelInvitation } from "@/app/actions/cancel-invitation"
 import { ShareTripDialog } from "./share-trip-dialog"
+import { usePresence } from "@/hooks/use-presence"
 import type { MemberWithProfile, TripInvitation } from "@/lib/types"
 
 interface CollaboratorsSectionProps {
@@ -47,6 +48,7 @@ export function CollaboratorsSection({
   const [shareOpen, setShareOpen] = useState(false)
   const [pendingRemove, setPendingRemove] = useState<MemberWithProfile | null>(null)
   const [pendingLeave, setPendingLeave] = useState(false)
+  const { allOnlineUserIds } = usePresence(tripId)
 
   async function handleRemove(member: MemberWithProfile) {
     try {
@@ -107,14 +109,22 @@ export function CollaboratorsSection({
             return (
               <li key={m.user_id} className="flex items-center justify-between gap-4 p-5">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    {m.profile?.avatar_url ? (
-                      <AvatarImage src={m.profile.avatar_url} alt={name} />
-                    ) : null}
-                    <AvatarFallback className="bg-secondary text-secondary-foreground">
-                      {name.slice(0, 1).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative shrink-0">
+                    <Avatar className="h-10 w-10">
+                      {m.profile?.avatar_url ? (
+                        <AvatarImage src={m.profile.avatar_url} alt={name} />
+                      ) : null}
+                      <AvatarFallback className="bg-secondary text-secondary-foreground">
+                        {name.slice(0, 1).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {allOnlineUserIds.has(m.user_id) && (
+                      <span
+                        className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white dark:ring-card"
+                        aria-label="Online"
+                      />
+                    )}
+                  </div>
                   <div>
                     <div className="flex items-center gap-1.5 font-medium">
                       {name}

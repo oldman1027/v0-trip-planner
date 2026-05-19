@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Calendar, Eye, EyeOff, LayoutGrid, MapPin, Plus } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DaySidebar } from "./day-sidebar"
 import { TimeBlockColumn } from "./time-block-column"
@@ -710,19 +711,28 @@ export function ItineraryBoard({
                 <div className="hidden sm:flex items-center gap-1.5">
                   <div className="flex -space-x-1.5">
                     {onlineUsers.slice(0, 4).map((user) => (
-                      <div
+                      <Avatar
                         key={user.userId}
-                        className="w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                        style={{ background: user.color }}
+                        className="h-6 w-6 border-2 border-background shrink-0"
                         title={`${user.name} is viewing`}
                       >
-                        {user.name[0]?.toUpperCase() ?? "?"}
-                      </div>
+                        {user.avatarUrl ? (
+                          <AvatarImage src={user.avatarUrl} alt={user.name} />
+                        ) : null}
+                        <AvatarFallback
+                          className="text-[9px] font-bold text-white"
+                          style={{ backgroundColor: user.color }}
+                        >
+                          {user.name[0]?.toUpperCase() ?? "?"}
+                        </AvatarFallback>
+                      </Avatar>
                     ))}
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] text-green-600 font-medium">LIVE</span>
+                    <span className="text-[10px] text-green-600 font-medium">
+                      {onlineUsers.length === 1 ? "1 online" : `${onlineUsers.length} online`}
+                    </span>
                   </div>
                 </div>
               )}
