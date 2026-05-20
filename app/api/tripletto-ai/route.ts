@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { NextRequest, NextResponse } from "next/server"
 import type { Activity, Trip } from "@/lib/types"
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
+// Intentionally deferred to request time so missing key produces a clear log
 
 type SuggestPayload = {
   mode: "suggest"
@@ -81,6 +81,15 @@ function extractJson(text: string): unknown {
 
 export async function POST(request: NextRequest) {
   try {
+    const apiKey = process.env.GOOGLE_AI_API_KEY
+    console.log("[tripletto-ai] key present:", !!apiKey)
+    if (!apiKey) {
+      console.error("[tripletto-ai] GOOGLE_AI_API_KEY is not set in environment")
+      return NextResponse.json({ error: "AI service is not configured" }, { status: 500 })
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey)
+
     const body = (await request.json()) as SuggestPayload | ChatPayload
 
     if (body.mode !== "suggest" && body.mode !== "chat") {
@@ -116,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
-    console.error("[tripletto-ai]", err)
+    console.error("[tripletto-ai] unhandled error:", err)
     return NextResponse.json({ error: `AI request failed: ${message}` }, { status: 500 })
   }
 }
