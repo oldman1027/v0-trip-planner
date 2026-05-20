@@ -717,7 +717,7 @@ function MarketingFooter() {
                 Terms of Service
               </Link>
               <a
-                href="mailto:support@tripletto.app"
+                href="mailto:hello.tripletto@gmail.com"
                 className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 Contact

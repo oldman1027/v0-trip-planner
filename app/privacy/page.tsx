@@ -108,8 +108,8 @@ export default function PrivacyPage() {
             </p>
             <p>
               To delete your account and all associated data, email us at{" "}
-              <a href="mailto:support@tripletto.app" className="text-primary hover:underline">
-                support@tripletto.app
+              <a href="mailto:hello.tripletto@gmail.com" className="text-primary hover:underline">
+                hello.tripletto@gmail.com
               </a>{" "}
               with the subject line &ldquo;Delete my account&rdquo;. We&apos;ll process your request
               within 14 days.
@@ -133,8 +133,8 @@ export default function PrivacyPage() {
             </ul>
             <p>
               To exercise any of these rights, contact us at{" "}
-              <a href="mailto:support@tripletto.app" className="text-primary hover:underline">
-                support@tripletto.app
+              <a href="mailto:hello.tripletto@gmail.com" className="text-primary hover:underline">
+                hello.tripletto@gmail.com
               </a>
               .
             </p>
@@ -161,8 +161,8 @@ export default function PrivacyPage() {
           <Section title="Contact">
             <p>
               Questions? Email us at{" "}
-              <a href="mailto:support@tripletto.app" className="text-primary hover:underline">
-                support@tripletto.app
+              <a href="mailto:hello.tripletto@gmail.com" className="text-primary hover:underline">
+                hello.tripletto@gmail.com
               </a>
               . We&apos;re a small team and we read every message.
             </p>

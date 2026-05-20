@@ -69,10 +69,10 @@ export default function AboutPage() {
           <div className="flex flex-col gap-2">
             <p>Have feedback or questions? We&apos;d love to hear from you.</p>
             <a
-              href="mailto:support@tripletto.app"
+              href="mailto:hello.tripletto@gmail.com"
               className="font-medium text-foreground underline-offset-2 hover:underline"
             >
-              support@tripletto.app
+              hello.tripletto@gmail.com
             </a>
           </div>
         </div>

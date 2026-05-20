@@ -40,8 +40,8 @@ export default function TermsPage() {
             <p>
               We&apos;ve tried to write this in plain language. If something isn&apos;t clear, email
               us at{" "}
-              <a href="mailto:support@tripletto.app" className="text-primary hover:underline">
-                support@tripletto.app
+              <a href="mailto:hello.tripletto@gmail.com" className="text-primary hover:underline">
+                hello.tripletto@gmail.com
               </a>
               .
             </p>
@@ -97,8 +97,8 @@ export default function TermsPage() {
             <p>
               You can stop using Tripletto and request account deletion at any time by emailing us
               at{" "}
-              <a href="mailto:support@tripletto.app" className="text-primary hover:underline">
-                support@tripletto.app
+              <a href="mailto:hello.tripletto@gmail.com" className="text-primary hover:underline">
+                hello.tripletto@gmail.com
               </a>
               .
             </p>
@@ -139,8 +139,8 @@ export default function TermsPage() {
           <Section title="Contact">
             <p>
               Questions about these Terms? Email us at{" "}
-              <a href="mailto:support@tripletto.app" className="text-primary hover:underline">
-                support@tripletto.app
+              <a href="mailto:hello.tripletto@gmail.com" className="text-primary hover:underline">
+                hello.tripletto@gmail.com
               </a>
               .
             </p>
