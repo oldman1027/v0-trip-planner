@@ -327,99 +327,412 @@ function EmptyDashboard() {
 function MarketingPage() {
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <MapPin className="h-4 w-4" aria-hidden />
-          </span>
-          <span className="font-serif text-xl tracking-tight">Tripletto</span>
-        </Link>
-        <nav className="flex items-center gap-2">
-          <Button asChild variant="ghost">
-            <Link href="/login">Sign in</Link>
-          </Button>
-        </nav>
-      </header>
-
-      <main className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 pb-24 pt-8 lg:grid-cols-2 lg:gap-16 lg:pt-16">
-        <div className="flex flex-col gap-8">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-            For families and friend groups
-          </div>
-          <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight md:text-6xl">
-            Because Every Moment Matters.
-          </h1>
-          <p className="max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
-            Plan your journey ahead, so your time is spent experiencing — not figuring things out.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" className="rounded-xl">
-              <Link href="/login">
-                Get started
-                <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
-              </Link>
-            </Button>
-          </div>
-          <dl className="grid grid-cols-3 gap-6 pt-4">
-            <Stat label="Visual itinerary" value="Drag &amp; drop" />
-            <Stat label="Shared with" value="Your group" />
-            <Stat label="Replaces" value="The chat" />
-          </dl>
-        </div>
-
-        <div className="relative">
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
-            <div className="relative aspect-[4/3] w-full">
-              <Image
-                src="https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1400&q=80"
-                alt="Tokyo skyline at dusk with neon signs"
-                fill
-                className="object-cover"
-                priority
-                sizes="(min-width: 1024px) 50vw, 100vw"
-              />
-            </div>
-            <div className="border-t border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-serif text-lg">Tokyo Family Trip</div>
-                  <div className="text-sm text-muted-foreground">7 days · 4 travelers</div>
-                </div>
-                <div className="flex -space-x-2">
-                  {["A", "M", "K", "S"].map((c, i) => (
-                    <span
-                      key={c}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-secondary text-xs font-medium text-secondary-foreground"
-                      style={{ zIndex: 4 - i }}
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-border bg-card p-4 shadow-md md:block">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Day 3 · Afternoon</div>
-            <div className="mt-1 font-medium">Shibuya Sky observation deck</div>
-            <div className="text-sm text-muted-foreground">15:30 – 17:00</div>
-          </div>
-        </div>
-      </main>
+      <MarketingNav />
+      <HeroSection />
+      <HowItWorksSection />
+      <FeaturesSection />
+      <PricingSection />
+      <MarketingFooter />
     </div>
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+// ── Nav ────────────────────────────────────────────────────────────────────
+
+function MarketingNav() {
   return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd
-        className="font-serif text-base text-foreground"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted static
-        dangerouslySetInnerHTML={{ __html: value }}
-      />
-    </div>
+    <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
+      <Link href="/" className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <MapPin className="h-4 w-4" aria-hidden />
+        </span>
+        <span className="font-serif text-xl tracking-tight">Tripletto</span>
+      </Link>
+      <nav className="flex items-center gap-4">
+        <a href="#features" className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:block">
+          Features
+        </a>
+        <a href="#pricing" className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:block">
+          Pricing
+        </a>
+        <Button asChild variant="ghost">
+          <Link href="/login">Sign in</Link>
+        </Button>
+      </nav>
+    </header>
+  )
+}
+
+// ── Hero ───────────────────────────────────────────────────────────────────
+
+function HeroSection() {
+  return (
+    <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 pb-24 pt-8 lg:grid-cols-2 lg:gap-16 lg:pt-16">
+      <div className="flex flex-col gap-8">
+        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+          For families and friend groups
+        </div>
+        <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight md:text-6xl">
+          Because Every Moment Matters.
+        </h1>
+        <p className="max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
+          Plan your journey ahead, so your time is spent experiencing — not figuring things out.
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button asChild size="lg" className="rounded-xl">
+            <Link href="/login">
+              Start for free
+              <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline" className="rounded-xl">
+            <a href="#how-it-works">See how it works</a>
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Join travelers planning smarter trips ✈️
+        </p>
+      </div>
+
+      <div className="relative">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
+          <div className="relative aspect-[4/3] w-full">
+            <Image
+              src="https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1400&q=80"
+              alt="Tokyo skyline at dusk"
+              fill
+              className="object-cover"
+              priority
+              sizes="(min-width: 1024px) 50vw, 100vw"
+            />
+          </div>
+          <div className="border-t border-border bg-card p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-serif text-lg">Tokyo Family Trip</div>
+                <div className="text-sm text-muted-foreground">7 days · 4 travelers</div>
+              </div>
+              <div className="flex -space-x-2">
+                {["A", "M", "K", "S"].map((c, i) => (
+                  <span
+                    key={c}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-secondary text-xs font-medium text-secondary-foreground"
+                    style={{ zIndex: 4 - i }}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-border bg-card p-4 shadow-md md:block">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Day 3 · Afternoon</div>
+          <div className="mt-1 font-medium">Shibuya Sky observation deck</div>
+          <div className="text-sm text-muted-foreground">15:30 – 17:00</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── How It Works ───────────────────────────────────────────────────────────
+
+const HOW_IT_WORKS_STEPS = [
+  {
+    emoji: "🗺️",
+    step: "1",
+    title: "Create your trip",
+    desc: "Add destination, dates, and invite your travel buddies.",
+  },
+  {
+    emoji: "📋",
+    step: "2",
+    title: "Plan together",
+    desc: "Add activities, bookings, and costs in real-time with your group.",
+  },
+  {
+    emoji: "✈️",
+    step: "3",
+    title: "Travel stress-free",
+    desc: "Everything in one place — itinerary, bookings, and maps.",
+  },
+]
+
+function HowItWorksSection() {
+  return (
+    <section id="how-it-works" className="bg-secondary/40 py-24">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="mb-12 text-center">
+          <h2 className="font-serif text-4xl tracking-tight">How It Works</h2>
+          <p className="mt-3 text-muted-foreground">Three steps to your best trip yet.</p>
+        </div>
+        <div className="grid gap-8 sm:grid-cols-3">
+          {HOW_IT_WORKS_STEPS.map(({ emoji, step, title, desc }) => (
+            <div key={step} className="flex flex-col items-center gap-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card text-3xl shadow-sm">
+                {emoji}
+              </div>
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                  Step {step}
+                </div>
+                <h3 className="font-serif text-xl">{title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Features ───────────────────────────────────────────────────────────────
+
+const MARKETING_FEATURES = [
+  {
+    emoji: "📅",
+    title: "Visual Itinerary",
+    desc: "Drag & drop board and calendar view. See your whole trip at a glance.",
+  },
+  {
+    emoji: "🏨",
+    title: "Bookings Manager",
+    desc: "Hotels, flights, restaurants — all in one place with payment status tracking.",
+  },
+  {
+    emoji: "💰",
+    title: "Cost Splitting",
+    desc: "Track expenses and split fairly with your group. No awkward maths.",
+  },
+  {
+    emoji: "🗺️",
+    title: "Live Maps",
+    desc: "See all your activities on an interactive map. Plan routes visually.",
+  },
+]
+
+function FeaturesSection() {
+  return (
+    <section id="features" className="py-24">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="mb-12 text-center">
+          <h2 className="font-serif text-4xl tracking-tight">Everything in one place</h2>
+          <p className="mt-3 text-muted-foreground">
+            No more juggling WhatsApp messages, spreadsheets, and voice notes.
+          </p>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {MARKETING_FEATURES.map(({ emoji, title, desc }) => (
+            <div
+              key={title}
+              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-6"
+            >
+              <span className="text-3xl" aria-hidden>{emoji}</span>
+              <h3 className="font-serif text-lg">{title}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Pricing ────────────────────────────────────────────────────────────────
+
+type PricingTier = {
+  name: string
+  price: string
+  priceAlt?: string
+  description: string
+  features: string[]
+  recommended?: boolean
+  comingSoon?: boolean
+}
+
+const PRICING_TIERS: PricingTier[] = [
+  {
+    name: "Free",
+    price: "Free forever",
+    description: "Perfect for planning your first trip.",
+    features: [
+      "1 trip",
+      "Up to 4 travelers",
+      "Visual itinerary board & calendar",
+      "Bookings tracker",
+      "Cost splitting",
+    ],
+  },
+  {
+    name: "Pro",
+    price: "THB 199 / mo",
+    priceAlt: "MYR 25 / mo",
+    description: "For frequent travelers who need more.",
+    features: [
+      "Unlimited trips",
+      "Unlimited travelers",
+      "AI trip planner",
+      "Export to PDF",
+      "Priority email support",
+    ],
+    recommended: true,
+    comingSoon: true,
+  },
+  {
+    name: "Team",
+    price: "THB 499 / mo",
+    priceAlt: "MYR 65 / mo",
+    description: "For agencies and large travel groups.",
+    features: [
+      "Everything in Pro",
+      "Custom link sharing",
+      "Team management dashboard",
+      "Priority support",
+      "Early access to new features",
+    ],
+    comingSoon: true,
+  },
+]
+
+function PricingSection() {
+  return (
+    <section id="pricing" className="bg-secondary/40 py-24">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="mb-12 text-center">
+          <h2 className="font-serif text-4xl tracking-tight">Simple, honest pricing</h2>
+          <p className="mt-3 text-muted-foreground">Start free. Upgrade when you need more.</p>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-3">
+          {PRICING_TIERS.map((tier) => (
+            <div
+              key={tier.name}
+              className={
+                tier.recommended
+                  ? "relative flex flex-col gap-6 rounded-2xl border-2 border-primary bg-[#f7fdf2] p-6"
+                  : "relative flex flex-col gap-6 rounded-2xl border border-border bg-card p-6"
+              }
+            >
+              {tier.recommended && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                  <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                    Recommended
+                  </span>
+                </div>
+              )}
+              {tier.comingSoon && (
+                <div className="absolute right-4 top-4">
+                  <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    Coming soon
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <h3 className="font-serif text-xl">{tier.name}</h3>
+                <div className="mt-2 font-serif text-2xl font-bold">{tier.price}</div>
+                {tier.priceAlt && (
+                  <div className="mt-0.5 text-xs text-muted-foreground">{tier.priceAlt}</div>
+                )}
+                <p className="mt-2 text-sm text-muted-foreground">{tier.description}</p>
+              </div>
+
+              <ul className="flex flex-col gap-2">
+                {tier.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm">
+                    <span className="mt-0.5 text-primary" aria-hidden>✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-auto">
+                {tier.comingSoon ? (
+                  <Button className="w-full rounded-xl" variant="outline" disabled>
+                    Coming soon
+                  </Button>
+                ) : (
+                  <Button asChild className="w-full rounded-xl">
+                    <Link href="/login">Start for free</Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Footer ─────────────────────────────────────────────────────────────────
+
+function MarketingFooter() {
+  return (
+    <footer className="border-t border-border bg-card">
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="grid gap-10 sm:grid-cols-3">
+          <div className="flex flex-col gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <MapPin className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="font-serif text-xl tracking-tight">Tripletto</span>
+            </Link>
+            <p className="text-sm text-muted-foreground">Plan together. Travel better.</p>
+            <p className="max-w-xs text-sm text-muted-foreground">
+              Built by a traveler who got tired of managing trips across 10 WhatsApp messages, 3
+              spreadsheets, and a voice note.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Product
+            </h4>
+            <nav className="flex flex-col gap-2">
+              <a href="#features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Features
+              </a>
+              <a href="#pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Pricing
+              </a>
+              <Link href="/about" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                About
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Legal & Support
+            </h4>
+            <nav className="flex flex-col gap-2">
+              <Link href="/privacy" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Terms of Service
+              </Link>
+              <a
+                href="mailto:support@tripletto.app"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Contact
+              </a>
+            </nav>
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-border">
+        <div className="mx-auto max-w-6xl px-6 py-4">
+          <p className="text-center text-xs text-muted-foreground">
+            © 2026 Tripletto. Made with ☀️ in Malaysia.
+          </p>
+        </div>
+      </div>
+    </footer>
   )
 }
