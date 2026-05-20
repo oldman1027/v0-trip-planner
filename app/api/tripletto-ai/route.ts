@@ -1,71 +1,122 @@
-import OpenAI from 'openai';
-import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from "@google/generative-ai"
+import { NextRequest, NextResponse } from "next/server"
+import type { Activity, Trip } from "@/lib/types"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: 'https://openrouter.ai/api/v1',
-});
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
 
-export async function POST(req: NextRequest) {
+type SuggestPayload = {
+  mode: "suggest"
+  trip: Trip
+  activities: Activity[]
+  day: string | null
+  message: string
+}
+
+type ChatPayload = {
+  mode: "chat"
+  trip: Trip
+  activities: Activity[]
+  message: string
+}
+
+function buildSuggestPrompt(trip: Trip, activities: Activity[], day: string | null, message: string) {
+  const existingTitles = activities.map((a) => a.title).join(", ")
+  const dayInfo = day ? `Focus on ${day}.` : `Spread across all trip days from ${trip.start_date} to ${trip.end_date}.`
+
+  return `You are a smart travel planner for a trip called "${trip.name}" to ${trip.destination ?? "an unspecified destination"}.
+Trip dates: ${trip.start_date} to ${trip.end_date}.
+Existing activities: ${existingTitles || "none yet"}.
+
+User request: "${message}"
+${dayInfo}
+
+Return a JSON object with this exact structure (no markdown, no code fences, raw JSON only):
+{
+  "summary": "One sentence describing what you're suggesting",
+  "suggestions": [
+    {
+      "title": "Activity name",
+      "category": "food|attraction|transport|accommodation|shopping|entertainment|other",
+      "location": "Full address or place name",
+      "time_block": "morning|afternoon|night",
+      "start_time": "HH:MM or null",
+      "end_time": "HH:MM or null",
+      "notes": "Tip or detail, or null",
+      "cost_amount": 0,
+      "day_date": "YYYY-MM-DD"
+    }
+  ]
+}
+
+Suggest 3–6 varied activities. Use real places. Avoid duplicating existing activities.`
+}
+
+function buildChatPrompt(trip: Trip, activities: Activity[], message: string) {
+  const itinerary = activities
+    .filter((a) => !a.is_wishlist && a.day_date)
+    .sort((a, b) => (a.day_date ?? "").localeCompare(b.day_date ?? ""))
+    .map((a) => `- ${a.day_date} ${a.time_block}: ${a.title}${a.location ? ` @ ${a.location}` : ""}`)
+    .join("\n")
+
+  return `You are Tripletto, a helpful travel assistant for the trip "${trip.name}" to ${trip.destination ?? "an unspecified destination"} (${trip.start_date} to ${trip.end_date}).
+
+Current itinerary:
+${itinerary || "No activities planned yet."}
+
+Answer the user's question concisely and helpfully. Include practical tips, nearby suggestions, or logistics as relevant.
+
+User: ${message}`
+}
+
+function extractJson(text: string): unknown {
+  const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
   try {
-    const { tripId, action, tripDetails, message, currentActivities, conversationHistory } = await req.json();
+    return JSON.parse(clean)
+  } catch {
+    const match = clean.match(/\{[\s\S]*\}/)
+    if (match) return JSON.parse(match[0])
+    throw new Error("No valid JSON found in response")
+  }
+}
 
-    if (action === 'generate') {
-      const prompt = `You are Tripletto AI. Generate a ${tripDetails.days}-day itinerary for ${tripDetails.people} people visiting ${tripDetails.destination} with budget $${tripDetails.budget}/day/person.
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as SuggestPayload | ChatPayload
 
-Create activities with: title, category, day, time (24h format), duration, location, cost, description
-
-Output JSON between [ACTIVITIES] and [/ACTIVITIES] tags.`;
-
-      const completion = await openai.chat.completions.create({
-        model: 'google/gemini-2.0-flash-exp:free',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4096,
-      });
-
-      const text = completion.choices[0]?.message?.content || '';
-      let activities = [];
-      const match = text.match(/\[ACTIVITIES\]([\s\S]*?)\[\/ACTIVITIES\]/);
-      if (match) {
-        try { activities = JSON.parse(match[1].trim()); } catch (e) { console.error('Parse error:', e); }
-      }
-
-      return NextResponse.json({
-        response: text.replace(/\[ACTIVITIES\][\s\S]*?\[\/ACTIVITIES\]/, '').trim() || "Here's your itinerary!",
-        activities
-      });
-
-    } else if (action === 'refine') {
-      const prompt = `Current: ${JSON.stringify(currentActivities)}
-User: "${message}"
-Update itinerary. Output JSON between [ACTIVITIES][/ACTIVITIES].`;
-
-      const completion = await openai.chat.completions.create({
-        model: 'google/gemini-2.0-flash-exp:free',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4096,
-      });
-
-      const text = completion.choices[0]?.message?.content || '';
-      let activities = currentActivities;
-      const match = text.match(/\[ACTIVITIES\]([\s\S]*?)\[\/ACTIVITIES\]/);
-      if (match) {
-        try { activities = JSON.parse(match[1].trim()); } catch (e) { console.error('Parse error:', e); }
-      }
-
-      return NextResponse.json({
-        response: text.replace(/\[ACTIVITIES\][\s\S]*?\[\/ACTIVITIES\]/, '').trim() || "Updated!",
-        activities
-      });
+    if (body.mode !== "suggest" && body.mode !== "chat") {
+      return NextResponse.json({ error: "Invalid mode — expected 'suggest' or 'chat'" }, { status: 400 })
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
 
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json({
-      response: "Error generating itinerary. Please try again!",
-      activities: []
-    }, { status: 500 });
+    if (body.mode === "suggest") {
+      const prompt = buildSuggestPrompt(body.trip, body.activities, body.day, body.message)
+      const result = await model.generateContent(prompt)
+      const text = result.response.text()
+
+      let parsed: { summary: string; suggestions: unknown[] }
+      try {
+        parsed = extractJson(text) as { summary: string; suggestions: unknown[] }
+      } catch (parseErr) {
+        console.error("[tripletto-ai] JSON parse failed:", parseErr, "\nRaw text:", text)
+        return NextResponse.json({ error: "AI returned malformed JSON" }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        type: "suggestions",
+        summary: parsed.summary,
+        suggestions: parsed.suggestions,
+      })
+    }
+
+    if (body.mode === "chat") {
+      const prompt = buildChatPrompt(body.trip, body.activities, body.message)
+      const result = await model.generateContent(prompt)
+      return NextResponse.json({ type: "message", content: result.response.text() })
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    console.error("[tripletto-ai]", err)
+    return NextResponse.json({ error: `AI request failed: ${message}` }, { status: 500 })
   }
 }
