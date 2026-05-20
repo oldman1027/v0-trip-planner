@@ -474,6 +474,11 @@ export function CostsClient({
           setEditingExpense(null)
         }}
         onSave={handleSaveExpense}
+        onOpenMembers={() => {
+          setDialogOpen(false)
+          setEditingExpense(null)
+          setManageMembersOpen(true)
+        }}
       />
 
       {/* Manage members dialog */}

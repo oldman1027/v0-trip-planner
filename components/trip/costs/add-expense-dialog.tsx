@@ -46,6 +46,7 @@ export function AddExpenseDialog({
   currentUserId,
   onClose,
   onSave,
+  onOpenMembers,
 }: {
   open: boolean
   expense: Expense | null
@@ -66,9 +67,16 @@ export function AddExpenseDialog({
     splits: { user_id: string; amount: number }[]
     participant_splits?: { participant_id: string; amount: number }[]
   }) => Promise<void>
+  onOpenMembers?: () => void
 }) {
   const currency = trip.default_currency ?? "USD"
   const usingParticipants = participants.length > 0
+
+  // Deduplicate members by user_id — protects against duplicate rows in trip_members
+  const uniqueMembers = members.filter(
+    (m, i, arr) => arr.findIndex((x) => x.user_id === m.user_id) === i,
+  )
+
   const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
@@ -95,7 +103,7 @@ export function AddExpenseDialog({
   // ── Auth-user mode state ──────────────────────────────────────────────────
   const [paidBy, setPaidBy] = useState(currentUserId)
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(
-    new Set(members.map((m) => m.user_id)),
+    new Set(uniqueMembers.map((m) => m.user_id)),
   )
 
   // ── Participant mode state ────────────────────────────────────────────────
@@ -162,17 +170,35 @@ export function AddExpenseDialog({
       setPaidBy(currentUserId)
       setPaidByParticipantId(participants[0]?.id ?? "")
       setSplitMode("equal")
-      setSelectedMembers(new Set(members.map((m) => m.user_id)))
+      setSelectedMembers(new Set(uniqueMembers.map((m) => m.user_id)))
       setSelectedParticipants(new Set(participants.map((p) => p.id)))
       setCustomAmounts({})
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keep participant selection in sync when the participants list changes while
+  // the dialog is open (e.g. Members modal adds/removes someone concurrently).
+  useEffect(() => {
+    if (!open) return
+    const ids = new Set(participants.map((p) => p.id))
+    // Keep paidBy valid — fall back to first participant if the selected one was deleted
+    setPaidByParticipantId((prev) => (ids.has(prev) ? prev : (participants[0]?.id ?? "")))
+    setSelectedParticipants((prev) => {
+      // Remove deleted participants from selection
+      const next = new Set([...prev].filter((id) => ids.has(id)))
+      // Auto-select any newly added participants
+      for (const p of participants) {
+        if (!prev.has(p.id)) next.add(p.id)
+      }
+      return next
+    })
+  }, [participants]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Derived values ────────────────────────────────────────────────────────
   const totalAmt = parseFloat(amount) || 0
 
-  // Auth-user mode
-  const includedMembers = members.filter((m) => selectedMembers.has(m.user_id))
+  // Auth-user mode (use deduplicated list to avoid double-counting)
+  const includedMembers = uniqueMembers.filter((m) => selectedMembers.has(m.user_id))
   const perPersonMember = includedMembers.length > 0 ? totalAmt / includedMembers.length : 0
   const customTotalMember = includedMembers.reduce(
     (s, m) => s + (parseFloat(customAmounts[m.user_id] ?? "0") || 0),
@@ -359,7 +385,7 @@ export function AddExpenseDialog({
                       {p.name}
                     </button>
                   ))
-                : members.map((m) => {
+                : uniqueMembers.map((m) => {
                     const name = m.profile?.full_name ?? "Unknown"
                     return (
                       <button
@@ -378,6 +404,24 @@ export function AddExpenseDialog({
                     )
                   })}
             </div>
+            {/* Empty-state prompt when no custom split members have been added */}
+            {!usingParticipants && (
+              <p className="text-[11px] text-muted-foreground">
+                Splitting with specific people?{" "}
+                {onOpenMembers ? (
+                  <button
+                    type="button"
+                    onClick={onOpenMembers}
+                    className="font-medium text-foreground underline-offset-2 hover:underline"
+                  >
+                    Add members
+                  </button>
+                ) : (
+                  <span className="font-medium text-foreground">Add members</span>
+                )}{" "}
+                to track custom splits.
+              </p>
+            )}
           </div>
 
           {/* Split mode */}
@@ -472,7 +516,7 @@ export function AddExpenseDialog({
               ) : (
                 /* Auth-user-based split */
                 <div className="flex flex-col gap-2">
-                  {members.map((m) => {
+                  {uniqueMembers.map((m) => {
                     const name = m.profile?.full_name ?? "Unknown"
                     const selected = selectedMembers.has(m.user_id)
                     return (
