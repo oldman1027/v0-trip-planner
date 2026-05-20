@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,6 +69,19 @@ export function AddExpenseDialog({
 }) {
   const currency = trip.default_currency ?? "USD"
   const usingParticipants = participants.length > 0
+  const formRef = useRef<HTMLFormElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault()
+        formRef.current?.requestSubmit()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open])
 
   // ── Shared state ─────────────────────────────────────────────────────────
   const [description, setDescription] = useState("")
@@ -268,7 +281,7 @@ export function AddExpenseDialog({
           </SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 pb-8 pt-6">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 pb-8 pt-6">
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Description</label>

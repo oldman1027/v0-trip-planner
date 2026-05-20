@@ -14,6 +14,8 @@ import { deadlineUrgency, deadlineLabel, daysUntilBooking } from "@/lib/booking-
 import type { Booking } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { useUndoDelete } from "@/hooks/use-undo-delete"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 
 function getBookingTypeLabel(booking: Booking): string {
   if (booking.type === "transport") {
@@ -127,6 +129,28 @@ export function BookingsList({
   const [filter, setFilter] = useState<string>("all")
   const [view, setView] = useState<"list" | "card">("list")
   const [open, setOpen] = useState<Booking | "new" | null>(null)
+  const [focusedBookingId, setFocusedBookingId] = useState<string | null>(null)
+
+  const { softDelete: softDeleteBooking } = useUndoDelete<Booking>()
+
+  const drawerOpen = open !== null
+
+  useKeyboardShortcuts(
+    [
+      { key: "n", handler: () => setOpen("new") },
+      { key: "1", handler: () => setView("list") },
+      { key: "2", handler: () => setView("card") },
+    ],
+    !drawerOpen,
+  )
+
+  useKeyboardShortcuts(
+    [
+      { key: "Delete", handler: () => focusedBookingId && handleDelete(focusedBookingId) },
+      { key: "Backspace", handler: () => focusedBookingId && handleDelete(focusedBookingId) },
+    ],
+    !drawerOpen && focusedBookingId !== null,
+  )
 
   const isTransportOpen =
     open !== null &&
@@ -254,25 +278,28 @@ export function BookingsList({
   }
 
   async function handleDelete(id: string) {
-    const supabase = createClient()
-    const prev = bookings
     const deletedBooking = bookings.find((b) => b.id === id)
+    if (!deletedBooking) return
     setBookings((p) => p.filter((b) => b.id !== id))
-    const { error } = await supabase.from("bookings").delete().eq("id", id)
-    if (error) {
-      setBookings(prev)
-      toast.error("Could not delete booking")
-      throw error
-    }
-    const linkedActivityId = (deletedBooking?.details as Record<string, unknown> | null)?.activity_id as string | undefined
-    if (linkedActivityId) {
-      if (deletedBooking?.type === "dining") {
-        await supabase.from("activities").delete().eq("id", linkedActivityId)
-      } else {
-        await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
-      }
-    }
-    toast.success("Booking removed")
+    const linkedActivityId = (deletedBooking.details as Record<string, unknown> | null)?.activity_id as string | undefined
+    softDeleteBooking(deletedBooking, {
+      label: "Booking",
+      onConfirm: async (b) => {
+        const supabase = createClient()
+        const { error } = await supabase.from("bookings").delete().eq("id", b.id)
+        if (error) throw error
+        if (linkedActivityId) {
+          if (b.type === "dining") {
+            await supabase.from("activities").delete().eq("id", linkedActivityId)
+          } else {
+            await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
+          }
+        }
+      },
+      onRestore: (b) => {
+        setBookings((prev) => [...prev, b])
+      },
+    })
   }
 
   return (
@@ -358,7 +385,7 @@ export function BookingsList({
       ) : view === "card" ? (
         <BookingCardView
           bookings={filtered}
-          onEdit={(b) => setOpen(b)}
+          onEdit={(b) => { setFocusedBookingId(b.id); setOpen(b) }}
           onDelete={handleDelete}
         />
       ) : (
@@ -410,7 +437,7 @@ export function BookingsList({
 
                   <button
                     type="button"
-                    onClick={() => setOpen(b)}
+                    onClick={() => { setFocusedBookingId(b.id); setOpen(b) }}
                     className="flex w-full items-center gap-4 px-5 py-4 pl-6 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                   >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">

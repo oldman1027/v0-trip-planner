@@ -11,6 +11,7 @@ import { SettlementSummary } from "./settlement-summary"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import type {
   Trip,
   Booking,
@@ -170,6 +171,19 @@ export function CostsClient({
 
   const currency = trip.default_currency ?? "USD"
   const usingParticipants = participants.length > 0
+
+  useKeyboardShortcuts(
+    [
+      {
+        key: "n",
+        handler: () => {
+          setEditingExpense(null)
+          setDialogOpen(true)
+        },
+      },
+    ],
+    !dialogOpen && !manageMembersOpen,
+  )
 
   // ── Auto-populate from bookings on first mount ───────────────────────────
   useEffect(() => {

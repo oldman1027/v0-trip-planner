@@ -94,3 +94,8 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+@keyframes undo-shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}

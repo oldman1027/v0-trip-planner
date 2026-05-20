@@ -31,6 +31,8 @@ import { TripMap } from "@/components/trip/overview/trip-map"
 import { TriplettoAI } from "@/components/trip/TriplettoAI"
 import { useRealtimeActivities } from "@/hooks/use-realtime-activities"
 import { usePresence } from "@/hooks/use-presence"
+import { useUndoDelete } from "@/hooks/use-undo-delete"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
 import { daysBetween } from "@/lib/dates"
@@ -99,8 +101,12 @@ export function ItineraryBoard({
   const [calendarTransportOpen, setCalendarTransportOpen] = useState(false)
   const [showMap, setShowMap] = useState(true)
   const [mobileTab, setMobileTab] = useState<"calendar" | "map">("calendar")
+  const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null)
 
   const conflicts = useMemo(() => detectConflicts(activities), [activities])
+
+  const { softDelete: softDeleteActivity } = useUndoDelete<Activity>()
+  const { softDelete: softDeleteBooking } = useUndoDelete<Booking>()
 
   // Real-time: sync activity changes from other collaborators
   // Callbacks use functional state updates so no deps needed — the hook reads
@@ -218,22 +224,68 @@ export function ItineraryBoard({
     return m
   }, [activities, activityBookingMap])
 
-  // Keyboard navigation for day strip
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.target as HTMLElement)?.closest("input, textarea, [contenteditable]")) return
-      const idx = days.indexOf(selectedDay)
-      if ((e.key === "ArrowRight" || e.key === "ArrowDown") && idx < days.length - 1) {
-        e.preventDefault()
-        setSelectedDay(days[idx + 1])
-      } else if ((e.key === "ArrowLeft" || e.key === "ArrowUp") && idx > 0) {
-        e.preventDefault()
-        setSelectedDay(days[idx - 1])
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [days, selectedDay])
+  const anyDrawerOpen =
+    drawerState !== null ||
+    bookingOpen !== null ||
+    calendarBookingOpen ||
+    calendarTransportOpen
+
+  // Page-level shortcuts: fire only when no drawer/dialog is open
+  useKeyboardShortcuts(
+    [
+      {
+        key: "n",
+        handler: () =>
+          setDrawerState({ mode: "create", day_date: selectedDay, time_block: "morning" }),
+      },
+      { key: "1", handler: () => setViewMode("board") },
+      { key: "2", handler: () => setViewMode("calendar") },
+      {
+        key: "m",
+        handler: () => {
+          if (viewMode === "calendar") setShowMap((v) => !v)
+        },
+      },
+      {
+        key: "ArrowRight",
+        handler: () => {
+          const idx = days.indexOf(selectedDay)
+          if (idx < days.length - 1) setSelectedDay(days[idx + 1])
+        },
+      },
+      {
+        key: "ArrowDown",
+        handler: () => {
+          const idx = days.indexOf(selectedDay)
+          if (idx < days.length - 1) setSelectedDay(days[idx + 1])
+        },
+      },
+      {
+        key: "ArrowLeft",
+        handler: () => {
+          const idx = days.indexOf(selectedDay)
+          if (idx > 0) setSelectedDay(days[idx - 1])
+        },
+      },
+      {
+        key: "ArrowUp",
+        handler: () => {
+          const idx = days.indexOf(selectedDay)
+          if (idx > 0) setSelectedDay(days[idx - 1])
+        },
+      },
+    ],
+    !anyDrawerOpen,
+  )
+
+  // Delete shortcut: fires only when no drawer open and an activity is focused
+  useKeyboardShortcuts(
+    [
+      { key: "Delete", handler: () => focusedActivityId && handleDelete(focusedActivityId) },
+      { key: "Backspace", handler: () => focusedActivityId && handleDelete(focusedActivityId) },
+    ],
+    !anyDrawerOpen && focusedActivityId !== null,
+  )
 
   function findActivity(id: string) {
     return activities.find((a) => a.id === id) ?? null
@@ -531,21 +583,26 @@ export function ItineraryBoard({
   }
 
   async function handleDelete(id: string) {
-    const supabase = createClient()
-    const prev = activities
+    const activity = activities.find((a) => a.id === id)
+    if (!activity) return
     const linkedBooking = activityBookingMap.get(id)
     setActivities((p) => p.filter((a) => a.id !== id))
-    const { error } = await supabase.from("activities").delete().eq("id", id)
-    if (error) {
-      setActivities(prev)
-      toast.error("Could not delete")
-      throw error
-    }
-    if (linkedBooking) {
-      await supabase.from("bookings").delete().eq("id", linkedBooking.id)
-      setBookings((prev) => prev.filter((b) => b.id !== linkedBooking.id))
-    }
-    toast.success("Activity removed")
+    if (linkedBooking) setBookings((prev) => prev.filter((b) => b.id !== linkedBooking.id))
+    softDeleteActivity(activity, {
+      label: "Activity",
+      onConfirm: async (act) => {
+        const supabase = createClient()
+        const { error } = await supabase.from("activities").delete().eq("id", act.id)
+        if (error) throw error
+        if (linkedBooking) {
+          await supabase.from("bookings").delete().eq("id", linkedBooking.id)
+        }
+      },
+      onRestore: (act) => {
+        setActivities((prev) => [...prev, act])
+        if (linkedBooking) setBookings((prev) => [...prev, linkedBooking])
+      },
+    })
   }
 
   async function handleBookingSave(input: Omit<Booking, "id" | "trip_id" | "created_at"> & { id?: string }): Promise<string | undefined> {
@@ -590,18 +647,33 @@ export function ItineraryBoard({
   }
 
   async function handleBookingDelete(id: string) {
-    const supabase = createClient()
     const deletedBooking = bookings.find((b) => b.id === id)
-    const linkedActivityId = (deletedBooking?.details as Record<string, unknown> | null)?.activity_id as
+    if (!deletedBooking) return
+    const linkedActivityId = (deletedBooking.details as Record<string, unknown> | null)?.activity_id as
       | string
       | undefined
-    await supabase.from("bookings").delete().eq("id", id)
     setBookings((prev) => prev.filter((b) => b.id !== id))
     if (linkedActivityId) {
-      await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
       setActivities((prev) => prev.map((a) => (a.id === linkedActivityId ? { ...a, booking_id: null } : a)))
     }
-    toast.success("Booking removed")
+    softDeleteBooking(deletedBooking, {
+      label: "Booking",
+      onConfirm: async (b) => {
+        const supabase = createClient()
+        await supabase.from("bookings").delete().eq("id", b.id)
+        if (linkedActivityId) {
+          await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
+        }
+      },
+      onRestore: (b) => {
+        setBookings((prev) => [...prev, b])
+        if (linkedActivityId) {
+          setActivities((prev) =>
+            prev.map((a) => (a.id === linkedActivityId ? { ...a, booking_id: b.id } : a)),
+          )
+        }
+      },
+    })
   }
 
   async function handleCalendarBookingSave(
@@ -634,13 +706,22 @@ export function ItineraryBoard({
   }
 
   async function handleCalendarBookingDelete(id: string) {
-    const supabase = createClient()
-    const { error } = await supabase.from("bookings").delete().eq("id", id)
-    if (error) throw error
+    const deletedBooking = bookings.find((b) => b.id === id)
+    if (!deletedBooking) return
     setBookings((prev) => prev.filter((b) => b.id !== id))
     setCalendarBookingOpen(false)
     setCalendarTransportOpen(false)
-    toast.success("Booking removed")
+    softDeleteBooking(deletedBooking, {
+      label: "Booking",
+      onConfirm: async (b) => {
+        const supabase = createClient()
+        const { error } = await supabase.from("bookings").delete().eq("id", b.id)
+        if (error) throw error
+      },
+      onRestore: (b) => {
+        setBookings((prev) => [...prev, b])
+      },
+    })
   }
 
   const dragging = activeId ? findActivity(activeId) : null
@@ -821,14 +902,24 @@ export function ItineraryBoard({
                       {items.map((a) => {
                         const linkedBooking = activityBookingMap.get(a.id)
                         return (
-                          <ActivityCard
+                          <div
                             key={a.id}
-                            activity={a}
-                            conflicts={conflicts.get(a.id)}
-                            hasBooking={!!linkedBooking}
-                            onClick={() => setDrawerState({ mode: "edit", activity: a })}
-                            onBookingClick={linkedBooking ? () => setBookingOpen(linkedBooking) : undefined}
-                          />
+                            className={cn(
+                              "rounded-xl transition-[box-shadow]",
+                              focusedActivityId === a.id && drawerState === null && "ring-2 ring-primary/30",
+                            )}
+                          >
+                            <ActivityCard
+                              activity={a}
+                              conflicts={conflicts.get(a.id)}
+                              hasBooking={!!linkedBooking}
+                              onClick={() => {
+                                setFocusedActivityId(a.id)
+                                setDrawerState({ mode: "edit", activity: a })
+                              }}
+                              onBookingClick={linkedBooking ? () => setBookingOpen(linkedBooking) : undefined}
+                            />
+                          </div>
                         )
                       })}
                     </SortableContext>
@@ -901,6 +992,7 @@ export function ItineraryBoard({
                 activities={activities}
                 activeCategories={activeCategories}
                 onActivityClick={(a) => {
+                  setFocusedActivityId(a.id)
                   setCalendarSelectedId(a.id)
                   setDrawerState({ mode: "edit", activity: a })
                 }}

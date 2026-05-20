@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Trash2 } from "lucide-react"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -64,6 +64,7 @@ export function ActivityDrawer({
   onDelete: (id: string) => Promise<void>
 }) {
   const open = state !== null
+  const formRef = useRef<HTMLFormElement>(null)
   const [title, setTitle] = useState("")
   const [day, setDay] = useState(days[0] ?? "")
   const [block, setBlock] = useState<TimeBlock>("morning")
@@ -82,6 +83,18 @@ export function ActivityDrawer({
     day && (day < tripStart || day > tripEnd)
       ? "Activity must be within trip dates"
       : null
+
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault()
+        formRef.current?.requestSubmit()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open])
 
   useEffect(() => {
     if (!state) return
@@ -161,7 +174,7 @@ export function ActivityDrawer({
           <SheetDescription>{state ? formatDayLabel(day) : ""}</SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-1 flex-col">
+        <form ref={formRef} onSubmit={onSubmit} className="flex flex-1 flex-col">
           <div className="flex-1 px-4 py-6">
             <FieldGroup>
               <Field>

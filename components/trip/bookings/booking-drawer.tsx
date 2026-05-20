@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Trash2, Lock, ExternalLink, Paperclip } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -81,6 +81,19 @@ export function BookingDrawer({
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault()
+        formRef.current?.requestSubmit()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open])
 
   useEffect(() => {
     if (booking) {
@@ -374,7 +387,7 @@ export function BookingDrawer({
           <SheetTitle className="font-serif text-2xl">{booking ? "Edit booking" : "Add booking"}</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-1 flex-col">
+        <form ref={formRef} onSubmit={onSubmit} className="flex flex-1 flex-col">
           <div className="flex-1 px-4 py-6">
             <FieldGroup>
               {/* Type selector */}

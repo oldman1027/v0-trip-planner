@@ -10,6 +10,7 @@ import { TripMap } from "@/components/trip/overview/trip-map"
 import { createClient } from "@/lib/supabase/client"
 import { daysBetween, formatDayLabel } from "@/lib/dates"
 import { toast } from "sonner"
+import { useUndoDelete } from "@/hooks/use-undo-delete"
 import { format } from "date-fns"
 import { parseDateOnly } from "@/lib/dates"
 import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
@@ -45,6 +46,8 @@ export function CalendarPageClient({
   >(null)
   const [bookingOpen, setBookingOpen] = useState(false)
   const [transportOpen, setTransportOpen] = useState(false)
+
+  const { softDelete: softDeleteActivity } = useUndoDelete<Activity>()
 
   async function handleSave(input: {
     id?: string
@@ -117,17 +120,21 @@ export function CalendarPageClient({
   }
 
   async function handleDelete(id: string) {
-    const supabase = createClient()
-    const prev = activities
+    const activity = activities.find((a) => a.id === id)
+    if (!activity) return
     setActivities((p) => p.filter((a) => a.id !== id))
     if (selectedActivity?.id === id) setSelectedActivity(null)
-    const { error } = await supabase.from("activities").delete().eq("id", id)
-    if (error) {
-      setActivities(prev)
-      toast.error("Could not delete")
-      throw error
-    }
-    toast.success("Activity removed")
+    softDeleteActivity(activity, {
+      label: "Activity",
+      onConfirm: async (act) => {
+        const supabase = createClient()
+        const { error } = await supabase.from("activities").delete().eq("id", act.id)
+        if (error) throw error
+      },
+      onRestore: (act) => {
+        setActivities((prev) => [...prev, act])
+      },
+    })
   }
 
   async function handleBookingSave(

@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/app-header"
 import { TripHeader } from "@/components/trip/trip-header"
 import { TripTabs } from "@/components/trip/trip-tabs"
 import { NotificationsPopover } from "@/components/notifications-popover"
+import { KeyboardShortcutsProvider } from "@/components/keyboard-shortcuts-provider"
 import { createClient } from "@/lib/supabase/server"
 import type { Trip } from "@/lib/types"
 
@@ -48,6 +49,7 @@ export default async function TripLayout({
       <main className="w-full pb-16 pt-4">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">{children}</div>
       </main>
+      <KeyboardShortcutsProvider />
     </div>
   )
 }
