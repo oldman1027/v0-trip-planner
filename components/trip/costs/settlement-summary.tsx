@@ -76,6 +76,16 @@ function computeBalances(expenses: Expense[], participants: ExpenseParticipant[]
   }))
 }
 
+function groupExpensesByCurrency(expenses: Expense[]): Map<string, Expense[]> {
+  const map = new Map<string, Expense[]>()
+  for (const e of expenses) {
+    const cur = e.currency ?? "THB"
+    if (!map.has(cur)) map.set(cur, [])
+    map.get(cur)!.push(e)
+  }
+  return map
+}
+
 export function SettlementSummary({
   expenses,
   participants,
@@ -87,10 +97,25 @@ export function SettlementSummary({
 }) {
   const [view, setView] = useState<"plan" | "balances">("plan")
 
-  const settlements = useMemo(() => computeSettlements(expenses, participants), [expenses, participants])
-  const balances    = useMemo(() => computeBalances(expenses, participants),    [expenses, participants])
+  const settlementsByCurrency = useMemo(() => {
+    const groups = groupExpensesByCurrency(expenses)
+    return Array.from(groups.entries()).map(([cur, exps]) => ({
+      cur,
+      settlements: computeSettlements(exps, participants),
+    }))
+  }, [expenses, participants])
+
+  const balancesByCurrency = useMemo(() => {
+    const groups = groupExpensesByCurrency(expenses)
+    return Array.from(groups.entries()).map(([cur, exps]) => ({
+      cur,
+      balances: computeBalances(exps, participants),
+    }))
+  }, [expenses, participants])
 
   const nameOf = (id: string) => participants.find((p) => p.id === id)?.name ?? "Unknown"
+  const hasAnySettlements = settlementsByCurrency.some(({ settlements }) => settlements.length > 0)
+  const multiCurrency = settlementsByCurrency.length > 1
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -125,46 +150,70 @@ export function SettlementSummary({
       </div>
 
       {view === "plan" ? (
-        settlements.length === 0 ? (
+        !hasAnySettlements ? (
           <p className="text-sm text-muted-foreground">All settled up 🎉</p>
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {settlements.map(({ from, to, amount }, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-xl bg-secondary/50 px-4 py-2.5"
-              >
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">{nameOf(from)}</span>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                  <span className="font-medium">{nameOf(to)}</span>
+          <div className="flex flex-col gap-4">
+            {settlementsByCurrency
+              .filter(({ settlements }) => settlements.length > 0)
+              .map(({ cur, settlements }) => (
+                <div key={cur}>
+                  {multiCurrency && (
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {cur}
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-2.5">
+                    {settlements.map(({ from, to, amount }, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between rounded-xl bg-secondary/50 px-4 py-2.5"
+                      >
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium">{nameOf(from)}</span>
+                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                          <span className="font-medium">{nameOf(to)}</span>
+                        </div>
+                        <span className="tabular-nums text-sm font-semibold" style={{ color: "#de4a66" }}>
+                          {fmt(amount, cur)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <span className="tabular-nums text-sm font-semibold" style={{ color: "#de4a66" }}>
-                  {fmt(amount, currency)}
-                </span>
-              </div>
-            ))}
+              ))}
           </div>
         )
       ) : (
-        <div className="flex flex-col gap-2">
-          {balances.map(({ id, name, amount }) => (
-            <div
-              key={id}
-              className="flex items-center justify-between rounded-xl border border-border px-4 py-2.5"
-            >
-              <span className="text-sm font-medium">{name}</span>
-              <span
-                className={cn(
-                  "tabular-nums text-sm font-semibold",
-                  amount > 0.01  && "text-emerald-600 dark:text-emerald-400",
-                  amount < -0.01 && "text-red-600 dark:text-red-400",
-                  Math.abs(amount) <= 0.01 && "text-muted-foreground",
-                )}
-              >
-                {amount > 0 ? "+" : ""}
-                {fmt(amount, currency)}
-              </span>
+        <div className="flex flex-col gap-4">
+          {balancesByCurrency.map(({ cur, balances }) => (
+            <div key={cur}>
+              {multiCurrency && (
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {cur}
+                </p>
+              )}
+              <div className="flex flex-col gap-2">
+                {balances.map(({ id, name, amount }) => (
+                  <div
+                    key={id}
+                    className="flex items-center justify-between rounded-xl border border-border px-4 py-2.5"
+                  >
+                    <span className="text-sm font-medium">{name}</span>
+                    <span
+                      className={cn(
+                        "tabular-nums text-sm font-semibold",
+                        amount > 0.01  && "text-emerald-600 dark:text-emerald-400",
+                        amount < -0.01 && "text-red-600 dark:text-red-400",
+                        Math.abs(amount) <= 0.01 && "text-muted-foreground",
+                      )}
+                    >
+                      {amount > 0 ? "+" : ""}
+                      {fmt(amount, cur)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>

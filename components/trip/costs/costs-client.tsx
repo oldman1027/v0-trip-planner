@@ -77,10 +77,14 @@ function OweSummary({
   members: MemberWithProfile[]
   currency: string
 }) {
-  const gross = new Map<string, Map<string, number>>()
+  // gross[cur][ower][owee] = amount — keeps currencies separate
+  const grossByCurrency = new Map<string, Map<string, Map<string, number>>>()
 
   for (const expense of expenses) {
     if (!expense.paid_by_user_id) continue
+    const cur = expense.currency || currency
+    if (!grossByCurrency.has(cur)) grossByCurrency.set(cur, new Map())
+    const gross = grossByCurrency.get(cur)!
     for (const split of expense.splits ?? []) {
       if (!split.user_id) continue
       if (split.paid) continue
@@ -88,25 +92,26 @@ function OweSummary({
       const ower = split.user_id
       const owee = expense.paid_by_user_id
       if (!gross.has(ower)) gross.set(ower, new Map())
-      const inner = gross.get(ower)!
-      inner.set(owee, (inner.get(owee) ?? 0) + split.amount)
+      gross.get(ower)!.set(owee, (gross.get(ower)!.get(owee) ?? 0) + split.amount)
     }
   }
 
-  const settled: Array<{ from: string; to: string; amount: number }> = []
-  const seen = new Set<string>()
+  const settled: Array<{ from: string; to: string; amount: number; cur: string }> = []
 
-  for (const [ower, oweeMap] of gross) {
-    for (const [owee, amt] of oweeMap) {
-      const key = `${ower}:${owee}`
-      const rev  = `${owee}:${ower}`
-      if (seen.has(key) || seen.has(rev)) continue
-      seen.add(key)
-      seen.add(rev)
-      const reverse = gross.get(owee)?.get(ower) ?? 0
-      const net = amt - reverse
-      if (net > 0.01) settled.push({ from: ower, to: owee, amount: net })
-      else if (net < -0.01) settled.push({ from: owee, to: ower, amount: -net })
+  for (const [cur, gross] of grossByCurrency) {
+    const seen = new Set<string>()
+    for (const [ower, oweeMap] of gross) {
+      for (const [owee, amt] of oweeMap) {
+        const key = `${ower}:${owee}`
+        const rev  = `${owee}:${ower}`
+        if (seen.has(key) || seen.has(rev)) continue
+        seen.add(key)
+        seen.add(rev)
+        const reverse = gross.get(owee)?.get(ower) ?? 0
+        const net = amt - reverse
+        if (net > 0.01) settled.push({ from: ower, to: owee, amount: net, cur })
+        else if (net < -0.01) settled.push({ from: owee, to: ower, amount: -net, cur })
+      }
     }
   }
 
@@ -119,7 +124,7 @@ function OweSummary({
     <div className="rounded-2xl border border-border bg-card p-5">
       <h3 className="mb-4 font-serif text-lg">Who Owes Whom</h3>
       <div className="flex flex-col gap-2.5">
-        {settled.map(({ from, to, amount }, i) => (
+        {settled.map(({ from, to, amount, cur }, i) => (
           <div
             key={i}
             className="flex items-center justify-between rounded-xl bg-secondary/50 px-4 py-2.5"
@@ -133,7 +138,7 @@ function OweSummary({
               className="tabular-nums text-sm font-semibold"
               style={{ color: "#de4a66" }}
             >
-              {fmt(amount, currency)}
+              {fmt(amount, cur)}
             </span>
           </div>
         ))}

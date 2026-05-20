@@ -219,7 +219,12 @@ export function ExpenseList({
     )
   }
 
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const totalsByCurrency = expenses.reduce((acc, e) => {
+    const cur = e.currency || currency
+    acc[cur] = (acc[cur] ?? 0) + e.amount
+    return acc
+  }, {} as Record<string, number>)
+  const totalEntries = Object.entries(totalsByCurrency).filter(([, v]) => v > 0)
 
   return (
     <div className="flex flex-col gap-2">
@@ -227,7 +232,14 @@ export function ExpenseList({
         <span className="text-sm text-muted-foreground">
           {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
         </span>
-        <span className="tabular-nums text-sm font-semibold">{fmt(total, currency)}</span>
+        <span className="tabular-nums text-sm font-semibold">
+          {totalEntries.map(([cur, amt], i) => (
+            <span key={cur}>
+              {i > 0 && <span className="mx-1.5 text-muted-foreground">·</span>}
+              {fmt(amt, cur)}
+            </span>
+          ))}
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">

@@ -44,8 +44,14 @@ export function BudgetCards({
 
   const budgetMap = new Map(budgets.map((b) => [b.category, b.budget_amount]))
 
-  function spentFor(cat: ExpenseCategory) {
-    return expenses.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0)
+  function spentByCurrencyFor(cat: ExpenseCategory): Record<string, number> {
+    return expenses
+      .filter((e) => e.category === cat)
+      .reduce((acc, e) => {
+        const cur = e.currency || currency
+        acc[cur] = (acc[cur] ?? 0) + e.amount
+        return acc
+      }, {} as Record<string, number>)
   }
 
   async function saveBudget(cat: ExpenseCategory) {
@@ -70,9 +76,11 @@ export function BudgetCards({
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {CATEGORIES.map((cat) => {
         const budget = budgetMap.get(cat)
-        const spent = spentFor(cat)
-        const pct = budget ? Math.min((spent / budget) * 100, 100) : 0
-        const over = budget != null && spent > budget
+        const spentMap = spentByCurrencyFor(cat)
+        const spentEntries = Object.entries(spentMap).filter(([, v]) => v > 0)
+        const spentDefault = spentMap[currency] ?? 0
+        const pct = budget ? Math.min((spentDefault / budget) * 100, 100) : 0
+        const over = budget != null && spentDefault > budget
         const meta = CATEGORY_META[cat]
         const isEditing = editingCat === cat
 
@@ -95,9 +103,17 @@ export function BudgetCards({
 
             {/* Spent */}
             <div>
-              <div className="text-xl font-bold tabular-nums leading-tight">
-                {fmt(spent, currency)}
-              </div>
+              {spentEntries.length > 0 ? (
+                spentEntries.map(([cur, amt]) => (
+                  <div key={cur} className="text-xl font-bold tabular-nums leading-tight">
+                    {fmt(amt, cur)}
+                  </div>
+                ))
+              ) : (
+                <div className="text-xl font-bold tabular-nums leading-tight">
+                  {fmt(0, currency)}
+                </div>
+              )}
               {budget != null && (
                 <div className="text-[11px] text-muted-foreground">
                   of {fmt(budget, currency)}
@@ -124,7 +140,7 @@ export function BudgetCards({
                 className="rounded-lg px-2 py-0.5 text-center text-[10px] font-semibold"
                 style={{ backgroundColor: "#F7A59E", color: "#7B1A1A" }}
               >
-                +{fmt(spent - budget, currency)} over
+                +{fmt(spentDefault - budget, currency)} over
               </div>
             )}
 
