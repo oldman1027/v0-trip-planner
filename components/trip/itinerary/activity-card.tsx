@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { useState } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical, MapPin, Clock, AlertCircle, CalendarCheck } from "lucide-react"
@@ -44,6 +45,7 @@ export function ActivityCard({
     transition,
   }
 
+  const [imgError, setImgError] = useState(false)
   const time = formatTimeRange(activity.start_time, activity.end_time)
 
   return (
@@ -57,9 +59,16 @@ export function ActivityCard({
         dragging && "shadow-md ring-1 ring-primary/30",
       )}
     >
-      {activity.photo_url ? (
+      {activity.photo_url && !imgError ? (
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-          <Image src={activity.photo_url || "/placeholder.svg"} alt="" fill sizes="64px" className="object-cover" />
+          <Image
+            src={activity.photo_url}
+            alt=""
+            fill
+            sizes="64px"
+            className="object-cover"
+            onError={() => setImgError(true)}
+          />
         </div>
       ) : (
         <div className="h-16 w-16 shrink-0 rounded-lg bg-secondary" aria-hidden />
