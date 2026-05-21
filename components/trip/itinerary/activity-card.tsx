@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { useState } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -18,6 +17,16 @@ const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }
   shopping:      { label: "Shopping",       cls: "bg-pink-100 text-pink-700 border-pink-200" },
   entertainment: { label: "Entertainment",  cls: "bg-amber-100 text-amber-700 border-amber-200" },
   other:         { label: "Other",          cls: "bg-secondary text-muted-foreground border-border" },
+}
+
+const CATEGORY_BG: Record<Activity["category"], string> = {
+  food:          "bg-orange-100",
+  attraction:    "bg-blue-100",
+  transport:     "bg-slate-100",
+  accommodation: "bg-purple-100",
+  shopping:      "bg-pink-100",
+  entertainment: "bg-amber-100",
+  other:         "bg-secondary",
 }
 
 export function ActivityCard({
@@ -47,6 +56,7 @@ export function ActivityCard({
 
   const [imgError, setImgError] = useState(false)
   const time = formatTimeRange(activity.start_time, activity.end_time)
+  const validPhoto = activity.photo_url?.startsWith("https://") && !imgError
 
   return (
     <div
@@ -59,19 +69,18 @@ export function ActivityCard({
         dragging && "shadow-md ring-1 ring-primary/30",
       )}
     >
-      {activity.photo_url && !imgError ? (
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-          <Image
-            src={activity.photo_url}
+      {validPhoto ? (
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={activity.photo_url!}
             alt=""
-            fill
-            sizes="64px"
-            className="object-cover"
+            className="h-full w-full object-cover"
             onError={() => setImgError(true)}
           />
         </div>
       ) : (
-        <div className="h-16 w-16 shrink-0 rounded-lg bg-secondary" aria-hidden />
+        <div className={cn("h-16 w-16 shrink-0 rounded-lg", CATEGORY_BG[activity.category] ?? "bg-secondary")} aria-hidden />
       )}
 
       <button

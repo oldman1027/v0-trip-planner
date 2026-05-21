@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { X, Pencil, MapPin, Clock, DollarSign } from "lucide-react"
 import { CalendarView } from "./calendar-view"
 import { ActivityDrawer } from "./activity-drawer"
@@ -48,6 +48,9 @@ export function CalendarPageClient({
   const [transportOpen, setTransportOpen] = useState(false)
 
   const { softDelete: softDeleteActivity } = useUndoDelete<Activity>()
+
+  const [sidebarImgError, setSidebarImgError] = useState(false)
+  useEffect(() => { setSidebarImgError(false) }, [selectedActivity?.id])
 
   async function handleSave(input: {
     id?: string
@@ -212,13 +215,14 @@ export function CalendarPageClient({
             style={{ maxHeight: "calc(100vh - 52vh - 56px)" }}
           >
             {/* Photo */}
-            {selectedActivity.photo_url ? (
+            {selectedActivity.photo_url?.startsWith("https://") && !sidebarImgError ? (
               <div className="relative h-40 w-full overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedActivity.photo_url}
                   alt={selectedActivity.title}
                   className="h-full w-full object-cover"
+                  onError={() => setSidebarImgError(true)}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
               </div>
