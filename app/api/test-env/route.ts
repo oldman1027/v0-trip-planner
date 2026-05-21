@@ -2,8 +2,9 @@ import { NextResponse } from "next/server"
 
 export async function GET() {
   return NextResponse.json({
-    hasGoogleKey: !!process.env.GOOGLE_AI_API_KEY,
-    keyLength: process.env.GOOGLE_AI_API_KEY?.length ?? 0,
+    hasGoogleMapsKey: !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
+    openRouterKeyLength: process.env.OPENROUTER_API_KEY?.length ?? 0,
     nodeEnv: process.env.NODE_ENV,
   })
 }
