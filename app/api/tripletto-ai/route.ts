@@ -1,7 +1,36 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
-const MODEL = "google/gemini-2.0-flash-exp:free"
+const MODELS = [
+  "google/gemini-2.5-flash-preview:free",
+  "google/gemini-2.0-flash-exp:free",
+  "meta-llama/llama-3.1-8b-instruct:free",
+]
+
+async function callOpenRouter(prompt: string): Promise<string> {
+  for (const model of MODELS) {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://v0-tripletto.vercel.app",
+        "X-Title": "Tripletto",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    })
+    if (response.ok) {
+      const data = await response.json()
+      return data.choices?.[0]?.message?.content ?? ""
+    }
+    const err = await response.text()
+    console.warn(`[tripletto-ai] model ${model} failed:`, err)
+  }
+  throw new Error("All models failed")
+}
 
 export async function POST(request: NextRequest) {
   if (!OPENROUTER_API_KEY) {
@@ -21,28 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid mode" }, { status: 400 })
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://v0-tripletto.vercel.app",
-        "X-Title": "Tripletto",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    })
-
-    if (!response.ok) {
-      const err = await response.text()
-      console.error("[tripletto-ai] OpenRouter error:", err)
-      return NextResponse.json({ error: "AI request failed" }, { status: 500 })
-    }
-
-    const data = await response.json()
-    const text = data.choices?.[0]?.message?.content ?? ""
+    const text = await callOpenRouter(prompt)
 
     if (body.mode === "suggest") {
       try {
