@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import ReactMarkdown from "react-markdown"
 import { Sparkles, Send, X, Plus, Check, MessageCircle, MapPin, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -129,6 +130,7 @@ export function TriplettoAI({
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [slowLoading, setSlowLoading] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [adding, setAdding] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -140,6 +142,12 @@ export function TriplettoAI({
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!loading) { setSlowLoading(false); return }
+    const t = setTimeout(() => setSlowLoading(true), 3000)
+    return () => clearTimeout(t)
+  }, [loading])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -298,7 +306,23 @@ export function TriplettoAI({
                       : "bg-secondary text-foreground rounded-bl-sm",
                   )}
                 >
-                  {msg.content}
+                  {msg.role === "assistant" ? (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        ul: ({ children }) => <ul className="mt-1 mb-2 last:mb-0 space-y-0.5 pl-4 list-disc">{children}</ul>,
+                        li: ({ children }) => <li className="leading-snug">{children}</li>,
+                        h1: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                        h2: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                        h3: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.content
+                  )}
                 </div>
 
                 {msg.suggestions && msg.suggestions.length > 0 && (
@@ -359,7 +383,7 @@ export function TriplettoAI({
             ))}
 
             {loading && (
-              <div className="flex items-start">
+              <div className="flex flex-col items-start gap-1">
                 <div className="rounded-2xl rounded-bl-sm bg-secondary px-3.5 py-2.5 text-sm text-muted-foreground">
                   <span className="inline-flex gap-1">
                     <span className="animate-bounce" style={{ animationDelay: "0ms" }}>·</span>
@@ -367,6 +391,9 @@ export function TriplettoAI({
                     <span className="animate-bounce" style={{ animationDelay: "300ms" }}>·</span>
                   </span>
                 </div>
+                {slowLoading && (
+                  <p className="pl-1 text-[11px] text-muted-foreground/60">This may take a few seconds…</p>
+                )}
               </div>
             )}
 
