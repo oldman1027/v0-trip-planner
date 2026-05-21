@@ -1,92 +1,55 @@
 import { NextRequest, NextResponse } from "next/server"
+import OpenAI from "openai"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
 
-async function callModel(apiKey: string, model: string, prompt: string) {
-  return fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://v0-tripletto.vercel.app",
-      "X-Title": "Tripletto",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 1000,
-    }),
-  })
-}
-
 export async function POST(request: NextRequest) {
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
-
-  console.log("[tripletto-ai] called, key present:", !!OPENROUTER_API_KEY,
-    "key length:", OPENROUTER_API_KEY?.length)
-
-  if (!OPENROUTER_API_KEY) {
-    console.error("[tripletto-ai] OPENROUTER_API_KEY missing")
-    return NextResponse.json(
-      { error: "AI service not configured" },
-      { status: 500 }
-    )
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    console.error("[tripletto-ai] OPENAI_API_KEY missing")
+    return NextResponse.json({ error: "AI not configured" }, { status: 500 })
   }
+
+  const openai = new OpenAI({ apiKey })
 
   try {
     const body = await request.json()
-    console.log("[tripletto-ai] mode:", body.mode)
 
     let prompt = ""
     if (body.mode === "suggest") {
-      prompt = `You are a travel planner AI for a trip to ${body.trip?.destination || "the destination"}.
-Trip: ${body.trip?.name}, dates: ${body.trip?.start_date} to ${body.trip?.end_date}.
-${body.day ? `Focus on: ${body.day}` : "Suggest activities for the whole trip."}
+      prompt = `You are a travel planner for a trip to ${body.trip?.destination}.
+Trip: ${body.trip?.name}, ${body.trip?.start_date} to ${body.trip?.end_date}.
+${body.day ? `Focus on: ${body.day}` : "Suggest for the whole trip."}
 
-Suggest 6 travel activities. Return ONLY valid JSON array, no markdown, no explanation:
-[{"title":"Activity name","category":"Activities","location":"Place name, City","notes":"Brief tip","duration":"2 hours"}]`
+Suggest 6 activities. Return ONLY a valid JSON array, no markdown:
+[{"title":"Name","category":"Activities","location":"Place, City","notes":"Tip","duration":"2 hours"}]`
 
     } else if (body.mode === "chat") {
-      prompt = `You are Tripletto AI, a friendly travel planning assistant.
+      prompt = `You are Tripletto AI, a friendly travel assistant.
 Trip: ${body.trip?.name} to ${body.trip?.destination}, ${body.trip?.start_date} to ${body.trip?.end_date}.
 
 User asks: ${body.message}
 
-Format your response to be SCANNABLE and ORGANIZED:
-- Start with one short intro sentence
-- Use 2-4 short sections with bold headers (e.g. **Getting Around**)
-- Under each header, use bullet points (- ) for specific suggestions
-- Keep each bullet to one line
-- End with one brief practical tip
-- Total response under 200 words
-- Do NOT write long paragraphs`
+Reply in a structured, scannable format:
+- One short intro sentence
+- 2-3 sections with **bold headers**
+- Bullet points under each header
+- Keep bullets to one line each
+- End with one practical tip
+- Under 200 words total`
     } else {
       return NextResponse.json({ error: "Invalid mode" }, { status: 400 })
     }
 
-    console.log("[tripletto-ai] calling primary model...")
-    let response = await callModel(OPENROUTER_API_KEY, "z-ai/glm-4.5-air:free", prompt)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 800,
+      temperature: 0.7,
+    })
 
-    if (!response.ok) {
-      console.warn("[tripletto-ai] primary model failed, falling back to openrouter/free")
-      response = await callModel(OPENROUTER_API_KEY, "openrouter/free", prompt)
-    }
-
-    console.log("[tripletto-ai] OpenRouter status:", response.status)
-
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error("[tripletto-ai] OpenRouter error:", errText)
-      return NextResponse.json(
-        { error: `OpenRouter error: ${response.status}` },
-        { status: 500 }
-      )
-    }
-
-    const data = await response.json()
-    console.log("[tripletto-ai] got response, model used:", data.model)
-    const text = data.choices?.[0]?.message?.content ?? ""
+    const text = completion.choices[0]?.message?.content ?? ""
 
     if (body.mode === "suggest") {
       try {
@@ -102,10 +65,7 @@ Format your response to be SCANNABLE and ORGANIZED:
 
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
-    console.error("[tripletto-ai] unhandled error:", err)
-    return NextResponse.json(
-      { error: `Failed: ${message}` },
-      { status: 500 }
-    )
+    console.error("[tripletto-ai] error:", err)
+    return NextResponse.json({ error: `Failed: ${message}` }, { status: 500 })
   }
 }
