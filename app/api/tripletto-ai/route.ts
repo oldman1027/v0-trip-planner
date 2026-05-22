@@ -18,12 +18,20 @@ export async function POST(request: NextRequest) {
 
     let prompt = ""
     if (body.mode === "suggest") {
+      const start = body.trip?.start_date ?? "the start date"
+      const end = body.trip?.end_date ?? "the end date"
       prompt = `You are a travel planner for a trip to ${body.trip?.destination}.
-Trip: ${body.trip?.name}, ${body.trip?.start_date} to ${body.trip?.end_date}.
-${body.day ? `Focus on: ${body.day}` : "Suggest for the whole trip."}
+Trip: ${body.trip?.name}, ${start} to ${end}.
+${body.day ? `Focus on: ${body.day}` : "Spread activities evenly across all trip dates."}
 
-Suggest 6 activities. Return ONLY a valid JSON array, no markdown:
-[{"title":"Name","category":"Activities","location":"Place, City","notes":"Tip","duration":"2 hours"}]`
+Suggest 6 activities. Return ONLY a valid JSON array with no markdown, no explanation, nothing else:
+[{"title":"Example Activity","category":"attraction","location":"Place, City","notes":"Helpful tip","time_block":"afternoon","day_date":"${start}","start_time":null,"end_time":null,"cost_amount":null}]
+
+Rules:
+- category must be one of: food, attraction, transport, accommodation, shopping, entertainment, other
+- time_block must be one of: morning, afternoon, night
+- day_date must be YYYY-MM-DD format, spread across ${start} to ${end}
+- Return ONLY the JSON array, no markdown code blocks`
 
     } else if (body.mode === "chat") {
       prompt = `You are Tripletto AI, a friendly travel assistant.
@@ -45,20 +53,29 @@ Reply in a structured, scannable format:
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 800,
+      max_tokens: body.mode === "suggest" ? 1200 : 800,
       temperature: 0.7,
     })
 
     const text = completion.choices[0]?.message?.content ?? ""
 
     if (body.mode === "suggest") {
+      console.log("[tripletto-ai] suggest raw text:", text.substring(0, 300))
+      let suggestions: unknown[] = []
       try {
-        const jsonMatch = text.match(/\[[\s\S]*\]/)
-        const activities = jsonMatch ? JSON.parse(jsonMatch[0]) : []
-        return NextResponse.json({ type: "suggestions", activities })
-      } catch {
+        // Strip markdown code blocks if GPT wraps the JSON
+        const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
+        try {
+          suggestions = JSON.parse(cleaned)
+        } catch {
+          const jsonMatch = cleaned.match(/\[[\s\S]*\]/)
+          if (jsonMatch) suggestions = JSON.parse(jsonMatch[0])
+        }
+      } catch (e) {
+        console.error("[tripletto-ai] JSON parse error:", e, "text was:", text)
         return NextResponse.json({ type: "message", content: text })
       }
+      return NextResponse.json({ type: "suggestions", suggestions })
     } else {
       return NextResponse.json({ type: "message", content: text })
     }
