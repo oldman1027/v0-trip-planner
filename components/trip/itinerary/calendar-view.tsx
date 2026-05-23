@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { format } from "date-fns"
-import { CalendarPlus, Ticket, Bus } from "lucide-react"
+import { BedDouble, CalendarPlus, Ticket, Bus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseDateOnly } from "@/lib/dates"
 import { createClient } from "@/lib/supabase/client"
@@ -61,6 +61,7 @@ interface AccommodationBand {
   startColIndex: number
   spanCount: number
   colorIndex: number
+  dateRange: string
 }
 
 function getAccommodationBands(bookings: Booking[], days: string[]): AccommodationBand[] {
@@ -79,9 +80,33 @@ function getAccommodationBands(bookings: Booking[], days: string[]): Accommodati
       const nights = Math.round(
         (new Date(checkOut + "T00:00:00").getTime() - new Date(checkIn + "T00:00:00").getTime()) / 86_400_000,
       )
-      return { id: b.id, name: b.title, nights, startColIndex, spanCount, colorIndex: idx % HOTEL_COLORS.length }
+      const inDate  = parseDateOnly(checkIn)
+      const outDate = parseDateOnly(checkOut)
+      const dateRange =
+        inDate.getMonth() === outDate.getMonth()
+          ? `${format(inDate, "MMM d")}–${format(outDate, "d")}`
+          : `${format(inDate, "MMM d")}–${format(outDate, "MMM d")}`
+      return { id: b.id, name: b.title, nights, startColIndex, spanCount, colorIndex: idx % HOTEL_COLORS.length, dateRange }
     })
 }
+
+/** Assign non-overlapping rows to bands using a sweep-line algorithm. */
+function assignBandRows(bands: AccommodationBand[]): (AccommodationBand & { row: number })[] {
+  const sorted = [...bands].sort((a, b) => a.startColIndex - b.startColIndex)
+  const rowEnds: number[] = []
+  return sorted.map((band) => {
+    const end = band.startColIndex + band.spanCount
+    let row = rowEnds.findIndex((endCol) => endCol <= band.startColIndex)
+    if (row === -1) row = rowEnds.length
+    rowEnds[row] = end
+    return { ...band, row }
+  })
+}
+
+// ── Band layout constants ──────────────────────────────────────────────────
+const MAX_BAND_ROWS = 3
+const BAND_ROW_H = 28   // px height of each band row
+const BAND_GAP   = 2    // px gap between rows
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const HOUR_START = 6
@@ -450,78 +475,135 @@ export function CalendarView({
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  const todayStr = format(new Date(), "yyyy-MM-dd")
   const calendarGrid = (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card">
       <div className="min-w-max">
 
-        {/* Sticky day header */}
-        <div className="sticky top-0 z-20 flex border-b border-border bg-card">
-          <div className="shrink-0 bg-card" style={{ width: TIME_COL_W }} />
-          {days.map((day, idx) => (
-            <div
-              key={day}
-              className="shrink-0 border-l border-border px-2 py-2 text-center"
-              style={{ width: DAY_COL_MIN_W }}
-            >
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                Day {idx + 1}
-              </div>
-              <div className="font-serif text-sm font-medium leading-snug">{format(parseDateOnly(day), "EEE, MMM d")}</div>
-            </div>
-          ))}
-        </div>
+        {/* ── Sticky combined header: bands above, day labels below ── */}
+        <div className="sticky top-0 z-20 bg-card">
 
-        {/* Accommodation bands */}
-        {accommodationBands.length > 0 && (
-          <div
-            className="border-b border-border bg-background/60 py-1.5"
-            style={{
-              display: "grid",
-              gridTemplateColumns: `${TIME_COL_W}px repeat(${days.length}, ${DAY_COL_MIN_W}px)`,
-            }}
-          >
-            <div /> {/* time column spacer */}
-            {accommodationBands.map((band) => {
-              const color = HOTEL_COLORS[band.colorIndex]!
-              const clampedStart = Math.max(0, band.startColIndex)
-              const clampedSpan = Math.min(band.spanCount, days.length - clampedStart)
-              if (clampedStart >= days.length || clampedSpan <= 0) return null
-              return (
-                <div
-                  key={band.id}
-                  style={{ gridColumn: `${clampedStart + 2} / span ${clampedSpan}`, gridRow: 1, padding: "2px 4px" }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onViewBooking?.(band.id)}
-                    title={`${band.name} · ${band.nights} night${band.nights !== 1 ? "s" : ""}`}
+          {/* Accommodation bands */}
+          {accommodationBands.length > 0 && (() => {
+            const bandsWithRows = assignBandRows(accommodationBands)
+            const visibleBands  = bandsWithRows.filter((b) => b.row < MAX_BAND_ROWS)
+            const hiddenCount   = bandsWithRows.length - visibleBands.length
+            const numRows       = visibleBands.length > 0 ? Math.max(...visibleBands.map((b) => b.row)) + 1 : 0
+            if (numRows === 0) return null
+            return (
+              <div
+                className="border-b border-border"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `${TIME_COL_W}px repeat(${days.length}, ${DAY_COL_MIN_W}px)`,
+                  gridTemplateRows: `repeat(${numRows}, ${BAND_ROW_H}px)`,
+                  rowGap: BAND_GAP,
+                  paddingTop: 4,
+                  paddingBottom: hiddenCount > 0 ? 2 : 4,
+                }}
+              >
+                {/* Time-column spacers (one per row) */}
+                {Array.from({ length: numRows }).map((_, r) => (
+                  <div key={`ts-${r}`} style={{ gridColumn: 1, gridRow: r + 1 }} />
+                ))}
+
+                {/* Band pills */}
+                {visibleBands.map((band) => {
+                  const color = HOTEL_COLORS[band.colorIndex]!
+                  const clampedStart = Math.max(0, band.startColIndex)
+                  const clampedSpan  = Math.min(band.spanCount, days.length - clampedStart)
+                  if (clampedStart >= days.length || clampedSpan <= 0) return null
+                  return (
+                    <div
+                      key={band.id}
+                      style={{
+                        gridColumn: `${clampedStart + 2} / span ${clampedSpan}`,
+                        gridRow: band.row + 1,
+                        padding: "0 4px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onViewBooking?.(band.id)}
+                        title={`${band.name} · ${band.nights} night${band.nights !== 1 ? "s" : ""}`}
+                        style={{
+                          width: "100%",
+                          height: BAND_ROW_H - 4,
+                          background: color.bg,
+                          border: `1px solid ${color.border}`,
+                          borderRadius: 14,
+                          padding: "0 10px 0 8px",
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: color.text,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          overflow: "hidden",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        <BedDouble style={{ width: 11, height: 11, flexShrink: 0, opacity: 0.75 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {band.name} · {band.dateRange}
+                        </span>
+                      </button>
+                    </div>
+                  )
+                })}
+
+                {/* +N more overflow indicator */}
+                {hiddenCount > 0 && (
+                  <div
                     style={{
-                      width: "100%",
-                      background: color.bg,
-                      border: `1px solid ${color.border}`,
-                      borderRadius: "20px",
-                      padding: "3px 10px",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                      color: color.text,
+                      gridColumn: `2 / span ${days.length}`,
+                      gridRow: numRows + 1,
                       display: "flex",
                       alignItems: "center",
-                      gap: "4px",
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      textAlign: "left",
+                      paddingLeft: 8,
+                      paddingBottom: 4,
+                      fontSize: 10,
+                      color: "#6b7280",
                     }}
                   >
-                    <span style={{ fontSize: "10px", flexShrink: 0 }}>🏨</span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {band.name} · {band.nights} night{band.nights !== 1 ? "s" : ""}
-                    </span>
-                  </button>
+                    +{hiddenCount} more hotel{hiddenCount > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Day column headers */}
+          <div className="flex border-b border-border">
+            <div className="shrink-0" style={{ width: TIME_COL_W }} />
+            {days.map((day) => {
+              const isToday = day === todayStr
+              const parsed  = parseDateOnly(day)
+              return (
+                <div
+                  key={day}
+                  className="shrink-0 border-l border-border px-2 py-2 text-center"
+                  style={{ width: DAY_COL_MIN_W }}
+                >
+                  <div className="relative inline-flex flex-col items-center gap-0.5">
+                    <div className={cn("text-sm font-semibold leading-none", isToday ? "text-teal-600" : "text-foreground")}>
+                      {format(parsed, "EEE")}
+                    </div>
+                    <div className={cn("text-xs leading-none", isToday ? "text-teal-500 font-medium" : "text-muted-foreground")}>
+                      {format(parsed, "MMM d")}
+                    </div>
+                    {isToday && (
+                      <div className="absolute -bottom-1.5 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-teal-500" />
+                    )}
+                  </div>
                 </div>
               )
             })}
           </div>
-        )}
+        </div>
 
         {/* Body */}
         <div ref={bodyRef} className="flex">
