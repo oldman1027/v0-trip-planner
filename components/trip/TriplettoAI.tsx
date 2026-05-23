@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { cn } from "@/lib/utils"
 import { addAIActivities } from "@/app/actions/add-ai-activities"
 import { toast } from "sonner"
+import { daysBetween } from "@/lib/dates"
 import type { Activity, Trip } from "@/lib/types"
 
 type Suggestion = {
@@ -166,6 +167,24 @@ export function TriplettoAI({
     const isSuggestIntent =
       /suggest|plan|activities|what to do|what should|idea|recommend|itinerary|nearby|restaurant|eat|visit/i.test(trimmed)
 
+    // Build day-by-day context so the AI knows which day = which date = which location
+    const days = trip.start_date && trip.end_date ? daysBetween(trip.start_date, trip.end_date) : []
+    const dayContext = days.map((dateStr, i) => ({
+      day: i + 1,
+      date: dateStr,
+      dateLabel: new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", {
+        weekday: "short", month: "short", day: "numeric",
+      }),
+      activities: activities
+        .filter((a) => a.day_date === dateStr)
+        .map((a) => ({
+          title: a.title,
+          location: a.location,
+          time: a.start_time,
+          category: a.category,
+        })),
+    }))
+
     try {
       const res = await fetch("/api/tripletto-ai", {
         method: "POST",
@@ -175,7 +194,7 @@ export function TriplettoAI({
           trip,
           activities,
           message: trimmed,
-          day: null,
+          dayContext,
         }),
       })
       const data = await res.json()
