@@ -80,6 +80,27 @@ export function ActivityDrawer({
   const [deleting, setDeleting] = useState(false)
   const [fetchingPhoto, setFetchingPhoto] = useState(false)
 
+  type Snapshot = {
+    title: string; day: string; block: TimeBlock; location: string
+    start: string; end: string; notes: string; cost: string
+    photo: string; category: Activity["category"]; needsBooking: boolean
+  }
+  const originalRef = useRef<Snapshot | null>(null)
+
+  const isDirty = originalRef.current !== null && (
+    title !== originalRef.current.title ||
+    day !== originalRef.current.day ||
+    block !== originalRef.current.block ||
+    location !== originalRef.current.location ||
+    start !== originalRef.current.start ||
+    end !== originalRef.current.end ||
+    notes !== originalRef.current.notes ||
+    cost !== originalRef.current.cost ||
+    photo !== originalRef.current.photo ||
+    category !== originalRef.current.category ||
+    needsBooking !== originalRef.current.needsBooking
+  )
+
   const dateError =
     day && (day < tripStart || day > tripEnd)
       ? "Activity must be within trip dates"
@@ -99,32 +120,41 @@ export function ActivityDrawer({
 
   useEffect(() => {
     if (!state) return
+    let snap: Snapshot
     if (state.mode === "create") {
-      setTitle("")
-      setDay(state.day_date)
-      setBlock(state.time_block)
-      setLocation("")
-      setStart(state.start_time ? state.start_time.slice(0, 5) : "")
-      setEnd("")
-      setNotes("")
-      setCost("")
-      setPhoto("")
-      setCategory("other")
-      setNeedsBooking(false)
+      snap = {
+        title: "", day: state.day_date, block: state.time_block,
+        location: "", start: state.start_time ? state.start_time.slice(0, 5) : "",
+        end: "", notes: "", cost: "", photo: "", category: "other", needsBooking: false,
+      }
     } else {
       const a = state.activity
-      setTitle(a.title)
-      setDay(a.day_date ?? days[0] ?? "")
-      setBlock(a.time_block ?? "morning")
-      setLocation(a.location ?? "")
-      setStart((a.start_time ?? "").slice(0, 5))
-      setEnd((a.end_time ?? "").slice(0, 5))
-      setNotes(a.notes ?? "")
-      setCost(a.cost_amount != null ? String(a.cost_amount) : "")
-      setPhoto(a.photo_url ?? "")
-      setCategory(a.category ?? "other")
-      setNeedsBooking(!!a.booking_id)
+      snap = {
+        title: a.title,
+        day: a.day_date ?? days[0] ?? "",
+        block: a.time_block ?? "morning",
+        location: a.location ?? "",
+        start: (a.start_time ?? "").slice(0, 5),
+        end: (a.end_time ?? "").slice(0, 5),
+        notes: a.notes ?? "",
+        cost: a.cost_amount != null ? String(a.cost_amount) : "",
+        photo: a.photo_url ?? "",
+        category: a.category ?? "other",
+        needsBooking: !!a.booking_id,
+      }
     }
+    originalRef.current = snap
+    setTitle(snap.title)
+    setDay(snap.day)
+    setBlock(snap.block)
+    setLocation(snap.location)
+    setStart(snap.start)
+    setEnd(snap.end)
+    setNotes(snap.notes)
+    setCost(snap.cost)
+    setPhoto(snap.photo)
+    setCategory(snap.category)
+    setNeedsBooking(snap.needsBooking)
   }, [state])
 
   async function fetchPlacePhoto(query: string): Promise<string | null> {
@@ -158,30 +188,58 @@ export function ActivityDrawer({
     }
   }
 
+  async function performSave() {
+    if (!state) return
+    let resolvedPhoto = photo.trim() || null
+    if (state.mode === "create" && !resolvedPhoto && title.trim()) {
+      const query = location.trim() ? `${title.trim()} ${location.trim()}` : title.trim()
+      resolvedPhoto = await fetchPlacePhoto(query)
+    }
+    await onSave({
+      id: state.mode === "edit" ? state.activity.id : undefined,
+      day_date: day,
+      time_block: block,
+      title: title.trim(),
+      location: location.trim() || null,
+      start_time: start || null,
+      end_time: end || null,
+      notes: notes.trim() || null,
+      cost_amount: cost ? Number(cost) : null,
+      photo_url: resolvedPhoto,
+      category,
+      needs_booking: needsBooking,
+    })
+  }
+
+  async function handleOpenChange(v: boolean) {
+    if (v || saving || deleting) return
+    if (!isDirty) { onClose(); return }
+    if (!title.trim()) {
+      toast.error("Activity needs a title to be saved")
+      return
+    }
+    if (dateError) {
+      toast.error("Fix the date error before closing")
+      return
+    }
+    setSaving(true)
+    try {
+      await performSave()
+      toast.success("Changes saved", { duration: 2000 })
+      onClose()
+    } catch (err) {
+      toast.error("Could not save activity", { description: err instanceof Error ? err.message : "Unknown" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!state) return
     setSaving(true)
     try {
-      let resolvedPhoto = photo.trim() || null
-      if (state.mode === "create" && !resolvedPhoto && title.trim()) {
-        const query = location.trim() ? `${title.trim()} ${location.trim()}` : title.trim()
-        resolvedPhoto = await fetchPlacePhoto(query)
-      }
-      await onSave({
-        id: state.mode === "edit" ? state.activity.id : undefined,
-        day_date: day,
-        time_block: block,
-        title: title.trim(),
-        location: location.trim() || null,
-        start_time: start || null,
-        end_time: end || null,
-        notes: notes.trim() || null,
-        cost_amount: cost ? Number(cost) : null,
-        photo_url: resolvedPhoto,
-        category,
-        needs_booking: needsBooking,
-      })
+      await performSave()
       onClose()
     } catch (err) {
       toast.error("Could not save activity", { description: err instanceof Error ? err.message : "Unknown" })
@@ -202,7 +260,7 @@ export function ActivityDrawer({
   }
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
         <SheetHeader className="border-b border-border">
           <SheetTitle className="font-serif text-2xl">
