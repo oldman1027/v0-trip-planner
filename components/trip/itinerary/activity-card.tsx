@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, MapPin, Clock, AlertCircle, CalendarCheck } from "lucide-react"
+import { GripVertical, MapPin, Clock, AlertCircle, CalendarCheck, BedDouble, Plane, Utensils, ShoppingBag, Music, MoreHorizontal } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { Activity } from "@/lib/types"
@@ -19,14 +19,14 @@ const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }
   other:         { label: "Other",          cls: "bg-secondary text-muted-foreground border-border" },
 }
 
-const CATEGORY_BG: Record<Activity["category"], string> = {
-  food:          "bg-orange-100",
-  attraction:    "bg-blue-100",
-  transport:     "bg-slate-100",
-  accommodation: "bg-purple-100",
-  shopping:      "bg-pink-100",
-  entertainment: "bg-amber-100",
-  other:         "bg-secondary",
+const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
+  food:          { bg: "bg-orange-100", icon: Utensils,       iconCls: "text-orange-300" },
+  attraction:    { bg: "bg-green-100",  icon: MapPin,         iconCls: "text-green-300" },
+  transport:     { bg: "bg-gray-100",   icon: Plane,          iconCls: "text-gray-300" },
+  accommodation: { bg: "bg-blue-100",   icon: BedDouble,      iconCls: "text-blue-300" },
+  shopping:      { bg: "bg-pink-100",   icon: ShoppingBag,    iconCls: "text-pink-300" },
+  entertainment: { bg: "bg-purple-100", icon: Music,          iconCls: "text-purple-300" },
+  other:         { bg: "bg-teal-100",   icon: MoreHorizontal, iconCls: "text-teal-300" },
 }
 
 export function ActivityCard({
@@ -57,6 +57,8 @@ export function ActivityCard({
   const [imgError, setImgError] = useState(false)
   const time = formatTimeRange(activity.start_time, activity.end_time)
   const validPhoto = activity.photo_url?.startsWith("https://") && !imgError
+  const placeholder = CATEGORY_PLACEHOLDER[activity.category] ?? CATEGORY_PLACEHOLDER.other
+  const PlaceholderIcon = placeholder.icon
 
   return (
     <div
@@ -80,7 +82,9 @@ export function ActivityCard({
           />
         </div>
       ) : (
-        <div className={cn("h-16 w-16 shrink-0 rounded-lg", CATEGORY_BG[activity.category] ?? "bg-secondary")} aria-hidden />
+        <div className={cn("h-16 w-16 shrink-0 rounded-lg flex items-center justify-center", placeholder.bg)} aria-hidden>
+          <PlaceholderIcon className={cn("w-8 h-8", placeholder.iconCls)} />
+        </div>
       )}
 
       <button

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Trash2 } from "lucide-react"
+import { Trash2, RefreshCw } from "lucide-react"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -78,6 +78,7 @@ export function ActivityDrawer({
   const [needsBooking, setNeedsBooking] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [fetchingPhoto, setFetchingPhoto] = useState(false)
 
   const dateError =
     day && (day < tripStart || day > tripEnd)
@@ -126,11 +127,47 @@ export function ActivityDrawer({
     }
   }, [state])
 
+  async function fetchPlacePhoto(query: string): Promise<string | null> {
+    try {
+      if (typeof google === "undefined") return null
+      const { Place } = await (google.maps.importLibrary("places") as Promise<google.maps.PlacesLibrary>)
+      const { places } = await Place.searchByText({ textQuery: query, fields: ["photos"], maxResultCount: 1 })
+      if (places.length > 0 && places[0].photos && places[0].photos.length > 0) {
+        return places[0].photos[0].getURI({ maxWidth: 800 })
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  async function handleRefreshPhoto() {
+    if (!title.trim()) return
+    setFetchingPhoto(true)
+    try {
+      const query = location.trim() ? `${title.trim()} ${location.trim()}` : title.trim()
+      const url = await fetchPlacePhoto(query)
+      if (url) {
+        setPhoto(url)
+        toast.success("Photo updated")
+      } else {
+        toast.error("No photo found for this activity")
+      }
+    } finally {
+      setFetchingPhoto(false)
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!state) return
     setSaving(true)
     try {
+      let resolvedPhoto = photo.trim() || null
+      if (state.mode === "create" && !resolvedPhoto && title.trim()) {
+        const query = location.trim() ? `${title.trim()} ${location.trim()}` : title.trim()
+        resolvedPhoto = await fetchPlacePhoto(query)
+      }
       await onSave({
         id: state.mode === "edit" ? state.activity.id : undefined,
         day_date: day,
@@ -141,7 +178,7 @@ export function ActivityDrawer({
         end_time: end || null,
         notes: notes.trim() || null,
         cost_amount: cost ? Number(cost) : null,
-        photo_url: photo.trim() || null,
+        photo_url: resolvedPhoto,
         category,
         needs_booking: needsBooking,
       })
@@ -286,7 +323,18 @@ export function ActivityDrawer({
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="photo">Photo URL</FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="photo">Photo URL</FieldLabel>
+                  <button
+                    type="button"
+                    onClick={handleRefreshPhoto}
+                    disabled={fetchingPhoto || !title.trim()}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                  >
+                    <RefreshCw className={cn("h-3 w-3", fetchingPhoto && "animate-spin")} aria-hidden />
+                    {fetchingPhoto ? "Fetching…" : "Fetch from Google"}
+                  </button>
+                </div>
                 <Input
                   id="photo"
                   value={photo}

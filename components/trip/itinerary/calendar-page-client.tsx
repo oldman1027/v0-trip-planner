@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { X, Pencil, MapPin, Clock, DollarSign } from "lucide-react"
+import { X, Pencil, MapPin, Clock, DollarSign, BedDouble, Plane, Utensils, ShoppingBag, Music, MoreHorizontal } from "lucide-react"
 import { CalendarView } from "./calendar-view"
 import { ActivityDrawer } from "./activity-drawer"
 import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
@@ -13,7 +13,18 @@ import { toast } from "sonner"
 import { useUndoDelete } from "@/hooks/use-undo-delete"
 import { format } from "date-fns"
 import { parseDateOnly } from "@/lib/dates"
+import { cn } from "@/lib/utils"
 import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
+
+const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
+  food:          { bg: "bg-orange-100", icon: Utensils,       iconCls: "text-orange-300" },
+  attraction:    { bg: "bg-green-100",  icon: MapPin,         iconCls: "text-green-300" },
+  transport:     { bg: "bg-gray-100",   icon: Plane,          iconCls: "text-gray-300" },
+  accommodation: { bg: "bg-blue-100",   icon: BedDouble,      iconCls: "text-blue-300" },
+  shopping:      { bg: "bg-pink-100",   icon: ShoppingBag,    iconCls: "text-pink-300" },
+  entertainment: { bg: "bg-purple-100", icon: Music,          iconCls: "text-purple-300" },
+  other:         { bg: "bg-teal-100",   icon: MoreHorizontal, iconCls: "text-teal-300" },
+}
 
 const CATEGORY_LABEL: Record<Activity["category"], string> = {
   food: "Food & Dining",
@@ -172,6 +183,8 @@ export function CalendarPageClient({
   }
 
   const currency = trip.default_currency ?? "USD"
+  const sidebarPH = CATEGORY_PLACEHOLDER[selectedActivity?.category ?? "other"] ?? CATEGORY_PLACEHOLDER.other
+  const SidebarIcon = sidebarPH.icon
 
   return (
     // Full-bleed breakout — escapes the page container's max-w-6xl + px-6
@@ -227,7 +240,9 @@ export function CalendarPageClient({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
               </div>
             ) : (
-              <div className="h-24 w-full bg-gradient-to-br from-emerald-100 to-teal-100" />
+              <div className={cn("h-24 w-full flex items-center justify-center", sidebarPH.bg)}>
+                <SidebarIcon className={cn("w-8 h-8", sidebarPH.iconCls)} />
+              </div>
             )}
 
             {/* Header */}
