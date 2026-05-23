@@ -29,6 +29,29 @@ function buildDayBreakdown(dayContext: DayCtx[]): string {
 }
 
 function buildChatPrompt(trip: TripInfo, activityCount: number, message: string, dayContext: DayCtx[]): string {
+  const dayMentionMatch = message.match(/day\s*(\d+)/i)
+  const mentionedDayNum = dayMentionMatch ? parseInt(dayMentionMatch[1]) : null
+  const mentionedDay = mentionedDayNum ? dayContext.find((d) => d.day === mentionedDayNum) : null
+
+  const dayLocation =
+    mentionedDay && mentionedDay.activities.length > 0
+      ? mentionedDay.activities[0].location?.split(",").slice(-2).join(",").trim() ?? trip.destination
+      : trip.destination
+
+  const contextIntro = mentionedDay
+    ? `User is asking about Day ${mentionedDayNum} (${mentionedDay.dateLabel}) — their activities that day are in: ${dayLocation}`
+    : `General trip question about ${trip.destination ?? "the destination"}`
+
+  const isFoodRequest = /restaurant|eat|food|dining|cafe|lunch|dinner|breakfast|snack|market|street food/i.test(message)
+  const isAccomRequest = /hotel|hostel|stay|accommodation|sleep|where to stay/i.test(message)
+  const requestType = isFoodRequest
+    ? "FOOD & DINING — suggest only restaurants, cafes, food markets, street food"
+    : isAccomRequest
+      ? "ACCOMMODATION — suggest only hotels, hostels, guesthouses"
+      : "GENERAL ACTIVITIES — suggest sightseeing, experiences, tours, things to do"
+
+  console.log("[tripletto-ai] dayContext days:", dayContext.length, "day2:", JSON.stringify(dayContext[1]))
+
   return `You are Tripletto AI, a smart travel assistant with full knowledge of this specific trip.
 
 TRIP: ${trip.name ?? "Unnamed trip"} to ${trip.destination ?? "unknown destination"}
@@ -38,14 +61,18 @@ ACTIVITIES PLANNED: ${activityCount}
 CURRENT ITINERARY BY DAY:
 ${buildDayBreakdown(dayContext)}
 
-INSTRUCTIONS:
-- When the user says "Day 2", "Day 3" etc → look up that day above to know the date and location
-- Infer their location from the activities already planned for that day
-- Recommend places NEAR their planned activities (not the trip's main city if they're elsewhere)
-- Use real place names, neighborhoods, distances — be specific
-- If a day has activities in a specific city/area, give recommendations there
+USER REQUEST ANALYSIS:
+Context: ${contextIntro}
+User asked: "${message}"
+Request type: ${requestType}
+Specific day: ${mentionedDay ? `Day ${mentionedDayNum} (${mentionedDay.dateLabel}) in ${dayLocation}` : "Not specified"}
 
-USER MESSAGE: ${message}
+STRICT RULES:
+- If request type is FOOD & DINING → ONLY suggest restaurants, cafes, food markets — no sightseeing
+- If request type is ACCOMMODATION → ONLY suggest hotels, hostels, guesthouses
+- If request type is GENERAL ACTIVITIES → ONLY suggest sightseeing, tours, experiences — no restaurants
+- All suggestions must be near: ${dayLocation ?? trip.destination ?? "the destination"}
+- Use real place names, neighborhoods, distances — be specific
 
 Reply in a structured, scannable format:
 - One sentence acknowledging their context (day and location if known)

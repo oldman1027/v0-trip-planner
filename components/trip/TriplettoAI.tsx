@@ -185,6 +185,8 @@ export function TriplettoAI({
         })),
     }))
 
+    console.log("dayContext built:", dayContext.slice(0, 3))
+
     try {
       const res = await fetch("/api/tripletto-ai", {
         method: "POST",
