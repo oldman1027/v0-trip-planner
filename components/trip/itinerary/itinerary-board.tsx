@@ -35,7 +35,7 @@ import { useUndoDelete } from "@/hooks/use-undo-delete"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
-import { daysBetween } from "@/lib/dates"
+import { daysBetween, getBlockFromTime } from "@/lib/dates"
 import { detectConflicts } from "@/lib/time-conflicts"
 import { geocodeDestination, fetchWeatherForecast } from "@/lib/weather"
 import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
@@ -157,6 +157,28 @@ export function ItineraryBoard({
     load()
     return () => { cancelled = true }
   }, [trip.destination])
+
+  // One-time: fix activities whose time_block doesn't match their start_time
+  useEffect(() => {
+    const mismatches = initialActivities.filter(
+      (a) => a.start_time && a.time_block && getBlockFromTime(a.start_time) !== a.time_block,
+    )
+    if (mismatches.length === 0) return
+    const supabase = createClient()
+    Promise.all(
+      mismatches.map((a) =>
+        supabase.from("activities").update({ time_block: getBlockFromTime(a.start_time!) }).eq("id", a.id),
+      ),
+    ).catch(() => null)
+    setActivities((prev) =>
+      prev.map((a) => {
+        if (!a.start_time || !a.time_block) return a
+        const correct = getBlockFromTime(a.start_time)
+        return correct !== a.time_block ? { ...a, time_block: correct } : a
+      }),
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // intentionally runs only once on mount
 
   // Map activity_id → booking for cross-referencing the "Booked" badge
   const activityBookingMap = useMemo(() => {
@@ -428,30 +450,34 @@ export function ItineraryBoard({
     if (input.day_date < trip.start_date || input.day_date > trip.end_date) {
       throw new Error("Invalid activity date: outside trip range")
     }
+    // Enforce correct block based on start_time (user may have manually overridden in the drawer,
+    // but the drawer's handleStartChange already keeps them in sync — this is a safety net)
+    const resolvedBlock = input.start_time ? getBlockFromTime(input.start_time) : input.time_block
+    const resolvedInput = { ...input, time_block: resolvedBlock }
     const supabase = createClient()
-    if (input.id) {
+    if (resolvedInput.id) {
       // Edit existing activity
       const { error } = await supabase
         .from("activities")
         .update({
-          day_date: input.day_date,
-          time_block: input.time_block,
-          title: input.title,
-          location: input.location,
-          start_time: input.start_time,
-          end_time: input.end_time,
-          notes: input.notes,
-          cost_amount: input.cost_amount,
-          photo_url: input.photo_url,
-          category: input.category,
+          day_date: resolvedInput.day_date,
+          time_block: resolvedInput.time_block,
+          title: resolvedInput.title,
+          location: resolvedInput.location,
+          start_time: resolvedInput.start_time,
+          end_time: resolvedInput.end_time,
+          notes: resolvedInput.notes,
+          cost_amount: resolvedInput.cost_amount,
+          photo_url: resolvedInput.photo_url,
+          category: resolvedInput.category,
         })
-        .eq("id", input.id)
+        .eq("id", resolvedInput.id)
       if (error) throw error
 
       // Sync linked booking if it exists
-      const existingBooking = activityBookingMap.get(input.id)
+      const existingBooking = activityBookingMap.get(resolvedInput.id!)
       let resolvedBookingId: string | null = existingBooking?.id ?? null
-      if (input.needs_booking) {
+      if (resolvedInput.needs_booking) {
         if (existingBooking) {
           if (existingBooking.type === "dining") {
             // Sync restaurant-specific fields back to the booking
@@ -523,18 +549,18 @@ export function ItineraryBoard({
       }
 
       setActivities((prev) =>
-        prev.map((a) => (a.id === input.id ? { ...a, ...input, booking_id: resolvedBookingId } : a)),
+        prev.map((a) => (a.id === resolvedInput.id ? { ...a, ...resolvedInput, booking_id: resolvedBookingId } : a)),
       )
       toast.success("Activity updated")
     } else {
       // Create new activity
-      const targetIndex = (buckets.get(`${input.day_date}::${input.time_block}` as BlockKey) ?? []).length
+      const targetIndex = (buckets.get(`${resolvedInput.day_date}::${resolvedInput.time_block}` as BlockKey) ?? []).length
       const { data, error } = await supabase
         .from("activities")
         .insert({
           trip_id: trip.id,
-          day_date: input.day_date,
-          time_block: input.time_block,
+          day_date: resolvedInput.day_date,
+          time_block: resolvedInput.time_block,
           position: targetIndex,
           title: input.title,
           location: input.location,

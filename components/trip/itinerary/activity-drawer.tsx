@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { LocationAutocomplete } from "./location-autocomplete"
 import { Spinner } from "@/components/ui/spinner"
-import { formatDayLabel } from "@/lib/dates"
+import { formatDayLabel, getBlockFromTime } from "@/lib/dates"
 import type { Activity, TimeBlock } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -156,6 +156,21 @@ export function ActivityDrawer({
     setCategory(snap.category)
     setNeedsBooking(snap.needsBooking)
   }, [state])
+
+  function handleStartChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value
+    setStart(value)
+    if (value) {
+      const suggested = getBlockFromTime(value)
+      if (suggested !== block) {
+        setBlock(suggested)
+        if (state?.mode === "edit") {
+          const label = suggested.charAt(0).toUpperCase() + suggested.slice(1)
+          toast.info(`Moved to ${label} block`, { duration: 2000 })
+        }
+      }
+    }
+  }
 
   async function fetchPlacePhoto(query: string): Promise<string | null> {
     try {
@@ -325,9 +340,14 @@ export function ActivityDrawer({
                     id="start"
                     type="time"
                     value={start}
-                    onChange={(e) => setStart(e.target.value)}
+                    onChange={handleStartChange}
                     className="rounded-xl"
                   />
+                  {start && (
+                    <p className="mt-1 text-[11px] capitalize text-muted-foreground">
+                      → {getBlockFromTime(start)} block
+                    </p>
+                  )}
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="end">End</FieldLabel>

@@ -1,4 +1,5 @@
 import { addDays, differenceInDays, format, parseISO } from "date-fns"
+import type { TimeBlock } from "./types"
 
 /** Parse a date-only string (YYYY-MM-DD) as a local date (no UTC drift). */
 export function parseDateOnly(s: string): Date {
@@ -50,3 +51,12 @@ export function tripDuration(start: string, end: string): number {
 }
 
 export { format, parseISO }
+
+/** Map a "HH:MM" time string to the correct time block. */
+export function getBlockFromTime(time: string | null): TimeBlock {
+  if (!time) return "morning"
+  const hours = Number(time.split(":")[0])
+  if (hours < 12) return "morning"
+  if (hours < 18) return "afternoon"
+  return "night"
+}
