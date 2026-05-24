@@ -25,10 +25,12 @@ type Suggestion = {
 }
 
 type Message = {
+  id: string
   role: "user" | "assistant"
   content: string
   suggestions?: Suggestion[]
   summary?: string
+  streaming?: boolean
 }
 
 const CATEGORY_COLORS: Record<Activity["category"], string> = {
@@ -159,7 +161,7 @@ export function TriplettoAI({
     if (!trimmed || loading) return
     setInput("")
 
-    const userMsg: Message = { role: "user", content: trimmed }
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: trimmed }
     setMessages((p) => [...p, userMsg])
     setLoading(true)
     setSelected(new Set())
@@ -167,7 +169,6 @@ export function TriplettoAI({
     const isSuggestIntent =
       /suggest|plan|activities|what to do|what should|idea|recommend|itinerary|nearby|restaurant|eat|visit/i.test(trimmed)
 
-    // Build day-by-day context so the AI knows which day = which date = which location
     const days = trip.start_date && trip.end_date ? daysBetween(trip.start_date, trip.end_date) : []
     const dayContext = days.map((dateStr, i) => ({
       day: i + 1,
@@ -188,32 +189,65 @@ export function TriplettoAI({
     console.log("dayContext built:", dayContext.slice(0, 3))
 
     try {
-      const res = await fetch("/api/tripletto-ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: isSuggestIntent ? "suggest" : "chat",
-          trip,
-          activities,
-          message: trimmed,
-          dayContext,
-        }),
-      })
-      const data = await res.json()
-
-      if (data.type === "suggestions") {
-        const suggestions = data.suggestions as Suggestion[]
-        setMessages((p) => [
-          ...p,
-          {
-            role: "assistant",
-            content: data.summary ?? "Here are some activity ideas:",
-            suggestions,
-          },
-        ])
-        setSelected(new Set(suggestions.map((_, i) => i)))
+      if (isSuggestIntent) {
+        const res = await fetch("/api/tripletto-ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "suggest", trip, activities, message: trimmed, dayContext }),
+        })
+        const data = await res.json()
+        if (data.type === "suggestions") {
+          const suggestions = data.suggestions as Suggestion[]
+          setMessages((p) => [
+            ...p,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: data.summary ?? "Here are some activity ideas:",
+              suggestions,
+            },
+          ])
+          setSelected(new Set(suggestions.map((_, i) => i)))
+        } else {
+          setMessages((p) => [...p, { id: Date.now().toString(), role: "assistant", content: data.content }])
+        }
       } else {
-        setMessages((p) => [...p, { role: "assistant", content: data.content }])
+        const assistantId = (Date.now() + 1).toString()
+        setMessages((p) => [...p, { id: assistantId, role: "assistant", content: "", streaming: true }])
+
+        const res = await fetch("/api/tripletto-ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "chat", trip, activities, message: trimmed, dayContext }),
+        })
+
+        if (!res.ok || !res.body) {
+          setMessages((p) =>
+            p.map((m) =>
+              m.id === assistantId
+                ? { ...m, content: "Couldn't reach Tripletto AI. Try again.", streaming: false }
+                : m,
+            ),
+          )
+          return
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let accumulated = ""
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          accumulated += decoder.decode(value, { stream: true })
+          setMessages((p) =>
+            p.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
+          )
+        }
+
+        setMessages((p) =>
+          p.map((m) => (m.id === assistantId ? { ...m, streaming: false } : m)),
+        )
       }
     } catch {
       toast.error("Couldn't reach Tripletto AI. Try again.")
@@ -328,19 +362,24 @@ export function TriplettoAI({
                   )}
                 >
                   {msg.role === "assistant" ? (
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                        ul: ({ children }) => <ul className="mt-1 mb-2 last:mb-0 space-y-0.5 pl-4 list-disc">{children}</ul>,
-                        li: ({ children }) => <li className="leading-snug">{children}</li>,
-                        h1: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
-                        h2: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
-                        h3: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
-                      }}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
+                    <>
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          ul: ({ children }) => <ul className="mt-1 mb-2 last:mb-0 space-y-0.5 pl-4 list-disc">{children}</ul>,
+                          li: ({ children }) => <li className="leading-snug">{children}</li>,
+                          h1: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                          h2: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                          h3: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                      {msg.streaming && (
+                        <span className="inline-block w-0.5 h-4 bg-gray-500 ml-0.5 align-middle animate-pulse" />
+                      )}
+                    </>
                   ) : (
                     msg.content
                   )}
@@ -403,7 +442,7 @@ export function TriplettoAI({
               </div>
             ))}
 
-            {loading && (
+            {loading && !messages.some((m) => m.streaming) && (
               <div className="flex flex-col items-start gap-1">
                 <div className="rounded-2xl rounded-bl-sm bg-secondary px-3.5 py-2.5 text-sm text-muted-foreground">
                   <span className="inline-flex gap-1">

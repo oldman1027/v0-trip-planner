@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import OpenAI from "openai"
 
 export const runtime = "nodejs"
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     console.error("[tripletto-ai] OPENAI_API_KEY missing")
-    return NextResponse.json({ error: "AI not configured" }, { status: 500 })
+    return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500 })
   }
 
   const openai = new OpenAI({ apiKey })
@@ -132,25 +132,15 @@ export async function POST(request: NextRequest) {
       day: string | null
     }
 
-    let prompt = ""
     if (mode === "suggest") {
-      prompt = buildSuggestPrompt(trip, dayContext, day)
-    } else if (mode === "chat") {
-      prompt = buildChatPrompt(trip, activities.length, message, dayContext)
-    } else {
-      return NextResponse.json({ error: "Invalid mode" }, { status: 400 })
-    }
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: mode === "suggest" ? 1200 : 800,
-      temperature: 0.7,
-    })
-
-    const text = completion.choices[0]?.message?.content ?? ""
-
-    if (mode === "suggest") {
+      const prompt = buildSuggestPrompt(trip, dayContext, day)
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 1200,
+        temperature: 0.7,
+      })
+      const text = completion.choices[0]?.message?.content ?? ""
       console.log("[tripletto-ai] suggest raw:", text.substring(0, 300))
       let suggestions: unknown[] = []
       try {
@@ -162,20 +152,57 @@ export async function POST(request: NextRequest) {
           if (jsonMatch) suggestions = JSON.parse(jsonMatch[0])
         }
       } catch (e) {
-        console.error("[tripletto-ai] JSON parse error:", e, "text:", text)
-        return NextResponse.json({ type: "message", content: text })
+        console.error("[tripletto-ai] JSON parse error:", e)
+        return new Response(JSON.stringify({ type: "message", content: text }), {
+          headers: { "Content-Type": "application/json" },
+        })
       }
       const summary = dayContext.length > 0
         ? `Here are activity ideas that fit your ${trip.destination ?? "trip"} itinerary:`
         : `Here are some activity ideas for your trip to ${trip.destination ?? "your destination"}:`
-      return NextResponse.json({ type: "suggestions", suggestions, summary })
-    } else {
-      return NextResponse.json({ type: "message", content: text })
+      return new Response(JSON.stringify({ type: "suggestions", suggestions, summary }), {
+        headers: { "Content-Type": "application/json" },
+      })
     }
+
+    if (mode === "chat") {
+      const prompt = buildChatPrompt(trip, activities.length, message, dayContext)
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 800,
+        temperature: 0.7,
+        stream: true,
+      })
+
+      const encoder = new TextEncoder()
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of stream) {
+              const text = chunk.choices[0]?.delta?.content ?? ""
+              if (text) controller.enqueue(encoder.encode(text))
+            }
+          } finally {
+            controller.close()
+          }
+        },
+      })
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+          "X-Content-Type-Options": "nosniff",
+        },
+      })
+    }
+
+    return new Response(JSON.stringify({ error: "Invalid mode" }), { status: 400 })
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error"
     console.error("[tripletto-ai] error:", err)
-    return NextResponse.json({ error: `Failed: ${msg}` }, { status: 500 })
+    return new Response(JSON.stringify({ error: `Failed: ${msg}` }), { status: 500 })
   }
 }
