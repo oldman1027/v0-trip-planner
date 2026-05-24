@@ -50,13 +50,30 @@ function buildChatPrompt(trip: TripInfo, activityCount: number, message: string,
       ? "ACCOMMODATION — suggest only hotels, hostels, guesthouses"
       : "GENERAL ACTIVITIES — suggest sightseeing, experiences, tours, things to do"
 
-  console.log("[tripletto-ai] dayContext days:", dayContext.length, "day2:", JSON.stringify(dayContext[1]))
+  // Build explicit day→city map so the model never confuses locations
+  const dayLocationMap = dayContext.reduce<Record<string, string>>((acc, d) => {
+    if (d.activities.length > 0) {
+      const cities = d.activities
+        .map((a) => a.location?.split(",").slice(-2, -1)[0]?.trim())
+        .filter((x): x is string => !!x)
+      if (cities.length > 0) acc[`Day ${d.day}`] = cities[0]
+    }
+    return acc
+  }, {})
+  const locationContext = Object.entries(dayLocationMap)
+    .map(([d, city]) => `${d} = ${city}`)
+    .join(", ") || "No activities planned yet"
+
+  console.log("[tripletto-ai] chat dayContext days:", dayContext.length, "locationMap:", locationContext)
 
   return `You are Tripletto AI, a smart travel assistant with full knowledge of this specific trip.
 
 TRIP: ${trip.name ?? "Unnamed trip"} to ${trip.destination ?? "unknown destination"}
 DATES: ${trip.start_date} to ${trip.end_date}
 ACTIVITIES PLANNED: ${activityCount}
+
+DAY → CITY MAP (ground truth — never mix these up):
+${locationContext}
 
 CURRENT ITINERARY BY DAY:
 ${buildDayBreakdown(dayContext)}
@@ -85,31 +102,51 @@ function buildSuggestPrompt(trip: TripInfo, dayContext: DayCtx[], day: string | 
   const start = trip.start_date ?? "the start date"
   const end   = trip.end_date   ?? "the end date"
 
+  // Build explicit per-day location map so the model knows exactly which city each day is in
+  const daySummaryLines = dayContext.map((d) => {
+    const locations = [
+      ...new Set(
+        d.activities
+          .map((a) => a.location?.split(",").slice(-2).join(",").trim())
+          .filter((x): x is string => !!x),
+      ),
+    ]
+    const existingTitles = d.activities.map((a) => a.title)
+    const locationStr = locations.length > 0 ? locations.join(", ") : (trip.destination ?? "unknown")
+    const existingStr = existingTitles.length > 0 ? existingTitles.join(", ") : "nothing planned yet"
+    return `Day ${d.day} | ${d.date} | ${d.dateLabel} | CITY: ${locationStr} | Already planned: ${existingStr}`
+  })
+
+  console.log("[tripletto-ai] suggest dayContext:", dayContext.length, "day1:", JSON.stringify(dayContext[0]))
+
   const focusLine = day
-    ? `Focus on: ${day}`
-    : "Spread activities across all dates, filling gaps in the existing itinerary."
+    ? `FOCUS: Only suggest activities for: ${day}`
+    : "Spread suggestions across days that need more activities."
 
-  const breakdown = buildDayBreakdown(dayContext)
+  return `You are a travel planner. Suggest 6 NEW activities for this specific trip.
 
-  return `You are a travel planner for a trip to ${trip.destination ?? "the destination"}.
-Trip: ${trip.name}, ${start} to ${end}.
+TRIP: ${trip.name ?? "Unnamed trip"} to ${trip.destination ?? "the destination"}
+DATES: ${start} to ${end}
 
-CURRENT ITINERARY:
-${breakdown}
+DAY-BY-DAY LOCATION MAP — THIS IS THE GROUND TRUTH FOR WHICH CITY EACH DAY IS IN:
+${daySummaryLines.join("\n")}
 
 ${focusLine}
 
-Suggest 6 NEW activities that complement the existing itinerary. Do not duplicate existing activities.
-For each day that already has activities in a specific city/area, suggest activities in the same area.
+CRITICAL RULES — VIOLATIONS WILL BREAK THE APP:
+1. CITY MATCHING: Each suggestion MUST be in the same city as the "CITY:" field for that day
+   - If Day 2 CITY says "Pattaya" → Day 2 suggestions MUST be in Pattaya, NOT Bangkok
+   - If Day 1 CITY says "Bangkok" → Day 1 suggestions MUST be in Bangkok, NOT Pattaya
+2. NO DUPLICATES: Do not suggest anything already listed in "Already planned"
+3. EXACT DATES: The day_date field MUST be the exact date shown in the DAY-BY-DAY map (YYYY-MM-DD)
 
-Return ONLY a valid JSON array — no markdown, no explanation:
-[{"title":"Example Activity","category":"attraction","location":"Place, City","notes":"Helpful tip","time_block":"afternoon","day_date":"${start}","start_time":null,"end_time":null,"cost_amount":null}]
+Return ONLY a valid JSON array — no markdown, no explanation, no code blocks:
+[{"title":"Activity Name","category":"attraction","location":"Specific Place, City","notes":"One helpful tip","time_block":"afternoon","day_date":"YYYY-MM-DD","start_time":null,"end_time":null,"cost_amount":null}]
 
-Rules:
+Schema rules:
 - category: food | attraction | transport | accommodation | shopping | entertainment | other
 - time_block: morning | afternoon | night
-- day_date: YYYY-MM-DD, spread across ${start} to ${end}
-- Return ONLY the JSON array, no markdown code blocks`
+- day_date: exact YYYY-MM-DD from the DAY-BY-DAY LOCATION MAP above — never invent a date`
 }
 
 export async function POST(request: NextRequest) {

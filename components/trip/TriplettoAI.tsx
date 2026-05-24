@@ -186,7 +186,8 @@ export function TriplettoAI({
         })),
     }))
 
-    console.log("dayContext built:", dayContext.slice(0, 3))
+    console.log("TriplettoAI activities received:", activities?.length, "sample:", JSON.stringify(activities?.[0]))
+    console.log("dayContext built:", JSON.stringify(dayContext.slice(0, 2)))
 
     try {
       if (isSuggestIntent) {
