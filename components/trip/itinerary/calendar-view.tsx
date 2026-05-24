@@ -480,8 +480,8 @@ export function CalendarView({
     <div className="overflow-x-auto rounded-2xl border border-border bg-card">
       <div className="min-w-max">
 
-        {/* ── Sticky combined header: bands above, day labels below ── */}
-        <div className="sticky top-0 z-20 bg-card">
+        {/* ── Combined header: bands above, day labels below ── */}
+        <div className="z-20 bg-card">
 
           {/* Accommodation bands */}
           {accommodationBands.length > 0 && (() => {

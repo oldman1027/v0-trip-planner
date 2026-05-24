@@ -776,8 +776,8 @@ export function ItineraryBoard({
         onActivitiesAdded={handleActivitiesAdded}
       />
 
-      {/* Category filter + view mode toggle — sticky */}
-      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background">
+      {/* Category filter + view mode toggle — sticky below AppHeader (64px) + TripHeader info bar (~44px) */}
+      <div className="sticky top-[108px] z-20 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-2 py-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -902,7 +902,7 @@ export function ItineraryBoard({
         >
           <div className="flex gap-6 items-start">
             {/* Day navigation sidebar — 30% */}
-            <aside className="sticky top-14 w-[28%] shrink-0 h-[calc(100vh-12rem)] rounded-2xl border border-border bg-card p-3">
+            <aside className="sticky top-40 w-[28%] shrink-0 h-[calc(100vh-10rem)] rounded-2xl border border-border bg-card p-3">
               <DaySidebar
                 days={days}
                 counts={dayCounts}
