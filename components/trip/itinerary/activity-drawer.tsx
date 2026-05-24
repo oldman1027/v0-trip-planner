@@ -226,6 +226,13 @@ export function ActivityDrawer({
     })
   }
 
+  function extractErrMsg(err: unknown): string {
+    if (!err) return "Unknown error"
+    if (err instanceof Error) return err.message
+    if (typeof err === "object" && "message" in err) return String((err as { message: unknown }).message)
+    return String(err)
+  }
+
   async function handleOpenChange(v: boolean) {
     if (v || saving || deleting) return
     if (!isDirty) { onClose(); return }
@@ -243,7 +250,8 @@ export function ActivityDrawer({
       toast.success("Changes saved", { duration: 2000 })
       onClose()
     } catch (err) {
-      toast.error("Could not save activity", { description: err instanceof Error ? err.message : "Unknown" })
+      console.error("[drawer] save error:", err)
+      toast.error("Could not save activity", { description: extractErrMsg(err) })
     } finally {
       setSaving(false)
     }
@@ -257,7 +265,8 @@ export function ActivityDrawer({
       await performSave()
       onClose()
     } catch (err) {
-      toast.error("Could not save activity", { description: err instanceof Error ? err.message : "Unknown" })
+      console.error("[drawer] save error:", err)
+      toast.error("Could not save activity", { description: extractErrMsg(err) })
     } finally {
       setSaving(false)
     }

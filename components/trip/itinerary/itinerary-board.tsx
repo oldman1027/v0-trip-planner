@@ -50,8 +50,6 @@ const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
   { value: "transport",     label: "Transport" },
   { value: "food",          label: "Dining" },
   { value: "attraction",    label: "Activities" },
-  { value: "shopping",      label: "Shopping" },
-  { value: "entertainment", label: "Entertainment" },
   { value: "other",         label: "Other" },
 ]
 
@@ -102,6 +100,15 @@ export function ItineraryBoard({
   const [showMap, setShowMap] = useState(true)
   const [mobileTab, setMobileTab] = useState<"calendar" | "map">("calendar")
   const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null)
+
+  // Shopping and Entertainment are hidden from filter tabs but grouped under Other
+  const effectiveCategories = useMemo(() => {
+    if (!activeCategories.has("other")) return activeCategories
+    const expanded = new Set(activeCategories)
+    expanded.add("shopping")
+    expanded.add("entertainment")
+    return expanded
+  }, [activeCategories])
 
   const conflicts = useMemo(() => detectConflicts(activities), [activities])
 
@@ -216,7 +223,7 @@ export function ItineraryBoard({
     }
     for (const a of activities) {
       if (!a.is_wishlist && a.day_date && a.time_block) {
-        if (activeCategories.size > 0 && !activeCategories.has(a.category)) continue
+        if (effectiveCategories.size > 0 && !effectiveCategories.has(a.category)) continue
         const key = `${a.day_date}::${a.time_block}` as BlockKey
         const list = out.get(key)
         if (list) list.push(a)
@@ -224,7 +231,7 @@ export function ItineraryBoard({
     }
     for (const list of out.values()) list.sort((a, b) => a.position - b.position)
     return out
-  }, [activities, days, activeCategories])
+  }, [activities, days, effectiveCategories])
 
   const dayCounts = useMemo(() => {
     const c = new Map<string, number>()
@@ -447,7 +454,8 @@ export function ItineraryBoard({
     category: Activity["category"]
     needs_booking: boolean
   }) {
-    if (input.day_date < trip.start_date || input.day_date > trip.end_date) {
+    if (trip.start_date && trip.end_date && input.day_date &&
+        (input.day_date < trip.start_date || input.day_date > trip.end_date)) {
       throw new Error("Invalid activity date: outside trip range")
     }
     // Enforce correct block based on start_time (user may have manually overridden in the drawer,
@@ -1016,7 +1024,7 @@ export function ItineraryBoard({
               <CalendarView
                 days={days}
                 activities={activities}
-                activeCategories={activeCategories}
+                activeCategories={effectiveCategories}
                 onActivityClick={(a) => {
                   setFocusedActivityId(a.id)
                   setCalendarSelectedId(a.id)
