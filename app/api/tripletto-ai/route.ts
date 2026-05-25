@@ -42,14 +42,6 @@ function buildChatPrompt(trip: TripInfo, activityCount: number, message: string,
     ? `User is asking about Day ${mentionedDayNum} (${mentionedDay.dateLabel}) — their activities that day are in: ${dayLocation}`
     : `General trip question about ${trip.destination ?? "the destination"}`
 
-  const isFoodRequest = /restaurant|eat|food|dining|cafe|lunch|dinner|breakfast|snack|market|street food/i.test(message)
-  const isAccomRequest = /hotel|hostel|stay|accommodation|sleep|where to stay/i.test(message)
-  const requestType = isFoodRequest
-    ? "FOOD & DINING — suggest only restaurants, cafes, food markets, street food"
-    : isAccomRequest
-      ? "ACCOMMODATION — suggest only hotels, hostels, guesthouses"
-      : "GENERAL ACTIVITIES — suggest sightseeing, experiences, tours, things to do"
-
   // Build explicit day→city map so the model never confuses locations
   const dayLocationMap = dayContext.reduce<Record<string, string>>((acc, d) => {
     if (d.activities.length > 0) {
@@ -66,6 +58,37 @@ function buildChatPrompt(trip: TripInfo, activityCount: number, message: string,
 
   console.log("[tripletto-ai] chat dayContext days:", dayContext.length, "locationMap:", locationContext)
 
+  // Detect whether this is a factual/info question or a suggestion request
+  const isInfoQuestion = /how (long|much|many|far)|what (is|are|time|does)|when (is|are|does)|where (is|are|can)|^why |^is (it|there)|opening hour|worth visiting|tips for|best time|weather|visa|currency|how to get|distance/i.test(message)
+
+  const isFoodRequest = /restaurant|eat|food|dining|cafe|lunch|dinner|breakfast|snack|market|street food/i.test(message)
+  const isAccomRequest = /hotel|hostel|stay|accommodation|sleep|where to stay/i.test(message)
+  const requestType = isFoodRequest
+    ? "FOOD & DINING — suggest only restaurants, cafes, food markets, street food"
+    : isAccomRequest
+      ? "ACCOMMODATION — suggest only hotels, hostels, guesthouses"
+      : "GENERAL ACTIVITIES — suggest sightseeing, experiences, tours, things to do"
+
+  const responseInstructions = isInfoQuestion
+    ? `Answer the user's question directly and helpfully.
+- If they ask about duration/time → give specific time estimates (e.g. "2–3 hours")
+- If they ask about a place → give relevant factual info: opening hours, cost, tips
+- If they ask about logistics → give practical advice
+- Do NOT suggest other activities unless explicitly asked
+- Be concise, under 150 words, no "Here are my suggestions" preamble`
+    : `Reply in a structured, scannable format:
+- One sentence acknowledging their context (day and location if known)
+- 3-4 specific recommendations with names and locations
+- One practical tip
+- Under 200 words
+STRICT RULES:
+- If request type is FOOD & DINING → ONLY suggest restaurants, cafes, food markets — no sightseeing
+- If request type is ACCOMMODATION → ONLY suggest hotels, hostels, guesthouses
+- If request type is GENERAL ACTIVITIES → ONLY suggest sightseeing, tours, experiences — no restaurants
+- All suggestions must be near: ${dayLocation ?? trip.destination ?? "the destination"}
+- Use real place names, neighborhoods, distances — be specific
+Request type: ${requestType}`
+
   return `You are Tripletto AI, a smart travel assistant with full knowledge of this specific trip.
 
 TRIP: ${trip.name ?? "Unnamed trip"} to ${trip.destination ?? "unknown destination"}
@@ -78,24 +101,10 @@ ${locationContext}
 CURRENT ITINERARY BY DAY:
 ${buildDayBreakdown(dayContext)}
 
-USER REQUEST ANALYSIS:
 Context: ${contextIntro}
 User asked: "${message}"
-Request type: ${requestType}
-Specific day: ${mentionedDay ? `Day ${mentionedDayNum} (${mentionedDay.dateLabel}) in ${dayLocation}` : "Not specified"}
 
-STRICT RULES:
-- If request type is FOOD & DINING → ONLY suggest restaurants, cafes, food markets — no sightseeing
-- If request type is ACCOMMODATION → ONLY suggest hotels, hostels, guesthouses
-- If request type is GENERAL ACTIVITIES → ONLY suggest sightseeing, tours, experiences — no restaurants
-- All suggestions must be near: ${dayLocation ?? trip.destination ?? "the destination"}
-- Use real place names, neighborhoods, distances — be specific
-
-Reply in a structured, scannable format:
-- One sentence acknowledging their context (day and location if known)
-- 3-4 specific recommendations with names and locations
-- One practical tip
-- Under 200 words`
+${responseInstructions}`
 }
 
 function buildSuggestPrompt(trip: TripInfo, dayContext: DayCtx[], day: string | null): string {

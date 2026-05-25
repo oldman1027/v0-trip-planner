@@ -50,6 +50,58 @@ const STARTERS = [
   "What's the best way to get around?",
 ]
 
+function detectMode(message: string): "chat" | "suggest" {
+  const lowerMsg = message.toLowerCase()
+
+  const chatPatterns = [
+    /^how (long|much|many|do|can|should|far|is|are|was)/,
+    /^what (is|are|time|should|do)/,
+    /^where (is|are|can|should)/,
+    /^when (is|are|should|do)/,
+    /^why /,
+    /^is (it|there|this)/,
+    /\?$/,
+    /how long/,
+    /how much/,
+    /what time/,
+    /opening hour/,
+    /how to get/,
+    /distance/,
+    /worth visiting/,
+    /tips for/,
+    /best time/,
+    /weather/,
+    /visa/,
+    /currency/,
+    /tell me about/,
+    /what about/,
+  ]
+
+  const suggestPatterns = [
+    /^suggest/,
+    /^find me/,
+    /^show me/,
+    /^give me/,
+    /^add .* to/,
+    /^plan .* for/,
+    /places to (eat|go|see|stay)/,
+    /activities for day/,
+    /what (to do|to eat|to see|to visit)/,
+    /suggest .* for day/,
+    /recommend .* (restaurant|hotel|activity|place)/,
+  ]
+
+  for (const pattern of chatPatterns) {
+    if (pattern.test(lowerMsg)) return "chat"
+  }
+
+  for (const pattern of suggestPatterns) {
+    if (pattern.test(lowerMsg)) return "suggest"
+  }
+
+  return "chat"
+}
+
 function formatTime(t: string | null) {
   return t ? t.slice(0, 5) : null
 }
@@ -156,7 +208,7 @@ export function TriplettoAI({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, loading])
 
-  async function send(text: string) {
+  async function send(text: string, modeOverride?: "chat" | "suggest") {
     const trimmed = text.trim()
     if (!trimmed || loading) return
     setInput("")
@@ -166,8 +218,7 @@ export function TriplettoAI({
     setLoading(true)
     setSelected(new Set())
 
-    const isSuggestIntent =
-      /suggest|plan|activities|what to do|what should|idea|recommend|itinerary|nearby|restaurant|eat|visit/i.test(trimmed)
+    const mode = modeOverride ?? detectMode(trimmed)
 
     const days = trip.start_date && trip.end_date ? daysBetween(trip.start_date, trip.end_date) : []
     const dayContext = days.map((dateStr, i) => ({
@@ -190,7 +241,7 @@ export function TriplettoAI({
     console.log("dayContext built:", JSON.stringify(dayContext.slice(0, 2)))
 
     try {
-      if (isSuggestIntent) {
+      if (mode === "suggest") {
         const res = await fetch("/api/tripletto-ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -341,7 +392,7 @@ export function TriplettoAI({
                     <button
                       key={s}
                       type="button"
-                      onClick={() => send(s)}
+                      onClick={() => send(s, s === "Suggest activities for my whole trip" ? "suggest" : undefined)}
                       className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
                     >
                       <MessageCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
