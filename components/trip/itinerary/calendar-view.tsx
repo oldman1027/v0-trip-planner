@@ -192,6 +192,13 @@ function fmtHour(h: number): string {
   if (h === 12) return "12p"
   return h < 12 ? `${h}a` : `${h - 12}p`
 }
+function fmtDuration(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}
 
 // ── Component ──────────────────────────────────────────────────────────────
 export function CalendarView({
@@ -695,6 +702,14 @@ export function CalendarView({
                           >
                             {a.start_time.slice(0, 5)}
                             {a.end_time ? ` – ${a.end_time.slice(0, 5)}` : ""}
+                          </div>
+                        )}
+                        {a.start_time && a.end_time && blockH >= 48 && (
+                          <div
+                            className="mt-0.5 text-[9px] leading-none tabular-nums"
+                            style={{ color: cat.text, opacity: 0.45 }}
+                          >
+                            {fmtDuration(actDurationMins(a))}
                           </div>
                         )}
                       </div>
