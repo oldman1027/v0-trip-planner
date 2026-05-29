@@ -4,18 +4,18 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Sage green + warm cream + deep teal */
-  --background: #F3E7D6;
+  /* Sage green + butter + deep teal */
+  --background: #FFFBF4;
   --foreground: #2C4A45;
-  --card: #FDFAF6;
+  --card: #FFFFFF;
   --card-foreground: #2C4A45;
-  --popover: #FDFAF6;
+  --popover: #FFFFFF;
   --popover-foreground: #2C4A45;
   --primary: #A9D6C5;
   --primary-foreground: #2C4A45;
   --secondary: #6D8F87;
   --secondary-foreground: #ffffff;
-  --muted: #E8DDD0;
+  --muted: #F5F0E8;
   --muted-foreground: #6D8F87;
   --accent: #A9D6C5;
   --accent-foreground: #2C4A45;
@@ -30,11 +30,11 @@
   --chart-4: #2C4A45;
   --chart-5: #d8a468;
   --radius: 0.75rem;
-  --sidebar: #F3E7D6;
+  --sidebar: #FFFBF4;
   --sidebar-foreground: #2C4A45;
   --sidebar-primary: #A9D6C5;
   --sidebar-primary-foreground: #2C4A45;
-  --sidebar-accent: #E8DDD0;
+  --sidebar-accent: #F5F0E8;
   --sidebar-accent-foreground: #6D8F87;
   --sidebar-border: #D4C9BC;
   --sidebar-ring: #A9D6C5;
