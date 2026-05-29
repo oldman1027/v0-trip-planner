@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react"
-import { getTravelTime } from "@/app/actions/get-travel-time"
 
 interface TravelTime {
   driveMinutes: number | null
@@ -16,7 +15,7 @@ export function useTravelTime(
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!origin || !destination) {
+    if (!origin?.trim() || !destination?.trim()) {
       setDriveMinutes(null)
       setLoading(false)
       return
@@ -36,11 +35,20 @@ export function useTravelTime(
     }
 
     setLoading(true)
-    getTravelTime(origin, destination).then((minutes) => {
-      cache.set(key, minutes)
-      setDriveMinutes(minutes)
-      setLoading(false)
-    })
+    fetch(
+      `/api/travel-time?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`,
+    )
+      .then((r) => r.json())
+      .then((data: { minutes: number | null }) => {
+        cache.set(key, data.minutes)
+        setDriveMinutes(data.minutes)
+        setLoading(false)
+      })
+      .catch(() => {
+        cache.set(key, null)
+        setDriveMinutes(null)
+        setLoading(false)
+      })
   }, [origin, destination])
 
   return { driveMinutes, loading }
