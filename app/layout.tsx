@@ -20,13 +20,14 @@ export const metadata: Metadata = {
   description: "Smart group travel planning with maps and bookings",
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/favicon.ico" },
+      { url: "/favicon.png", type: "image/png", sizes: "any" },
+      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16.png", type: "image/png", sizes: "16x16" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     other: [
-      { url: "/icon-192.png", sizes: "192x192" },
-      { url: "/icon-512.png", sizes: "512x512" },
+      { rel: "icon", url: "/icon-192.png", sizes: "192x192" },
+      { rel: "icon", url: "/icon-512.png", sizes: "512x512" },
     ],
   },
 };
@@ -40,8 +41,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="any" />
+        <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
       </head>
       <body className={`${geist.variable} ${geist_mono.variable}`}>
         <Toaster />
