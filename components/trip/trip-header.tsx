@@ -48,7 +48,7 @@ export function TripHeader({
       </div>
 
       {/* Info bar — scrolls with page */}
-      <div className="border-b border-border bg-background">
+      <div className="bg-background">
         <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">

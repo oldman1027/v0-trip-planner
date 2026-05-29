@@ -16,7 +16,7 @@ export function TripTabs({ tripId }: { tripId: string }) {
   const base = `/trips/${tripId}`
 
   return (
-    <div className="mt-6 w-full border-b border-border">
+    <div className="mt-6 w-full">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Trip sections">
         {TABS.map((t) => {

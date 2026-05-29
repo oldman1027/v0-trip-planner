@@ -65,10 +65,10 @@ function DayItem({
       type="button"
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-center justify-between rounded-xl border bg-card px-4 py-3 text-left transition-all",
+        "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-all",
         selected
-          ? "border-primary bg-secondary/60 shadow-sm"
-          : "border-border hover:border-foreground/20",
+          ? "border-[#6D8F87] bg-[#6D8F87] shadow-sm"
+          : "border-border bg-card hover:border-foreground/20",
         isDragging && isOver && "ring-2 ring-primary ring-offset-2 ring-offset-background",
       )}
     >
@@ -76,15 +76,15 @@ function DayItem({
         <span
           className={cn(
             "text-xs font-medium uppercase tracking-wide",
-            selected ? "text-primary" : "text-muted-foreground",
+            selected ? "text-white/80" : "text-muted-foreground",
           )}
         >
           Day {dayIndex}
         </span>
-        <div className="font-serif text-base">{format(date, "EEE")}</div>
-        <div className="text-sm text-muted-foreground">{format(date, "MMM d")}</div>
+        <div className={cn("font-serif text-base", selected ? "text-white" : "")}>{format(date, "EEE")}</div>
+        <div className={cn("text-sm", selected ? "text-white/70" : "text-muted-foreground")}>{format(date, "MMM d")}</div>
         {weather && (
-          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+          <div className={cn("mt-1 flex items-center gap-1 text-xs", selected ? "text-white/60" : "text-muted-foreground")}>
             <span>{weather.icon}</span>
             <span>{weather.high}°</span>
           </div>
@@ -93,7 +93,11 @@ function DayItem({
       <span
         className={cn(
           "rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums",
-          count > 0 ? "bg-secondary text-primary" : "bg-muted text-muted-foreground",
+          selected
+            ? "bg-white text-[#6D8F87]"
+            : count > 0
+              ? "bg-secondary text-primary"
+              : "bg-muted text-muted-foreground",
         )}
       >
         {count}

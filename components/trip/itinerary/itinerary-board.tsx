@@ -777,7 +777,7 @@ export function ItineraryBoard({
       />
 
       {/* Category filter + view mode toggle — sticky below navbar only */}
-      <div className="sticky top-[65px] z-40 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background/95 backdrop-blur-sm">
+      <div className="sticky top-[65px] z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-2 py-2">
             <div className="flex flex-wrap items-center gap-2">
