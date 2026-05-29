@@ -9,28 +9,6 @@ import { createClient } from "@/lib/supabase/client"
 import type { Activity, Booking, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 
-// ── Travel-time cache (module-level, persists across re-renders) ───────────
-const travelTimeCache = new Map<string, number | null>()
-
-function pairKey(a: string, b: string): string {
-  return `${a.trim().toLowerCase()}|||${b.trim().toLowerCase()}`
-}
-
-async function fetchTravelMins(origin: string, dest: string): Promise<number | null> {
-  const key = pairKey(origin, dest)
-  if (travelTimeCache.has(key)) return travelTimeCache.get(key)!
-  try {
-    const params = new URLSearchParams({ origin, destination: dest })
-    const res = await fetch(`/api/travel-time?${params}`)
-    const { mins } = await res.json()
-    const result = typeof mins === "number" ? mins : null
-    travelTimeCache.set(key, result)
-    return result
-  } catch {
-    travelTimeCache.set(key, null)
-    return null
-  }
-}
 
 // ── Sage green / warm teal palette ────────────────────────────────────────
 const CATEGORY_STYLE: Record<
@@ -214,11 +192,6 @@ function fmtHour(h: number): string {
   if (h === 12) return "12p"
   return h < 12 ? `${h}a` : `${h - 12}p`
 }
-function fmtGap(mins: number): string {
-  if (mins < 60) return `${mins}m`
-  const h = Math.floor(mins / 60), m = mins % 60
-  return m > 0 ? `${h}h ${m}m` : `${h}h`
-}
 
 // ── Component ──────────────────────────────────────────────────────────────
 export function CalendarView({
@@ -305,33 +278,6 @@ export function CalendarView({
     () => getAccommodationBands(accommodationBookings ?? [], days),
     [accommodationBookings, days],
   )
-
-  // ── Travel time estimates ──────────────────────────────────────────────────
-  const [travelTimes, setTravelTimes] = useState<Map<string, number | null>>(new Map())
-
-  useEffect(() => {
-    const toFetch: Array<{ origin: string; dest: string }> = []
-    for (const acts of byDay.values()) {
-      const sorted = [...acts]
-        .filter((a) => a.start_time && a.end_time)
-        .sort((a, b) => timeToMins(a.start_time!) - timeToMins(b.start_time!))
-      for (let i = 0; i < sorted.length - 1; i++) {
-        const a = sorted[i], b = sorted[i + 1]
-        if (!a.location || !b.location) continue
-        if (a.location.trim().toLowerCase() === b.location.trim().toLowerCase()) continue
-        const key = pairKey(a.location, b.location)
-        if (!travelTimeCache.has(key)) toFetch.push({ origin: a.location, dest: b.location })
-      }
-    }
-    if (!toFetch.length) {
-      if (travelTimeCache.size > 0) setTravelTimes(new Map(travelTimeCache))
-      return
-    }
-    ;(async () => {
-      await Promise.all(toFetch.map(({ origin, dest }) => fetchTravelMins(origin, dest)))
-      setTravelTimes(new Map(travelTimeCache))
-    })()
-  }, [byDay])
 
   const [clickMenu, setClickMenu] = useState<ClickMenu | null>(null)
 
@@ -585,7 +531,7 @@ export function CalendarView({
               return (
                 <div
                   key={day}
-                  className="shrink-0 border-l border-border px-2 py-2 text-center"
+                  className={cn("shrink-0 border-l border-border px-2 py-2 text-center", isToday && "bg-[#A9D6C5]/10")}
                   style={{ width: DAY_COL_MIN_W }}
                 >
                   <div className="relative inline-flex flex-col items-center gap-0.5">
@@ -633,49 +579,26 @@ export function CalendarView({
               >
                 {/* Hour grid lines */}
                 {HOURS.map((_, i) => (
-                  <div key={i} className="absolute inset-x-0 border-t border-border/40" style={{ top: i * SLOT_H }} />
-                ))}
-                {HOURS.map((_, i) => (
-                  <div key={`hh${i}`} className="absolute inset-x-0 border-t border-dashed border-border/20" style={{ top: i * SLOT_H + SLOT_H / 2 }} />
+                  <div key={i} className="absolute inset-x-0 border-t border-border/30" style={{ top: i * SLOT_H }} />
                 ))}
 
-                {/* Travel connectors */}
+                {/* Gap indicators — only for 2h+ gaps, no text */}
                 {timedActs.slice(0, -1).map((a, i) => {
                   const b = timedActs[i + 1]
                   if (!a.end_time || !b.start_time) return null
                   const gapMins = timeToMins(b.start_time) - timeToMins(a.end_time)
-                  if (gapMins <= 0) return null
+                  if (gapMins < 120) return null
                   const { top: aTop, height: aH } = calcPos(a)
                   const { top: bTop } = calcPos(b)
                   const connH = bTop - (aTop + aH)
-                  if (connH < 10) return null
-
-                  // Resolve travel time from cache
-                  const hasDiffLocs =
-                    a.location && b.location &&
-                    a.location.trim().toLowerCase() !== b.location.trim().toLowerCase()
-                  const tKey = hasDiffLocs ? pairKey(a.location!, b.location!) : null
-                  const travelMins = tKey != null ? travelTimes.get(tKey) : undefined
-                  const label = (() => {
-                    if (typeof travelMins === "number" && travelMins > 0)
-                      return `${fmtGap(travelMins)} (${fmtGap(gapMins)} available)`
-                    // API returned null for different-location pair → show rough estimate
-                    if (hasDiffLocs && travelMins === null)
-                      return `~30m (${fmtGap(gapMins)} available)`
-                    return fmtGap(gapMins)
-                  })()
-
+                  if (connH < 20) return null
                   return (
                     <div
                       key={`conn-${a.id}`}
-                      className="absolute pointer-events-none flex flex-col items-center"
-                      style={{ top: aTop + aH, height: connH, left: 0, right: 0 }}
+                      className="absolute pointer-events-none"
+                      style={{ top: aTop + aH, height: connH, left: "50%", width: 1 }}
                     >
-                      <div className="w-px flex-1 border-l border-dashed border-muted-foreground/30" />
-                      <span className="my-0.5 whitespace-nowrap rounded-full border border-border/50 bg-card px-1.5 py-0.5 text-[9px] text-muted-foreground/60">
-                        {label}
-                      </span>
-                      <div className="w-px flex-1 border-l border-dashed border-muted-foreground/30" />
+                      <div className="h-full border-l border-dashed border-border/30" />
                     </div>
                   )
                 })}
@@ -807,7 +730,7 @@ export function CalendarView({
                 {/* Click-to-add ghost preview */}
                 {clickMenu?.day_date === day && (
                   <div
-                    className="pointer-events-none absolute inset-x-1 z-10 rounded-lg border-2 border-dashed border-emerald-400/50 bg-emerald-50/40"
+                    className="pointer-events-none absolute inset-x-1 z-10 rounded-lg border-2 border-dashed border-[#A9D6C5]/60 bg-[#A9D6C5]/10"
                     style={{ top: clickMenu.top, height: SLOT_H }}
                   />
                 )}
@@ -865,7 +788,7 @@ export function CalendarView({
                   setClickMenu(null)
                 }}
               >
-                <CalendarPlus className="h-4 w-4 shrink-0 text-emerald-600" />
+                <CalendarPlus className="h-4 w-4 shrink-0 text-[#6D8F87]" />
                 Add Activity
               </button>
               <button
@@ -876,7 +799,7 @@ export function CalendarView({
                   setClickMenu(null)
                 }}
               >
-                <Ticket className="h-4 w-4 shrink-0 text-emerald-600" />
+                <Ticket className="h-4 w-4 shrink-0 text-[#6D8F87]" />
                 Add Booking
               </button>
               <button
@@ -887,7 +810,7 @@ export function CalendarView({
                   setClickMenu(null)
                 }}
               >
-                <Bus className="h-4 w-4 shrink-0 text-emerald-600" />
+                <Bus className="h-4 w-4 shrink-0 text-[#6D8F87]" />
                 Add Transport
               </button>
             </div>
