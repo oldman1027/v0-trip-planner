@@ -589,23 +589,25 @@ export function CalendarView({
                   <div key={i} className="absolute inset-x-0 border-t border-border/30" style={{ top: i * SLOT_H }} />
                 ))}
 
-                {/* Gap indicators — only for 2h+ gaps, no text */}
+                {/* Gap labels — free time between activities */}
                 {timedActs.slice(0, -1).map((a, i) => {
                   const b = timedActs[i + 1]
                   if (!a.end_time || !b.start_time) return null
                   const gapMins = timeToMins(b.start_time) - timeToMins(a.end_time)
-                  if (gapMins < 120) return null
+                  if (gapMins < 30) return null
                   const { top: aTop, height: aH } = calcPos(a)
                   const { top: bTop } = calcPos(b)
                   const connH = bTop - (aTop + aH)
-                  if (connH < 20) return null
+                  if (connH < 40) return null
+                  const h = Math.floor(gapMins / 60), m = gapMins % 60
+                  const label = h > 0 ? (m > 0 ? `${h}h ${m}m free` : `${h}h free`) : `${m}m free`
                   return (
                     <div
-                      key={`conn-${a.id}`}
-                      className="absolute pointer-events-none"
-                      style={{ top: aTop + aH, height: connH, left: "50%", width: 1 }}
+                      key={`gap-${a.id}`}
+                      className="absolute pointer-events-none flex items-center justify-center"
+                      style={{ top: aTop + aH, height: connH, left: 0, right: 0 }}
                     >
-                      <div className="h-full border-l border-dashed border-border/30" />
+                      <span className="text-[10px] text-gray-300 italic">{label}</span>
                     </div>
                   )
                 })}
@@ -687,7 +689,7 @@ export function CalendarView({
                         )}
 
                         <div
-                          className="text-[11px] font-semibold leading-snug truncate"
+                          className={cn("text-[11px] font-semibold leading-snug", blockH >= 56 ? "line-clamp-2" : "truncate")}
                           style={{
                             color: cat.text,
                             marginRight: pinNum ? 17 : 0,
@@ -696,19 +698,13 @@ export function CalendarView({
                           {a.title}
                         </div>
                         {a.start_time && (
-                          <div
-                            className="mt-0.5 text-[9px] leading-none tabular-nums"
-                            style={{ color: cat.text, opacity: 0.7 }}
-                          >
+                          <div className="mt-0.5 text-[10px] leading-none tabular-nums text-gray-400">
                             {a.start_time.slice(0, 5)}
                             {a.end_time ? ` – ${a.end_time.slice(0, 5)}` : ""}
                           </div>
                         )}
                         {a.start_time && a.end_time && blockH >= 48 && (
-                          <div
-                            className="mt-0.5 text-[9px] leading-none tabular-nums"
-                            style={{ color: cat.text, opacity: 0.45 }}
-                          >
+                          <div className="mt-0.5 text-[10px] leading-none tabular-nums text-gray-300">
                             {fmtDuration(actDurationMins(a))}
                           </div>
                         )}
