@@ -776,8 +776,8 @@ export function ItineraryBoard({
         onActivitiesAdded={handleActivitiesAdded}
       />
 
-      {/* Category filter + view mode toggle — sticky below AppHeader (64px) + TripHeader info bar (~44px) */}
-      <div className="sticky top-[108px] z-20 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background">
+      {/* Category filter + view mode toggle — sticky below navbar only */}
+      <div className="sticky top-[65px] z-40 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-2 py-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -902,7 +902,7 @@ export function ItineraryBoard({
         >
           <div className="flex gap-6 items-start">
             {/* Day navigation sidebar — 30% */}
-            <aside className="sticky top-40 w-[28%] shrink-0 h-[calc(100vh-10rem)] rounded-2xl border border-border bg-card p-3">
+            <aside className="sticky top-[114px] w-[28%] shrink-0 h-[calc(100vh-114px)] rounded-2xl border border-border bg-card p-3">
               <DaySidebar
                 days={days}
                 counts={dayCounts}
@@ -1053,7 +1053,7 @@ export function ItineraryBoard({
                 mobileTab === "map" &&
                   "block h-[60vh] rounded-xl overflow-hidden border border-border",
                 showMap
-                  ? "md:block md:self-start md:sticky md:top-4 md:h-[calc(100vh-220px)] md:rounded-xl md:overflow-hidden md:border md:border-border"
+                  ? "md:block md:self-start md:sticky md:top-[114px] md:h-[calc(100vh-114px)] md:rounded-xl md:overflow-hidden md:border md:border-border"
                   : "md:hidden",
               )}
             >
