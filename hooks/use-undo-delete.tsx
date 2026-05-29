@@ -33,7 +33,7 @@ function UndoToastContent({
         Undo
       </button>
       <div
-        className="absolute bottom-0 left-0 h-[2px] bg-[#8AD0C0] origin-left"
+        className="absolute bottom-0 left-0 h-[2px] bg-[#A9D6C5] origin-left"
         style={{
           animationName: "undo-shrink",
           animationDuration: `${duration}ms`,

@@ -516,7 +516,7 @@ export function TransportDrawer({
                       className={cn(
                         "px-1.5 py-0.5 text-[10px] font-medium transition-colors",
                         selectedCurrency === "THB"
-                          ? "bg-teal-500 text-white"
+                          ? "bg-[#6D8F87] text-white"
                           : "bg-card text-muted-foreground hover:bg-secondary",
                       )}
                     >
@@ -528,7 +528,7 @@ export function TransportDrawer({
                       className={cn(
                         "px-1.5 py-0.5 text-[10px] font-medium transition-colors",
                         selectedCurrency === "MYR"
-                          ? "bg-teal-500 text-white"
+                          ? "bg-[#6D8F87] text-white"
                           : "bg-card text-muted-foreground hover:bg-secondary",
                       )}
                     >
@@ -669,12 +669,12 @@ export function TransportDrawer({
             {/* ── Add to itinerary (new only) ── */}
             {!booking && (
               <div className="px-5 pb-6">
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#8AD0C0]/60 bg-[#8AD0C0]/10 px-4 py-3">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#A9D6C5]/60 bg-[#A9D6C5]/10 px-4 py-3">
                   <Checkbox
                     id="transport-add-itinerary"
                     checked={addToItinerary}
                     onCheckedChange={(v) => setAddToItinerary(!!v)}
-                    className="border-[#27ba76] data-[state=checked]:bg-[#27ba76] data-[state=checked]:border-[#27ba76]"
+                    className="border-[#6D8F87] data-[state=checked]:bg-[#6D8F87] data-[state=checked]:border-[#6D8F87]"
                   />
                   <div>
                     <p className="text-sm font-medium leading-none">Add to itinerary</p>

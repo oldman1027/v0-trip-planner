@@ -46,7 +46,7 @@ export async function sendTripInvitationEmail({
             ${subtitle}
           </p>
           <a href="${ctaUrl}"
-             style="display:inline-block;background:#27ba76;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 24px;border-radius:12px;margin:16px 0;">
+             style="display:inline-block;background:#6D8F87;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 24px;border-radius:12px;margin:16px 0;">
             ${ctaLabel}
           </a>
           <p style="font-size:13px;color:#9ca3af;margin-top:24px;">

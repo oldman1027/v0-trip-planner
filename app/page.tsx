@@ -611,7 +611,7 @@ function PricingSection() {
               key={tier.name}
               className={
                 tier.recommended
-                  ? "relative flex flex-col gap-6 rounded-2xl border-2 border-primary bg-[#f7fdf2] p-6"
+                  ? "relative flex flex-col gap-6 rounded-2xl border-2 border-primary bg-card p-6"
                   : "relative flex flex-col gap-6 rounded-2xl border border-border bg-card p-6"
               }
             >

@@ -778,7 +778,7 @@ export function BookingDrawer({
                         className={cn(
                           "px-2 py-1 text-xs font-medium transition-colors",
                           selectedCurrency === "THB"
-                            ? "bg-teal-500 text-white"
+                            ? "bg-[#6D8F87] text-white"
                             : "bg-card text-muted-foreground hover:bg-secondary",
                         )}
                       >
@@ -790,7 +790,7 @@ export function BookingDrawer({
                         className={cn(
                           "px-2 py-1 text-xs font-medium transition-colors",
                           selectedCurrency === "MYR"
-                            ? "bg-teal-500 text-white"
+                            ? "bg-[#6D8F87] text-white"
                             : "bg-card text-muted-foreground hover:bg-secondary",
                         )}
                       >
@@ -876,12 +876,12 @@ export function BookingDrawer({
 
               {/* ── Add to itinerary (new bookings only) ── */}
               {!booking && (
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#8AD0C0]/60 bg-[#8AD0C0]/10 px-4 py-3">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#A9D6C5]/60 bg-[#A9D6C5]/10 px-4 py-3">
                   <Checkbox
                     id="add-itinerary"
                     checked={addToItinerary}
                     onCheckedChange={(v) => setAddToItinerary(!!v)}
-                    className="border-[#27ba76] data-[state=checked]:bg-[#27ba76] data-[state=checked]:border-[#27ba76]"
+                    className="border-[#6D8F87] data-[state=checked]:bg-[#6D8F87] data-[state=checked]:border-[#6D8F87]"
                   />
                   <div>
                     <p className="text-sm font-medium leading-none">Add to itinerary</p>
@@ -892,12 +892,12 @@ export function BookingDrawer({
 
               {/* ── Track in Costs (new bookings only) ── */}
               {!booking && amount && (
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#8AD0C0]/60 bg-[#8AD0C0]/10 px-4 py-3">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#A9D6C5]/60 bg-[#A9D6C5]/10 px-4 py-3">
                   <Checkbox
                     id="track-costs"
                     checked={trackInCosts}
                     onCheckedChange={(v) => setTrackInCosts(!!v)}
-                    className="border-[#27ba76] data-[state=checked]:bg-[#27ba76] data-[state=checked]:border-[#27ba76]"
+                    className="border-[#6D8F87] data-[state=checked]:bg-[#6D8F87] data-[state=checked]:border-[#6D8F87]"
                   />
                   <div>
                     <p className="text-sm font-medium leading-none">Track in Costs</p>
@@ -929,7 +929,7 @@ export function BookingDrawer({
               </Button>
               <Button
                 type="submit"
-                className="rounded-xl bg-[#27ba76] text-white hover:bg-[#27ba76]/90"
+                className="rounded-xl bg-[#6D8F87] text-white hover:bg-[#5A7870]"
                 disabled={submitDisabled}
               >
                 {saving ? (

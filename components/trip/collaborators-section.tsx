@@ -120,7 +120,7 @@ export function CollaboratorsSection({
                     </Avatar>
                     {allOnlineUserIds.has(m.user_id) && (
                       <span
-                        className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white dark:ring-card"
+                        className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#A9D6C5] ring-2 ring-white dark:ring-card"
                         aria-label="Online"
                       />
                     )}

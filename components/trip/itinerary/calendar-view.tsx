@@ -32,26 +32,26 @@ async function fetchTravelMins(origin: string, dest: string): Promise<number | n
   }
 }
 
-// ── Green / turquoise palette — all categories stay in the same hue family ─
+// ── Sage green / warm teal palette ────────────────────────────────────────
 const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  food:          { bg: "#cdeee7", border: "#8AD0C0", text: "#1a5048", badge: "#369383" },
-  attraction:    { bg: "#d4f0eb", border: "#80d8dd", text: "#1a4a50", badge: "#27ba76" },
-  transport:     { bg: "#dcf2ec", border: "#27ba76", text: "#1a5c38", badge: "#1a8053" },
-  accommodation: { bg: "#e8f5f0", border: "#B1DDC6", text: "#1a5c38", badge: "#27ba76" },
-  shopping:      { bg: "#d0ece7", border: "#369383", text: "#1a4a46", badge: "#8AD0C0" },
-  entertainment: { bg: "#e2f6f2", border: "#80d8dd", text: "#1a4a50", badge: "#369383" },
-  other:         { bg: "#f0faf7", border: "#B1DDC6", text: "#1a5c38", badge: "#8AD0C0" },
+  food:          { bg: "#E8F5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  attraction:    { bg: "#EAF5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  transport:     { bg: "#EDF5F3", border: "#8EC4B2", text: "#2C4A45", badge: "#5A7870" },
+  accommodation: { bg: "#F0F7F5", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  shopping:      { bg: "#EBF4F2", border: "#8EC4B2", text: "#2C4A45", badge: "#6D8F87" },
+  entertainment: { bg: "#EEF6F4", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  other:         { bg: "#F3F8F7", border: "#C0D8D2", text: "#2C4A45", badge: "#8EC4B2" },
 }
 
 // ── Accommodation band colors ───────────────────────────────────────────────
 const HOTEL_COLORS = [
-  { bg: "#E1F5EE", border: "#1D9E75", text: "#085041" },
-  { bg: "#B1DDC6", border: "#369383", text: "#085041" },
-  { bg: "#9FE1CB", border: "#0F6E56", text: "#04342C" },
-  { bg: "#8AD0C0", border: "#27ba76", text: "#04342C" },
+  { bg: "#EEF8F5", border: "#6D8F87", text: "#2C4A45" },
+  { bg: "#E3F4EF", border: "#A9D6C5", text: "#2C4A45" },
+  { bg: "#D8F0EA", border: "#8EC4B2", text: "#2C4A45" },
+  { bg: "#CEE8E0", border: "#6D8F87", text: "#2C4A45" },
 ] as const
 
 interface AccommodationBand {
@@ -589,14 +589,14 @@ export function CalendarView({
                   style={{ width: DAY_COL_MIN_W }}
                 >
                   <div className="relative inline-flex flex-col items-center gap-0.5">
-                    <div className={cn("text-sm font-semibold leading-none", isToday ? "text-teal-600" : "text-foreground")}>
+                    <div className={cn("text-sm font-semibold leading-none", isToday ? "text-[#6D8F87]" : "text-foreground")}>
                       {format(parsed, "EEE")}
                     </div>
-                    <div className={cn("text-xs leading-none", isToday ? "text-teal-500 font-medium" : "text-muted-foreground")}>
+                    <div className={cn("text-xs leading-none", isToday ? "text-[#6D8F87] font-medium" : "text-muted-foreground")}>
                       {format(parsed, "MMM d")}
                     </div>
                     {isToday && (
-                      <div className="absolute -bottom-1.5 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-teal-500" />
+                      <div className="absolute -bottom-1.5 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-[#6D8F87]" />
                     )}
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import type { Trip } from "@/lib/types"
 import { formatRange, tripDuration } from "@/lib/dates"
 
 // Tripletto tropical palette — cycles across member avatars
-const AVATAR_COLORS = ["#8AD0C0", "#F7A59E", "#93c572", "#6DB8D4"]
+const AVATAR_COLORS = ["#A9D6C5", "#F7A59E", "#6D8F87", "#8EC4B2"]
 
 type MemberSlot = {
   user_id: string

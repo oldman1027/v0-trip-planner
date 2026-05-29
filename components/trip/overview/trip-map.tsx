@@ -17,24 +17,24 @@ type MarkerEntry = {
   dayDate: string | null
 }
 
-// ── Tropical colour palette — one hue per trip day, cycling ────────────────
+// ── Brand colour palette — one hue per trip day, cycling ──────────────────
 
 const PIN_PALETTE: PinColor[] = [
-  { bg: "#8AD0C0", border: "#369383" },
+  { bg: "#A9D6C5", border: "#6D8F87" },
   { bg: "#F7A59E", border: "#de4a66" },
   { bg: "#f9d157", border: "#fd7a56" },
-  { bg: "#27ba76", border: "#1a8053" },
+  { bg: "#6D8F87", border: "#5A7870" },
   { bg: "#fd7a56", border: "#C44A20" },
-  { bg: "#80d8dd", border: "#369383" },
+  { bg: "#8EC4B2", border: "#6D8F87" },
   { bg: "#fca9a9", border: "#F2686C" },
-  { bg: "#B1DDC6", border: "#27ba76" },
+  { bg: "#C8E8DF", border: "#6D8F87" },
   { bg: "#F2686C", border: "#de4a66" },
-  { bg: "#369383", border: "#1a5c4a" },
+  { bg: "#5A7870", border: "#2C4A45" },
   { bg: "#de4a66", border: "#9B2335" },
   { bg: "#f9d157", border: "#C89A00" },
-  { bg: "#8AD0C0", border: "#27ba76" },
+  { bg: "#8EC4B2", border: "#6D8F87" },
   { bg: "#fd7a56", border: "#de4a66" },
-  { bg: "#B1DDC6", border: "#369383" },
+  { bg: "#C8E8DF", border: "#A9D6C5" },
 ]
 
 function pinColor(dayIndex: number): PinColor {

@@ -128,7 +128,7 @@ export function BudgetCards({
                   className="h-full rounded-full transition-[width] duration-500"
                   style={{
                     width: `${pct}%`,
-                    backgroundColor: over ? "#F7A59E" : "#B1DDC6",
+                    backgroundColor: over ? "#F7A59E" : "#A9D6C5",
                   }}
                 />
               </div>

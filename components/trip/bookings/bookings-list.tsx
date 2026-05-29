@@ -363,7 +363,7 @@ export function BookingsList({
             </button>
           </div>
 
-          <Button className="rounded-xl bg-[#27ba76] text-white hover:bg-[#27ba76]/90" onClick={() => setOpen("new")}>
+          <Button className="rounded-xl bg-[#6D8F87] text-white hover:bg-[#5A7870]" onClick={() => setOpen("new")}>
             <Plus className="mr-2 h-4 w-4" aria-hidden />
             Add booking
           </Button>
@@ -533,7 +533,7 @@ export function BookingsList({
 function PaymentBadge({ status }: { status: Booking["payment_status"] }) {
   const styles =
     status === "paid" || status === "confirmed"
-      ? "bg-[#27ba76]/15 text-[#27ba76] border border-[#27ba76]/30"
+      ? "bg-[#A9D6C5]/20 text-[#2C4A45] border border-[#A9D6C5]/40"
       : status === "partial"
         ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
         : status === "cancelled"

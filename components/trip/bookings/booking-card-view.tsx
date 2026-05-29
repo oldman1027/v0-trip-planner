@@ -10,9 +10,9 @@ const TYPE_CONFIG = {
   accommodation: {
     label: "Accommodation",
     icon: Hotel,
-    headerBg: "bg-[#8AD0C0]/25",
-    iconColor: "text-[#27ba76]",
-    border: "border-[#8AD0C0]/50",
+    headerBg: "bg-[#A9D6C5]/25",
+    iconColor: "text-[#6D8F87]",
+    border: "border-[#A9D6C5]/50",
   },
   transport: {
     label: "Transport",
@@ -31,9 +31,9 @@ const TYPE_CONFIG = {
   activities: {
     label: "Activity",
     icon: Star,
-    headerBg: "bg-[#B1DDC6]/30 dark:bg-[#27ba76]/10",
-    iconColor: "text-[#27ba76]",
-    border: "border-[#B1DDC6]/60",
+    headerBg: "bg-[#A9D6C5]/30",
+    iconColor: "text-[#6D8F87]",
+    border: "border-[#A9D6C5]/60",
   },
   other: {
     label: "Other",
@@ -94,7 +94,7 @@ function formatDateDisplay(booking: Booking): string | null {
 function PaymentBadge({ status }: { status: Booking["payment_status"] }) {
   const styles =
     status === "paid" || status === "confirmed"
-      ? "bg-[#27ba76]/15 text-[#27ba76] border border-[#27ba76]/30"
+      ? "bg-[#A9D6C5]/20 text-[#2C4A45] border border-[#A9D6C5]/40"
       : status === "partial"
         ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400"
         : status === "cancelled"
@@ -202,7 +202,7 @@ function BookingCard({
             href={booking.booking_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-[#27ba76] hover:underline"
+            className="flex items-center gap-1 text-xs text-[#6D8F87] hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
             <ExternalLink className="h-3 w-3" aria-hidden />

@@ -21,12 +21,12 @@ const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }
 
 const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
   food:          { bg: "bg-orange-100", icon: Utensils,       iconCls: "text-orange-300" },
-  attraction:    { bg: "bg-green-100",  icon: MapPin,         iconCls: "text-green-300" },
+  attraction:    { bg: "bg-[#A9D6C5]/30", icon: MapPin,        iconCls: "text-[#6D8F87]" },
   transport:     { bg: "bg-gray-100",   icon: Plane,          iconCls: "text-gray-300" },
   accommodation: { bg: "bg-blue-100",   icon: BedDouble,      iconCls: "text-blue-300" },
   shopping:      { bg: "bg-pink-100",   icon: ShoppingBag,    iconCls: "text-pink-300" },
   entertainment: { bg: "bg-purple-100", icon: Music,          iconCls: "text-purple-300" },
-  other:         { bg: "bg-teal-100",   icon: MoreHorizontal, iconCls: "text-teal-300" },
+  other:         { bg: "bg-[#A9D6C5]/20", icon: MoreHorizontal, iconCls: "text-[#6D8F87]" },
 }
 
 export function ActivityCard({

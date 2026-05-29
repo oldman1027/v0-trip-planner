@@ -844,8 +844,8 @@ export function ItineraryBoard({
                     ))}
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] text-green-600 font-medium">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#A9D6C5] animate-pulse" />
+                    <span className="text-[10px] text-[#6D8F87] font-medium">
                       {onlineUsers.length === 1 ? "1 online" : `${onlineUsers.length} online`}
                     </span>
                   </div>
@@ -986,7 +986,7 @@ export function ItineraryBoard({
               className={cn(
                 "flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors",
                 mobileTab === "calendar"
-                  ? "border-teal-500 text-teal-600"
+                  ? "border-[#6D8F87] text-[#6D8F87]"
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
@@ -999,7 +999,7 @@ export function ItineraryBoard({
               className={cn(
                 "flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors",
                 mobileTab === "map"
-                  ? "border-teal-500 text-teal-600"
+                  ? "border-[#6D8F87] text-[#6D8F87]"
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >

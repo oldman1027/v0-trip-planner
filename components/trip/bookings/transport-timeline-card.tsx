@@ -31,15 +31,15 @@ export function TransportTimelineCard({ booking }: TransportCardProps) {
   return (
     <div className="relative group">
       {/* Timeline connector line */}
-      <div className="absolute left-6 top-12 bottom-0 w-0.5 bg-gradient-to-b from-[#93c572] to-transparent opacity-30" />
+      <div className="absolute left-6 top-12 bottom-0 w-0.5 bg-gradient-to-b from-[#A9D6C5] to-transparent opacity-30" />
       
       {/* Main card */}
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300 hover:border-[#93c572]/40">
+      <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300 hover:border-[#A9D6C5]/40">
         
         {/* Header - Date & Type */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#93c572] to-[#ACE1AF] flex items-center justify-center text-2xl shadow-md">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#A9D6C5] to-[#8EC4B2] flex items-center justify-center text-2xl shadow-md">
               {transportIcons[booking.transport_type]}
             </div>
             <div>
@@ -57,7 +57,7 @@ export function TransportTimelineCard({ booking }: TransportCardProps) {
           </div>
 
           {booking.flight_number && (
-            <div className="px-3 py-1 bg-[#93c572]/10 text-[#93c572] text-sm font-semibold rounded-full">
+            <div className="px-3 py-1 bg-[#A9D6C5]/10 text-[#A9D6C5] text-sm font-semibold rounded-full">
               {booking.flight_number}
             </div>
           )}
@@ -69,7 +69,7 @@ export function TransportTimelineCard({ booking }: TransportCardProps) {
             {/* Departure */}
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded-full bg-[#93c572] ring-4 ring-[#93c572]/20" />
+                <div className="w-3 h-3 rounded-full bg-[#A9D6C5] ring-4 ring-[#A9D6C5]/20" />
                 <span className="text-xs text-gray-500 font-medium">From</span>
               </div>
               <div className="text-base font-bold text-gray-900 mb-1">
@@ -84,8 +84,8 @@ export function TransportTimelineCard({ booking }: TransportCardProps) {
             {/* Connecting arrow */}
             <div className="flex-shrink-0 px-6">
               <div className="relative">
-                <div className="h-0.5 w-20 bg-gradient-to-r from-[#93c572] to-[#ACE1AF]" />
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 border-t-2 border-r-2 border-[#ACE1AF] rotate-45" />
+                <div className="h-0.5 w-20 bg-gradient-to-r from-[#A9D6C5] to-[#8EC4B2]" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 border-t-2 border-r-2 border-[#8EC4B2] rotate-45" />
               </div>
             </div>
 
@@ -93,7 +93,7 @@ export function TransportTimelineCard({ booking }: TransportCardProps) {
             <div className="flex-1 text-right">
               <div className="flex items-center justify-end gap-2 mb-2">
                 <span className="text-xs text-gray-500 font-medium">To</span>
-                <div className="w-3 h-3 rounded-full bg-[#ACE1AF] ring-4 ring-[#ACE1AF]/20" />
+                <div className="w-3 h-3 rounded-full bg-[#8EC4B2] ring-4 ring-[#8EC4B2]/20" />
               </div>
               <div className="text-base font-bold text-gray-900 mb-1">
                 {booking.to_location}
@@ -111,7 +111,7 @@ export function TransportTimelineCard({ booking }: TransportCardProps) {
           <>
             <button
               onClick={() => setExpanded(!expanded)}
-              className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-500 hover:text-[#93c572] transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-500 hover:text-[#A9D6C5] transition-colors"
             >
               <span>{expanded ? 'Hide' : 'Show'} Details</span>
               {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
