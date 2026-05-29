@@ -8,6 +8,7 @@ import { parseDateOnly } from "@/lib/dates"
 import { createClient } from "@/lib/supabase/client"
 import type { Activity, Booking, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
+import { GapIndicator } from "./gap-indicator"
 
 
 // ── Sage green / warm teal palette ────────────────────────────────────────
@@ -589,30 +590,26 @@ export function CalendarView({
                   <div key={i} className="absolute inset-x-0 border-t border-border/30" style={{ top: i * SLOT_H }} />
                 ))}
 
-                {/* Gap labels — free time between activities */}
+                {/* Gap indicators — free time + driving time between activities */}
                 {timedActs.slice(0, -1).map((a, i) => {
                   const b = timedActs[i + 1]
                   if (!a.end_time || !b.start_time) return null
                   const gapMins = timeToMins(b.start_time) - timeToMins(a.end_time)
-                  if (gapMins < 30) return null
                   const { top: aTop, height: aH } = calcPos(a)
                   const { top: bTop } = calcPos(b)
                   const connH = bTop - (aTop + aH)
-                  if (connH < 40) return null
-                  const gapLabel = gapMins >= 60
-                    ? `${Math.floor(gapMins / 60)}h${gapMins % 60 ? ` ${gapMins % 60}m` : ""}`
-                    : `${gapMins}m`
                   return (
                     <div
                       key={`gap-${a.id}`}
-                      className="absolute pointer-events-none flex items-center justify-center"
+                      className="absolute"
                       style={{ top: aTop + aH, height: connH, left: 0, right: 0 }}
                     >
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px bg-gray-200" style={{ height: "45%" }} />
-                      <span className="relative z-10 text-[10px] text-gray-400 bg-white px-1.5 py-0.5 rounded-full border border-gray-100">
-                        {gapLabel}
-                      </span>
-                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px bg-gray-200" style={{ height: "45%" }} />
+                      <GapIndicator
+                        gapMinutes={gapMins}
+                        gapHeightPx={connH}
+                        fromLocation={a.location ?? null}
+                        toLocation={b.location ?? null}
+                      />
                     </div>
                   )
                 })}
