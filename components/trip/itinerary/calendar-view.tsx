@@ -599,15 +599,20 @@ export function CalendarView({
                   const { top: bTop } = calcPos(b)
                   const connH = bTop - (aTop + aH)
                   if (connH < 40) return null
-                  const h = Math.floor(gapMins / 60), m = gapMins % 60
-                  const label = h > 0 ? (m > 0 ? `${h}h ${m}m free` : `${h}h free`) : `${m}m free`
+                  const gapLabel = gapMins >= 60
+                    ? `${Math.floor(gapMins / 60)}h${gapMins % 60 ? ` ${gapMins % 60}m` : ""}`
+                    : `${gapMins}m`
                   return (
                     <div
                       key={`gap-${a.id}`}
                       className="absolute pointer-events-none flex items-center justify-center"
                       style={{ top: aTop + aH, height: connH, left: 0, right: 0 }}
                     >
-                      <span className="text-[10px] text-gray-300 italic">{label}</span>
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px bg-gray-200" style={{ height: "45%" }} />
+                      <span className="relative z-10 text-[10px] text-gray-400 bg-white px-1.5 py-0.5 rounded-full border border-gray-100">
+                        {gapLabel}
+                      </span>
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px bg-gray-200" style={{ height: "45%" }} />
                     </div>
                   )
                 })}
