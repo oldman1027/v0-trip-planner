@@ -96,6 +96,9 @@ const SNAP_MINS = 15
 const TIME_COL_W = 52
 const DAY_COL_MIN_W = 140  // fixed column width — columns scroll horizontally rather than shrinking
 const BLOCK_HOUR: Record<string, number> = { morning: 7, afternoon: 12, night: 19 }
+// Minimum px height a rendered card actually occupies (title + time label + padding ≈ 40px).
+// Used to anchor gap indicators below the card's real visual bottom, not its time-based bottom.
+const MIN_CARD_RENDER_H = 40
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type DragState = {
@@ -596,9 +599,12 @@ export function CalendarView({
                   if (!b.start_time) return null
                   const { top: aTop, height: aH } = calcPos(a)
                   const { top: bTop } = calcPos(b)
-                  const connH = bTop - (aTop + aH)
+                  // Cards render with height:auto + minHeight, so their actual visual
+                  // bottom is always at least MIN_CARD_RENDER_H px below their top.
+                  // Use that floor so the gap wrapper starts at the real card bottom.
+                  const cardBottom = aTop + Math.max(aH, MIN_CARD_RENDER_H)
+                  const connH = bTop - cardBottom
                   if (connH <= 0) return null
-                  // Use effective end mins so gaps show even when end_time is missing
                   const aEndMins = a.end_time
                     ? timeToMins(a.end_time)
                     : effectiveStartMins(a) + actDurationMins(a)
@@ -606,8 +612,8 @@ export function CalendarView({
                   return (
                     <div
                       key={`gap-${a.id}`}
-                      className="absolute"
-                      style={{ top: aTop + aH, height: connH, left: 0, right: 0 }}
+                      className="absolute overflow-hidden"
+                      style={{ top: cardBottom, height: connH, left: 0, right: 0 }}
                     >
                       <GapIndicator
                         gapMinutes={gapMins}

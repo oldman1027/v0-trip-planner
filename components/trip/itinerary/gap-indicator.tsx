@@ -35,8 +35,8 @@ export function GapIndicator({
 
   return (
     <div
-      style={{ height: gapHeightPx, minHeight: 24 }}
-      className="flex items-center justify-center w-full pointer-events-none"
+      style={{ height: gapHeightPx }}
+      className="flex items-center justify-center w-full pointer-events-none overflow-hidden"
     >
       <span className="text-[10px] text-gray-400">{label}</span>
     </div>
