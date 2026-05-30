@@ -606,7 +606,7 @@ export function CalendarView({
                   return (
                     <div
                       key={`gap-${a.id}`}
-                      className="absolute overflow-hidden"
+                      className="absolute"
                       style={{ top: aTop + aH, height: connH, left: 0, right: 0 }}
                     >
                       <GapIndicator

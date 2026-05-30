@@ -9,67 +9,36 @@ interface GapIndicatorProps {
   toLocation: string | null
 }
 
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
-}
-
 export function GapIndicator({
   gapMinutes,
   gapHeightPx,
   fromLocation,
   toLocation,
 }: GapIndicatorProps) {
-  const hasLocations =
-    !!fromLocation &&
-    !!toLocation &&
-    fromLocation.trim().toLowerCase() !== toLocation.trim().toLowerCase()
+  const { driveMinutes, loading } = useTravelTime(fromLocation, toLocation)
 
-  const { driveMinutes, loading } = useTravelTime(
-    hasLocations ? fromLocation : null,
-    hasLocations ? toLocation : null,
-  )
+  const fmt = (m: number) =>
+    m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ""}`
 
-  const leftMinutes =
-    driveMinutes !== null && driveMinutes > 0 ? gapMinutes - driveMinutes : null
+  let label = ""
+  if (loading) {
+    label = "🚗 ···"
+  } else if (driveMinutes !== null && fromLocation && toLocation) {
+    const left = gapMinutes - driveMinutes
+    label =
+      left <= 0
+        ? `⚠️ 🚗 ${fmt(driveMinutes)}`
+        : `🚗 ${fmt(driveMinutes)} · ${fmt(left)} left`
+  } else {
+    label = fmt(gapMinutes)
+  }
 
-  // Text is only shown when there's enough vertical room to be readable
-  const showText = gapHeightPx >= 20
-
-  const content = loading
-    ? "···"
-    : leftMinutes !== null && leftMinutes < 0
-    ? "⚠️ tight"
-    : leftMinutes !== null && leftMinutes < 15
-    ? `⚠️ ${formatDuration(driveMinutes!)} · ${formatDuration(leftMinutes)} left`
-    : hasLocations && driveMinutes !== null && driveMinutes > 0
-    ? `🚗 ${formatDuration(driveMinutes)} · ${formatDuration(leftMinutes!)} left`
-    : gapMinutes <= 0
-    ? "⚠️ tight"
-    : formatDuration(gapMinutes)
-
-  // overflow-hidden: (1) clips content to the gap bounds, (2) creates a stacking
-  // context so the span's z-10 is scoped here and doesn't float above activity cards.
   return (
     <div
-      className="relative flex items-center justify-center w-full pointer-events-none overflow-hidden"
-      style={{ height: gapHeightPx }}
+      style={{ height: gapHeightPx, minHeight: 24 }}
+      className="flex items-center justify-center w-full pointer-events-none"
     >
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-px bg-gray-200"
-        style={{ height: showText ? "40%" : "50%" }}
-      />
-      {showText && (
-        <span className="relative z-10 text-[10px] text-gray-400 bg-[#FFFBF4] px-2 whitespace-nowrap">
-          {content}
-        </span>
-      )}
-      <div
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px bg-gray-200"
-        style={{ height: showText ? "40%" : "50%" }}
-      />
+      <span className="text-[10px] text-gray-400">{label}</span>
     </div>
   )
 }
