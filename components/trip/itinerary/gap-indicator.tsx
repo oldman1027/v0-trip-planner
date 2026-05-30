@@ -35,6 +35,9 @@ export function GapIndicator({
   const leftMinutes =
     driveMinutes !== null && driveMinutes > 0 ? gapMinutes - driveMinutes : null
 
+  // Text is only shown when there's enough vertical room to be readable
+  const showText = gapHeightPx >= 20
+
   const content = loading
     ? "···"
     : leftMinutes !== null && leftMinutes < 0
@@ -47,21 +50,25 @@ export function GapIndicator({
     ? "⚠️ tight"
     : formatDuration(gapMinutes)
 
+  // overflow-hidden: (1) clips content to the gap bounds, (2) creates a stacking
+  // context so the span's z-10 is scoped here and doesn't float above activity cards.
   return (
     <div
-      className="relative flex items-center justify-center w-full pointer-events-none"
-      style={{ height: Math.max(gapHeightPx, 28) }}
+      className="relative flex items-center justify-center w-full pointer-events-none overflow-hidden"
+      style={{ height: gapHeightPx }}
     >
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-px bg-gray-200"
-        style={{ height: "40%" }}
+        style={{ height: showText ? "40%" : "50%" }}
       />
-      <span className="relative z-10 text-[10px] text-gray-400 bg-[#FFFBF4] px-1">
-        {content}
-      </span>
+      {showText && (
+        <span className="relative z-10 text-[10px] text-gray-400 bg-[#FFFBF4] px-2 whitespace-nowrap">
+          {content}
+        </span>
+      )}
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px bg-gray-200"
-        style={{ height: "40%" }}
+        style={{ height: showText ? "40%" : "50%" }}
       />
     </div>
   )
