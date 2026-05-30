@@ -593,11 +593,16 @@ export function CalendarView({
                 {/* Gap indicators — free time + driving time between activities */}
                 {timedActs.slice(0, -1).map((a, i) => {
                   const b = timedActs[i + 1]
-                  if (!a.end_time || !b.start_time) return null
-                  const gapMins = timeToMins(b.start_time) - timeToMins(a.end_time)
+                  if (!b.start_time) return null
                   const { top: aTop, height: aH } = calcPos(a)
                   const { top: bTop } = calcPos(b)
                   const connH = bTop - (aTop + aH)
+                  if (connH <= 0) return null
+                  // Use effective end mins so gaps show even when end_time is missing
+                  const aEndMins = a.end_time
+                    ? timeToMins(a.end_time)
+                    : effectiveStartMins(a) + actDurationMins(a)
+                  const gapMins = timeToMins(b.start_time) - aEndMins
                   return (
                     <div
                       key={`gap-${a.id}`}

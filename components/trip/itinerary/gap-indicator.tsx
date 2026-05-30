@@ -32,43 +32,36 @@ export function GapIndicator({
     hasLocations ? toLocation : null,
   )
 
-  if (gapMinutes < 15 || gapHeightPx < 40) {
-    return <div style={{ height: gapHeightPx }} />
-  }
-
   const leftMinutes =
     driveMinutes !== null && driveMinutes > 0 ? gapMinutes - driveMinutes : null
-  const isTight = leftMinutes !== null && leftMinutes < 0
+
+  const content = loading
+    ? "···"
+    : leftMinutes !== null && leftMinutes < 0
+    ? "⚠️ tight"
+    : leftMinutes !== null && leftMinutes < 15
+    ? `⚠️ ${formatDuration(driveMinutes!)} · ${formatDuration(leftMinutes)} left`
+    : hasLocations && driveMinutes !== null && driveMinutes > 0
+    ? `🚗 ${formatDuration(driveMinutes)} · ${formatDuration(leftMinutes!)} left`
+    : gapMinutes <= 0
+    ? "⚠️ tight"
+    : formatDuration(gapMinutes)
 
   return (
     <div
       className="relative flex items-center justify-center w-full pointer-events-none"
-      style={{ height: gapHeightPx }}
+      style={{ height: Math.max(gapHeightPx, 28) }}
     >
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-px bg-gray-200"
-        style={{ height: "42%" }}
+        style={{ height: "40%" }}
       />
-
-      <div
-        className={`relative z-10 flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] bg-white ${
-          isTight ? "border-red-200 text-red-400" : "border-gray-200 text-gray-400"
-        }`}
-      >
-        {loading ? (
-          <span className="text-gray-300">···</span>
-        ) : isTight ? (
-          <span>⚠️ 🚗 {formatDuration(driveMinutes!)} · tight!</span>
-        ) : hasLocations && driveMinutes !== null && driveMinutes > 0 ? (
-          <span>🚗 {formatDuration(driveMinutes)} · {formatDuration(leftMinutes!)} left</span>
-        ) : (
-          <span>{formatDuration(gapMinutes)} left</span>
-        )}
-      </div>
-
+      <span className="relative z-10 text-[10px] text-gray-400 bg-[#FFFBF4] px-1">
+        {content}
+      </span>
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-px bg-gray-200"
-        style={{ height: "42%" }}
+        style={{ height: "40%" }}
       />
     </div>
   )
