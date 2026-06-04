@@ -37,7 +37,8 @@ import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
 import { daysBetween, getBlockFromTime } from "@/lib/dates"
 import { detectConflicts } from "@/lib/time-conflicts"
-import { geocodeDestination, fetchWeatherForecast } from "@/lib/weather"
+import { useTripWeather } from "@/hooks/use-trip-weather"
+import { wmoToDisplay } from "@/lib/weather-utils"
 import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -147,23 +148,16 @@ export function ItineraryBoard({
 
   const { onlineUsers } = usePresence(trip.id)
 
-  // Weather per day for sidebar chips
-  const [weatherByDay, setWeatherByDay] = useState<Map<string, { icon: string; high: number }>>(new Map())
-  useEffect(() => {
-    if (!trip.destination) return
-    let cancelled = false
-    async function load() {
-      const coords = await geocodeDestination(trip.destination!)
-      if (!coords || cancelled) return
-      const data = await fetchWeatherForecast(coords.latitude, coords.longitude, trip.destination!)
-      if (!data || cancelled) return
-      const map = new Map<string, { icon: string; high: number }>()
-      for (const d of data.forecast) map.set(d.date, { icon: d.icon, high: d.high })
-      setWeatherByDay(map)
+  // Weather data for sidebar chips and calendar headers
+  const { weatherByDate, loading: weatherLoading } = useTripWeather(trip)
+
+  const weatherByDay = useMemo(() => {
+    const map = new Map<string, { icon: string; high: number; rainChance: number }>()
+    for (const [date, w] of Object.entries(weatherByDate)) {
+      map.set(date, { icon: wmoToDisplay(w.code).icon, high: w.max, rainChance: w.rainChance })
     }
-    load()
-    return () => { cancelled = true }
-  }, [trip.destination])
+    return map
+  }, [weatherByDate])
 
   // One-time: fix activities whose time_block doesn't match their start_time
   useEffect(() => {
@@ -1043,6 +1037,8 @@ export function ItineraryBoard({
                   if (b) setBookingOpen(b)
                 }}
                 onActivityUpdated={handleCalendarActivityUpdated}
+                weatherByDate={weatherByDate}
+                weatherLoading={weatherLoading}
               />
             </div>
 

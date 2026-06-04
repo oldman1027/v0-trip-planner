@@ -274,10 +274,15 @@ export function TriplettoAI({
         })
 
         if (!res.ok || !res.body) {
+          let errMsg = "Couldn't reach Tripletto AI. Try again."
+          try {
+            const errData = await res.clone().json()
+            if (errData?.error) errMsg = errData.error
+          } catch { /* ignore */ }
           setMessages((p) =>
             p.map((m) =>
               m.id === assistantId
-                ? { ...m, content: "Couldn't reach Tripletto AI. Try again.", streaming: false }
+                ? { ...m, content: errMsg, streaming: false }
                 : m,
             ),
           )

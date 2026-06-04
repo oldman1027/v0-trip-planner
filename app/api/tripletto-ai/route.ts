@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import OpenAI from "openai"
+import OpenAI, { APIError } from "openai"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -247,8 +247,17 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Invalid mode" }), { status: 400 })
 
   } catch (err) {
+    if (err instanceof APIError) {
+      console.error(`[tripletto-ai] OpenAI API error ${err.status}:`, err.message)
+      const status = err.status === 401 ? 401 : err.status === 429 ? 429 : 500
+      const message =
+        err.status === 401 ? "AI service not configured — invalid API key" :
+        err.status === 429 ? "AI rate limit reached — try again in a moment" :
+        `OpenAI error ${err.status}: ${err.message}`
+      return new Response(JSON.stringify({ error: message }), { status })
+    }
     const msg = err instanceof Error ? err.message : "Unknown error"
     console.error("[tripletto-ai] error:", err)
-    return new Response(JSON.stringify({ error: `Failed: ${msg}` }), { status: 500 })
+    return new Response(JSON.stringify({ error: msg }), { status: 500 })
   }
 }

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { parseDateOnly } from "@/lib/dates"
 
-type WeatherDay = { icon: string; high: number }
+type WeatherDay = { icon: string; high: number; rainChance?: number }
 
 type Props = {
   days: string[]
@@ -87,6 +87,12 @@ function DayItem({
           <div className={cn("mt-1 flex items-center gap-1 text-xs", selected ? "text-white/60" : "text-muted-foreground")}>
             <span>{weather.icon}</span>
             <span>{weather.high}°</span>
+            {weather.rainChance !== undefined && weather.rainChance >= 30 && (
+              <>
+                <span className={cn("opacity-40", selected ? "text-white" : "text-muted-foreground")}>·</span>
+                <span>🌧 {weather.rainChance}%</span>
+              </>
+            )}
           </div>
         )}
       </div>

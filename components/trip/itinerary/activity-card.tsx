@@ -157,8 +157,13 @@ export function ActivityCard({
           ) : null}
           {time ? (
             <span className="tabular inline-flex items-center gap-1">
-              <Clock className="h-3 w-3" aria-hidden />
-              {time}
+              <Clock className="h-3 w-3 shrink-0" aria-hidden />
+              <span className="whitespace-nowrap">
+                {time}
+                {activity.start_time && activity.end_time && (
+                  <span className="ml-1 text-muted-foreground/60">({formatDuration(activity.start_time, activity.end_time)})</span>
+                )}
+              </span>
             </span>
           ) : null}
         </div>
@@ -186,6 +191,17 @@ function formatTimeRange(start: string | null, end: string | null) {
 function stripSec(t: string) {
   return t.length >= 5 ? t.slice(0, 5) : t
 }
+function formatDuration(start: string, end: string): string {
+  const toMins = (t: string) => { const p = t.split(":").map(Number); return (p[0] ?? 0) * 60 + (p[1] ?? 0) }
+  const diff = toMins(end) - toMins(start)
+  if (diff <= 0) return ""
+  const h = Math.floor(diff / 60)
+  const m = diff % 60
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}
+
 function formatCost(amount: number, currency: string | null) {
   const c = currency ?? "USD"
   try {

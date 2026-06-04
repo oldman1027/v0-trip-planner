@@ -1,13 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import { MapPin, Clock, CalendarCheck, AlertTriangle, Calendar } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { MapPin, Clock, CalendarCheck, AlertTriangle, Calendar, ChevronDown, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { TripMap } from "@/components/trip/overview/trip-map"
 import { cn } from "@/lib/utils"
 import { daysBetween, formatDayLabel, formatLongDate } from "@/lib/dates"
 import { deadlineUrgency, deadlineLabel, daysUntilBooking } from "@/lib/booking-urgency"
+import { useTripWeather } from "@/hooks/use-trip-weather"
+import { wmoToDisplay } from "@/lib/weather-utils"
 import type { Activity, Booking, Trip } from "@/lib/types"
 
 const CATEGORY_LABELS: Record<Activity["category"], string> = {
@@ -51,6 +53,17 @@ function formatTime(t: string | null): string | null {
   return t.length >= 5 ? t.slice(0, 5) : t
 }
 
+function formatDuration(start: string, end: string): string {
+  const toMins = (t: string) => { const p = t.split(":").map(Number); return (p[0] ?? 0) * 60 + (p[1] ?? 0) }
+  const diff = toMins(end) - toMins(start)
+  if (diff <= 0) return ""
+  const h = Math.floor(diff / 60)
+  const m = diff % 60
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}
+
 function formatCost(amount: number | null, currency: string | null): string | null {
   if (amount == null) return null
   const c = currency ?? "USD"
@@ -71,8 +84,28 @@ export function OverviewTab({
   bookings: Booking[]
 }) {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+  const [expandedWeatherDays, setExpandedWeatherDays] = useState<Set<string>>(new Set())
+  const weatherInitRef = useRef(false)
+
+  const { weatherByDate, hourlyByDate, loading: weatherLoading } = useTripWeather(trip)
 
   const days = daysBetween(trip.start_date, trip.end_date)
+
+  // Auto-expand first day with forecast data
+  useEffect(() => {
+    if (weatherInitRef.current || Object.keys(weatherByDate).length === 0) return
+    weatherInitRef.current = true
+    const firstDay = days.find((d) => d in weatherByDate)
+    if (firstDay) setExpandedWeatherDays(new Set([firstDay]))
+  }, [weatherByDate, days])
+
+  const TARGET_HOURS = [6, 9, 12, 15, 18, 21]
+  function fmtHour(h: number) {
+    if (h === 12) return "12p"
+    return h < 12 ? `${h}a` : `${h - 12}p`
+  }
+
+  const hasAnyWeather = Object.keys(weatherByDate).length > 0
 
   const keyBookings = bookings.filter((b) => ["accommodation", "transport"].includes(b.type))
 
@@ -195,6 +228,77 @@ export function OverviewTab({
         </section>
       )}
 
+      {/* Weather forecast */}
+      {(weatherLoading || hasAnyWeather) && (
+        <section className="print:hidden">
+          <h2 className="mb-4 font-serif text-xl">Weather</h2>
+          <div className="flex flex-col gap-2">
+            {weatherLoading ? (
+              days.slice(0, 3).map((day) => (
+                <div key={day} className="h-12 animate-pulse rounded-xl bg-muted" />
+              ))
+            ) : (
+              days.map((day, idx) => {
+                const daily = weatherByDate[day]
+                const hourly = hourlyByDate[day] ?? []
+                if (!daily) return null
+                const slots = TARGET_HOURS.map((h) => hourly.find((s) => s.hour === h)).filter(Boolean) as typeof hourly
+                const isExpanded = expandedWeatherDays.has(day)
+                const { icon } = wmoToDisplay(daily.code)
+                return (
+                  <div key={day} className="rounded-xl border border-border bg-card overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedWeatherDays((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(day)) next.delete(day)
+                          else next.add(day)
+                          return next
+                        })
+                      }
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/40 transition-colors"
+                    >
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground w-10 shrink-0">
+                        Day {idx + 1}
+                      </span>
+                      <span className="font-serif text-sm text-foreground">{formatDayLabel(day)}</span>
+                      <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{icon}</span>
+                        <span>{daily.max}°/{daily.min}°</span>
+                        {daily.rainChance >= 30 && <span>🌧 {daily.rainChance}%</span>}
+                        {isExpanded ? (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        )}
+                      </div>
+                    </button>
+                    {isExpanded && slots.length > 0 && (
+                      <div className="flex gap-4 overflow-x-auto border-t border-border px-4 py-3">
+                        {slots.map((slot) => {
+                          const { icon: slotIcon } = wmoToDisplay(slot.code)
+                          return (
+                            <div key={slot.hour} className="flex shrink-0 flex-col items-center gap-0.5">
+                              <span className="text-[10px] text-muted-foreground">{fmtHour(slot.hour)}</span>
+                              <span className="text-base leading-none">{slotIcon}</span>
+                              <span className="text-xs font-medium tabular-nums">{slot.temp}°</span>
+                              {slot.rainChance >= 30 && (
+                                <span className="text-[10px] text-muted-foreground tabular-nums">{slot.rainChance}%</span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Day-by-day itinerary */}
       <section>
         <h2 className="mb-4 font-serif text-xl">Day-by-day Itinerary</h2>
@@ -282,8 +386,11 @@ export function OverviewTab({
                                 )}
                                 {a.start_time && a.end_time && (
                                   <span className="tabular inline-flex items-center gap-1">
-                                    <Clock className="h-3 w-3" aria-hidden />
-                                    {formatTime(a.start_time)} – {formatTime(a.end_time)}
+                                    <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                                    <span className="whitespace-nowrap">
+                                      {formatTime(a.start_time)} – {formatTime(a.end_time)}
+                                      <span className="ml-1 text-muted-foreground/60">({formatDuration(a.start_time, a.end_time)})</span>
+                                    </span>
                                   </span>
                                 )}
                               </div>

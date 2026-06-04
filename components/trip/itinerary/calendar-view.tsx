@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/client"
 import type { Activity, Booking, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 import { GapIndicator } from "./gap-indicator"
+import { wmoToDisplay } from "@/lib/weather-utils"
+import type { DailyWeather } from "@/app/api/weather/route"
 
 
 // ── Sage green / warm teal palette ────────────────────────────────────────
@@ -216,6 +218,8 @@ export function CalendarView({
   accommodationBookings,
   onViewBooking,
   onActivityUpdated,
+  weatherByDate,
+  weatherLoading,
 }: {
   days: string[]
   activities: Activity[]
@@ -227,6 +231,8 @@ export function CalendarView({
   accommodationBookings?: Booking[]
   onViewBooking?: (bookingId: string) => void
   onActivityUpdated?: (activity: Activity) => void
+  weatherByDate?: Record<string, DailyWeather>
+  weatherLoading?: boolean
 }) {
   // Local copy for drag-to-reschedule optimistic updates.
   // Kept in sync with the parent prop via the effect below so that realtime
@@ -555,6 +561,17 @@ export function CalendarView({
                     {isToday && (
                       <div className="absolute -bottom-1.5 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-[#6D8F87]" />
                     )}
+                    {weatherLoading ? (
+                      <div className="mt-1 h-3 w-14 animate-pulse rounded bg-muted" />
+                    ) : weatherByDate?.[day] ? (
+                      <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <span>{wmoToDisplay(weatherByDate[day].code).icon}</span>
+                        <span>{weatherByDate[day].max}°/{weatherByDate[day].min}°</span>
+                        {weatherByDate[day].rainChance >= 30 && (
+                          <span>🌧 {weatherByDate[day].rainChance}%</span>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )
@@ -711,14 +728,12 @@ export function CalendarView({
                           {a.title}
                         </div>
                         {a.start_time && (
-                          <div className="mt-0.5 text-[10px] leading-none tabular-nums text-gray-400">
+                          <div className="mt-0.5 text-[10px] leading-none tabular-nums text-gray-400 whitespace-nowrap overflow-hidden">
                             {a.start_time.slice(0, 5)}
                             {a.end_time ? ` – ${a.end_time.slice(0, 5)}` : ""}
-                          </div>
-                        )}
-                        {a.start_time && a.end_time && blockH >= 48 && (
-                          <div className="mt-0.5 text-[10px] leading-none tabular-nums text-gray-300">
-                            {fmtDuration(actDurationMins(a))}
+                            {a.end_time && blockH >= 48 && (
+                              <span className="text-gray-300"> ({fmtDuration(actDurationMins(a))})</span>
+                            )}
                           </div>
                         )}
                       </div>
