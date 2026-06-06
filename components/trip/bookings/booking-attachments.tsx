@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
-import { createPortal } from "react-dom"
+import { useState, useRef, useCallback } from "react"
 import Image from "next/image"
 import {
   uploadBookingAttachment,
@@ -12,8 +11,7 @@ import {
   type BookingAttachment,
 } from "@/lib/supabase/booking-attachments"
 import { toast } from "sonner"
-import { Upload, X, File, FileText, ImageIcon, Loader2, Maximize2, Download, Paperclip, ExternalLink } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Upload, X, File, FileText, ImageIcon, Loader2, ExternalLink, Paperclip } from "lucide-react"
 
 interface BookingAttachmentsProps {
   bookingId: string
@@ -28,19 +26,7 @@ export function BookingAttachments({
 }: BookingAttachmentsProps) {
   const [attachments, setAttachments] = useState<BookingAttachment[]>(initialAttachments)
   const [uploading, setUploading] = useState(false)
-  const [viewerFile, setViewerFile] = useState<BookingAttachment | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!viewerFile) return
-    document.body.style.overflow = "hidden"
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setViewerFile(null) }
-    document.addEventListener("keydown", onKey)
-    return () => {
-      document.removeEventListener("keydown", onKey)
-      document.body.style.overflow = ""
-    }
-  }, [viewerFile])
 
   const handleFileSelect = useCallback(
     async (files: FileList) => {
@@ -101,9 +87,11 @@ export function BookingAttachments({
           {attachments.map((attachment) => (
             <div key={attachment.id} className="group relative">
               {isImageFile(attachment.file_type) ? (
-                <div
+                <button
+                  type="button"
+                  title="Open image"
+                  onClick={() => window.open(attachment.public_url, "_blank", "noopener,noreferrer")}
                   className="relative h-16 w-16 cursor-pointer overflow-hidden rounded-lg border border-border transition-opacity hover:opacity-80"
-                  onClick={() => setViewerFile(attachment)}
                 >
                   <Image
                     src={attachment.public_url}
@@ -113,19 +101,21 @@ export function BookingAttachments({
                     className="object-cover"
                   />
                   <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Maximize2 className="h-4 w-4 text-white" />
+                    <ExternalLink className="h-4 w-4 text-white" />
                   </div>
-                </div>
+                </button>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setViewerFile(attachment)}
+                  title={isPdfFile(attachment.file_type) ? "Open PDF" : "Open file"}
+                  onClick={() => window.open(attachment.public_url, "_blank", "noopener,noreferrer")}
                   className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-border bg-secondary p-1 transition-colors hover:bg-secondary/70"
                 >
                   <FileIcon fileType={attachment.file_type} />
                   <span className="w-full truncate px-1 text-center text-[9px] text-muted-foreground">
                     {attachment.file_name.split(".").pop()?.toUpperCase()}
                   </span>
+                  <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/50" />
                 </button>
               )}
 
@@ -192,81 +182,6 @@ export function BookingAttachments({
         className="hidden"
         onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
       />
-
-      {/* Fullscreen lightbox portal */}
-      {viewerFile && createPortal(
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 animate-in fade-in duration-200"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setViewerFile(null) }}
-        >
-          <div
-            className="relative flex h-[90vh] w-[90vw] flex-col overflow-hidden rounded-xl"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            {/* Header bar */}
-            <div className="flex shrink-0 items-center justify-between bg-black/60 px-4 py-3 backdrop-blur-sm">
-              <div className="min-w-0 flex-1 pr-4">
-                <p className="truncate text-sm font-medium text-white">{viewerFile.file_name}</p>
-                <p className="text-xs text-gray-400">{formatFileSize(viewerFile.file_size)}</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <a
-                  href={viewerFile.public_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open in new tab
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setViewerFile(null)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* File content */}
-            <div className="min-h-0 flex-1">
-              {isImageFile(viewerFile.file_type) ? (
-                <img
-                  src={viewerFile.public_url}
-                  alt={viewerFile.file_name}
-                  className="h-full w-full object-contain"
-                />
-              ) : isPdfFile(viewerFile.file_type) ? (
-                <iframe
-                  src={viewerFile.public_url}
-                  className="h-full w-full overflow-auto bg-white"
-                  title={viewerFile.file_name}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center bg-neutral-900">
-                  <div className="text-center">
-                    <File className="mx-auto mb-4 h-12 w-12 text-gray-500" />
-                    <p className="mb-4 text-sm text-gray-300">{viewerFile.file_name}</p>
-                    <a
-                      href={viewerFile.public_url}
-                      download={viewerFile.file_name}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                    >
-                      <Download className="h-4 w-4" />
-                      Download file
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   )
 }
