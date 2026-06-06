@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Spinner } from "@/components/ui/spinner"
 import { Trash2, Pencil, Paperclip } from "lucide-react"
 import { BookingAttachments, PendingAttachments } from "./booking-attachments"
+import { LocationAutocomplete } from "@/components/trip/itinerary/location-autocomplete"
 import { uploadBookingAttachment } from "@/lib/supabase/booking-attachments"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -30,8 +31,6 @@ type EditingField =
   | "flightNumber"
   | "fromCode"
   | "toCode"
-  | "fromCity"
-  | "toCity"
   | "departureTime"
   | "arrivalTime"
   | "amount"
@@ -232,8 +231,6 @@ export function TransportDrawer({
     setEditingField(null)
   }
 
-  const fromDisplay = fromCity || fromCode || null
-  const toDisplay = toCity || toCode || null
   const routeLabel =
     fromCode && toCode ? `${fromCode.toUpperCase()} → ${toCode.toUpperCase()}` : null
   const subLabel =
@@ -366,32 +363,13 @@ export function TransportDrawer({
                   </p>
 
                   <div className="mt-0.5">
-                    {editingField === "fromCity" ? (
-                      <Input
-                        autoFocus
-                        value={fromCity}
-                        onChange={(e) => setFromCity(e.target.value)}
-                        onBlur={stopEdit}
-                        onKeyDown={(e) => e.key === "Enter" && stopEdit()}
-                        placeholder="Kuala Lumpur Intl"
-                        className="h-8 rounded-lg font-semibold"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditingField("fromCity")}
-                        className="group flex items-center gap-1 text-left"
-                      >
-                        <span className="font-semibold">
-                          {fromDisplay || (
-                            <span className="font-normal text-muted-foreground">
-                              Departure city
-                            </span>
-                          )}
-                        </span>
-                        <Pencil className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-40" />
-                      </button>
-                    )}
+                    <LocationAutocomplete
+                      value={fromCity}
+                      onChange={setFromCity}
+                      placeholder="Departure city"
+                      className="h-8 rounded-lg font-semibold"
+                      nameOnly
+                    />
                   </div>
 
                   <div className="mt-0.5">
@@ -442,32 +420,13 @@ export function TransportDrawer({
                   </p>
 
                   <div className="mt-0.5">
-                    {editingField === "toCity" ? (
-                      <Input
-                        autoFocus
-                        value={toCity}
-                        onChange={(e) => setToCity(e.target.value)}
-                        onBlur={stopEdit}
-                        onKeyDown={(e) => e.key === "Enter" && stopEdit()}
-                        placeholder="Bangkok Suvarnabhumi"
-                        className="h-8 rounded-lg font-semibold"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditingField("toCity")}
-                        className="group flex items-center gap-1 text-left"
-                      >
-                        <span className="font-semibold">
-                          {toDisplay || (
-                            <span className="font-normal text-muted-foreground">
-                              Arrival city
-                            </span>
-                          )}
-                        </span>
-                        <Pencil className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-40" />
-                      </button>
-                    )}
+                    <LocationAutocomplete
+                      value={toCity}
+                      onChange={setToCity}
+                      placeholder="Arrival city"
+                      className="h-8 rounded-lg font-semibold"
+                      nameOnly
+                    />
                   </div>
 
                   <div className="mt-0.5">

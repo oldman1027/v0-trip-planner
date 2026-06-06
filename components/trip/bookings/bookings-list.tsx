@@ -1,21 +1,19 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Hotel, Bus, Plane, Utensils, Star, Package, AlertTriangle, Calendar, List, LayoutGrid, Ticket, Paperclip } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { Plus, Pencil, Trash2, Ticket } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BookingDrawer, type BookingSaveInput } from "./booking-drawer"
 import { TransportDrawer } from "./transport-drawer"
-import { BookingCardView } from "./booking-card-view"
 import { createClient } from "@/lib/supabase/client"
-import { deadlineUrgency, deadlineLabel, daysUntilBooking } from "@/lib/booking-urgency"
 import type { Booking } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useUndoDelete } from "@/hooks/use-undo-delete"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+
+// ── Type label ──────────────────────────────────────────────────────────────
 
 function getBookingTypeLabel(booking: Booking): string {
   if (booking.type === "transport") {
@@ -32,20 +30,7 @@ function getBookingTypeLabel(booking: Booking): string {
   return labels[booking.type] ?? "Other"
 }
 
-function getBookingIcon(booking: Booking) {
-  if (booking.type === "transport") {
-    const d = (booking.details ?? {}) as Record<string, unknown>
-    return d.transport_type === "flight" ? Plane : Bus
-  }
-  const icons: Record<Booking["type"], typeof Hotel> = {
-    accommodation: Hotel,
-    transport: Bus,
-    dining: Utensils,
-    activities: Star,
-    other: Package,
-  }
-  return icons[booking.type] ?? Package
-}
+// ── Constants / utils used by handleSave ────────────────────────────────────
 
 const EXPENSE_CATEGORY_MAP = {
   accommodation: "accommodation",
@@ -68,49 +53,138 @@ function buildActivityInsert(
   currency: string,
 ) {
   const details = (input.details ?? {}) as Record<string, unknown>
-  const base = { trip_id: tripId, position: 999, is_wishlist: false, cost_currency: currency, end_time: null as string | null }
+  const base = {
+    trip_id: tripId,
+    position: 999,
+    is_wishlist: false,
+    cost_currency: currency,
+    end_time: null as string | null,
+  }
 
   if (input.type === "accommodation") {
     const startTime = input.check_in_time ?? null
-    return { ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
+    return {
+      ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
       time_block: startTime ? getTimeBlock(startTime) : "morning", category: "accommodation" as const,
-      location: (details.address as string | null) ?? null, cost_amount: input.amount ?? null }
+      location: (details.address as string | null) ?? null, cost_amount: input.amount ?? null,
+    }
   }
-
   if (input.type === "transport") {
     const deptFull = (details.departure_time as string | null) ?? null
     const dayDate = deptFull ? deptFull.slice(0, 10) : (input.booking_date ?? null)
     const startTime = deptFull ? deptFull.slice(11, 16) : null
-    return { ...base, title: input.title, day_date: dayDate, start_time: startTime,
+    return {
+      ...base, title: input.title, day_date: dayDate, start_time: startTime,
       time_block: startTime ? getTimeBlock(startTime) : "morning", category: "transport" as const,
       location: (details.from_city as string | null) ?? (details.from_code as string | null) ?? null,
-      cost_amount: input.amount ?? null }
+      cost_amount: input.amount ?? null,
+    }
   }
-
   if (input.type === "dining") {
     const datetime = (details.datetime as string) ?? ""
     const dayDate = datetime ? datetime.slice(0, 10) : null
     const startTime = datetime ? datetime.slice(11, 16) : null
-    return { ...base, title: input.title, day_date: dayDate, start_time: startTime,
+    return {
+      ...base, title: input.title, day_date: dayDate, start_time: startTime,
       time_block: startTime ? getTimeBlock(startTime) : "morning", category: "food" as const,
-      location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null }
+      location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null,
+    }
   }
-
   if (input.type === "activities") {
     const startTime = input.departure_time ?? null
-    return { ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
+    return {
+      ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
       time_block: startTime ? getTimeBlock(startTime) : "morning", category: "attraction" as const,
-      location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null }
+      location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null,
+    }
   }
-
   if (input.type === "other") {
-    return { ...base, title: input.title, day_date: input.booking_date ?? null, start_time: null as string | null,
-      time_block: "morning" as const, category: "other" as const, location: null as string | null,
-      cost_amount: input.amount ?? null }
+    return {
+      ...base, title: input.title, day_date: input.booking_date ?? null,
+      start_time: null as string | null, time_block: "morning" as const,
+      category: "other" as const, location: null as string | null, cost_amount: input.amount ?? null,
+    }
   }
-
   return null
 }
+
+// ── Timeline helpers ─────────────────────────────────────────────────────────
+
+function getPrimaryDate(b: Booking): string | null {
+  if (b.type === "transport") {
+    const d = (b.details ?? {}) as Record<string, unknown>
+    const deptFull = d.departure_time as string | undefined
+    if (deptFull) return deptFull.slice(0, 10)
+  }
+  if (b.type === "dining") {
+    const d = (b.details ?? {}) as Record<string, unknown>
+    const dt = d.datetime as string | undefined
+    if (dt) return dt.slice(0, 10)
+  }
+  return b.booking_date
+}
+
+function getSortTime(b: Booking): string {
+  if (b.type === "transport") {
+    const d = (b.details ?? {}) as Record<string, unknown>
+    const deptFull = d.departure_time as string | undefined
+    if (deptFull?.includes("T")) return deptFull.slice(11, 16)
+  }
+  if (b.type === "accommodation") return b.check_in_time ?? "99:99"
+  if (b.type === "dining") {
+    const d = (b.details ?? {}) as Record<string, unknown>
+    const dt = d.datetime as string | undefined
+    if (dt?.includes("T")) return dt.slice(11, 16)
+  }
+  if (b.type === "activities") return b.departure_time ?? "99:99"
+  return "99:99"
+}
+
+function formatDateLabel(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number)
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1)
+  const month = date.toLocaleString("en-US", { month: "short" })
+  const weekday = date.toLocaleString("en-US", { weekday: "long" })
+  return `${month} ${d}, ${y} · ${weekday}`
+}
+
+function getSubtitle(b: Booking): string {
+  const d = (b.details ?? {}) as Record<string, unknown>
+
+  if (b.type === "transport") {
+    const deptFull = d.departure_time as string | undefined
+    const deptTime = deptFull?.includes("T") ? deptFull.slice(11, 16) : null
+    const fromCode = (d.from_code as string | undefined)?.toUpperCase()
+    const toCode = (d.to_code as string | undefined)?.toUpperCase()
+    const fromCity = d.from_city as string | undefined
+    const toCity = d.to_city as string | undefined
+    const from = fromCode || fromCity
+    const to = toCode || toCity
+    const route = from && to ? `${from} → ${to}` : (from ?? to ?? null)
+    return [deptTime, route].filter(Boolean).join(" · ")
+  }
+
+  if (b.type === "accommodation") {
+    return b.check_in_time ? `Check-in ${b.check_in_time}` : "Check-in"
+  }
+
+  if (b.type === "dining") {
+    const dt = d.datetime as string | undefined
+    const time = dt?.includes("T") ? dt.slice(11, 16) : null
+    const partySize = d.party_size != null ? `${d.party_size} guests` : null
+    return [time, partySize].filter(Boolean).join(" · ")
+  }
+
+  if (b.type === "activities") {
+    const time = b.departure_time ?? null
+    const location = d.location as string | undefined
+    return [time, location].filter(Boolean).join(" · ")
+  }
+
+  return ""
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 
 export function BookingsList({
   tripId,
@@ -127,7 +201,6 @@ export function BookingsList({
 }) {
   const [bookings, setBookings] = useState(initialBookings)
   const [filter, setFilter] = useState<string>("all")
-  const [view, setView] = useState<"list" | "card">("list")
   const [open, setOpen] = useState<Booking | "new" | null>(null)
   const [focusedBookingId, setFocusedBookingId] = useState<string | null>(null)
 
@@ -136,11 +209,7 @@ export function BookingsList({
   const drawerOpen = open !== null
 
   useKeyboardShortcuts(
-    [
-      { key: "n", handler: () => setOpen("new") },
-      { key: "1", handler: () => setView("list") },
-      { key: "2", handler: () => setView("card") },
-    ],
+    [{ key: "n", handler: () => setOpen("new") }],
     !drawerOpen,
   )
 
@@ -154,9 +223,7 @@ export function BookingsList({
 
   const isTransportOpen =
     open !== null &&
-    (open === "new"
-      ? filter === "transport"
-      : open.type === "transport")
+    (open === "new" ? filter === "transport" : open.type === "transport")
 
   const transportBooking =
     open !== null && open !== "new" && isTransportOpen ? open : null
@@ -165,6 +232,43 @@ export function BookingsList({
     () => (filter === "all" ? bookings : bookings.filter((b) => b.type === filter)),
     [bookings, filter],
   )
+
+  const { dateGroups, noDateBookings } = useMemo(() => {
+    const dateMap = new Map<string, Booking[]>()
+    const noDate: Booking[] = []
+
+    for (const b of filtered) {
+      const date = getPrimaryDate(b)
+      if (!date) {
+        noDate.push(b)
+      } else {
+        const arr = dateMap.get(date) ?? []
+        arr.push(b)
+        dateMap.set(date, arr)
+      }
+    }
+
+    const groups = Array.from(dateMap.keys())
+      .sort()
+      .map((date) => ({
+        date,
+        bookings: (dateMap.get(date) ?? [])
+          .slice()
+          .sort((a, b) => getSortTime(a).localeCompare(getSortTime(b))),
+      }))
+
+    return { dateGroups: groups, noDateBookings: noDate }
+  }, [filtered])
+
+  const summary = useMemo(() => {
+    const paid = filtered
+      .filter((b) => b.payment_status === "paid" || b.payment_status === "confirmed")
+      .reduce((sum, b) => sum + (b.amount ?? 0), 0)
+    const outstanding = filtered
+      .filter((b) => b.payment_status !== "paid" && b.payment_status !== "confirmed" && b.payment_status !== "cancelled")
+      .reduce((sum, b) => sum + (b.amount ?? 0), 0)
+    return { total: filtered.length, paid, outstanding }
+  }, [filtered])
 
   async function handleSave(input: BookingSaveInput): Promise<string | undefined> {
     const supabase = createClient()
@@ -235,15 +339,11 @@ export function BookingsList({
     } else {
       const { data, error } = await supabase
         .from("bookings")
-        .insert({
-          ...bookingData,
-          trip_id: tripId,
-        })
+        .insert({ ...bookingData, trip_id: tripId })
         .select()
         .single()
       if (error || !data) throw error ?? new Error("Insert failed")
 
-      // Create matching itinerary activity if requested
       if (addToItinerary) {
         const activityInsert = buildActivityInsert(bookingData, tripId, currency)
         if (activityInsert) {
@@ -254,7 +354,6 @@ export function BookingsList({
         }
       }
 
-      // Create linked expense if requested
       if (trackInCosts && bookingData.amount) {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
@@ -303,9 +402,10 @@ export function BookingsList({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
+      {/* ── Filter tabs + Add button ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {[
             { v: "all",           l: "All" },
             { v: "accommodation", l: "Accommodation" },
@@ -330,46 +430,29 @@ export function BookingsList({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="flex overflow-hidden rounded-xl border border-border">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              aria-label="List view"
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
-                view === "list"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:bg-secondary",
-              )}
-            >
-              <List className="h-3.5 w-3.5" />
-              List
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("card")}
-              aria-label="Card view"
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
-                view === "card"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:bg-secondary",
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              Cards
-            </button>
-          </div>
-
-          <Button className="rounded-xl bg-[#6D8F87] text-white hover:bg-[#5A7870]" onClick={() => setOpen("new")}>
-            <Plus className="mr-2 h-4 w-4" aria-hidden />
-            Add booking
-          </Button>
-        </div>
+        <Button
+          className="rounded-xl bg-[#6D8F87] text-white hover:bg-[#5A7870]"
+          onClick={() => setOpen("new")}
+        >
+          <Plus className="mr-2 h-4 w-4" aria-hidden />
+          Add booking
+        </Button>
       </div>
 
+      {/* ── Summary bar ── */}
+      {filtered.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {summary.total} booking{summary.total !== 1 ? "s" : ""}
+          {summary.paid > 0 && (
+            <> · <span>{formatMoney(summary.paid, "THB")} paid</span></>
+          )}
+          {summary.outstanding > 0 && (
+            <> · <span>{formatMoney(summary.outstanding, "THB")} pending</span></>
+          )}
+        </p>
+      )}
+
+      {/* ── Empty state ── */}
       {filtered.length === 0 ? (
         <Empty className="rounded-2xl border border-dashed border-border bg-card/50 py-16">
           <EmptyHeader>
@@ -382,125 +465,47 @@ export function BookingsList({
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
-      ) : view === "card" ? (
-        <BookingCardView
-          bookings={filtered}
-          onEdit={(b) => { setFocusedBookingId(b.id); setOpen(b) }}
-          onDelete={handleDelete}
-        />
       ) : (
-        <Card className="rounded-2xl border-border">
-          <ul className="divide-y divide-border">
-            {filtered.map((b) => {
-              const Icon = getBookingIcon(b)
-              const urgency = deadlineUrgency(b.cancellation_deadline)
-              const dlLabel = deadlineLabel(b.cancellation_deadline)
-              const daysAway = daysUntilBooking(b.booking_date)
-              const upcoming = daysAway !== null && daysAway <= 7
+        /* ── Timeline ── */
+        <div className="flex flex-col gap-8">
+          {dateGroups.map((group) => (
+            <section key={group.date}>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">
+                {formatDateLabel(group.date)}
+              </h3>
+              <div className="flex flex-col gap-2">
+                {group.bookings.map((b) => (
+                  <BookingRow
+                    key={b.id}
+                    booking={b}
+                    onEdit={() => { setFocusedBookingId(b.id); setOpen(b) }}
+                    onDelete={() => handleDelete(b.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
 
-              const diningDetails =
-                b.type === "dining" ? ((b.details ?? {}) as Record<string, unknown>) : null
-              const diningSubtitle = diningDetails
-                ? [
-                    diningDetails.datetime
-                      ? new Date(diningDetails.datetime as string).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })
-                      : null,
-                    diningDetails.party_size != null
-                      ? `${diningDetails.party_size} guests`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
-                : null
-
-              return (
-                <li
-                  key={b.id}
-                  className={cn(
-                    "relative overflow-hidden",
-                    urgency === "critical" && "bg-red-50/40 dark:bg-red-950/20",
-                    urgency !== "critical" && upcoming && "bg-sky-50/30 dark:bg-sky-950/10",
-                  )}
-                >
-                  {(urgency === "critical" || upcoming) && (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "absolute inset-y-0 left-0 w-1",
-                        urgency === "critical" ? "bg-red-400" : "bg-sky-400",
-                      )}
-                    />
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => { setFocusedBookingId(b.id); setOpen(b) }}
-                    className="flex w-full items-center gap-4 px-5 py-4 pl-6 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
-                      <Icon className="h-5 w-5" aria-hidden />
-                    </span>
-
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <div className="font-medium leading-snug">{b.title}</div>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                        <span>{getBookingTypeLabel(b)}</span>
-                        {b.confirmation_number && (
-                          <span className="font-mono">#{b.confirmation_number}</span>
-                        )}
-                        {diningSubtitle && <span>{diningSubtitle}</span>}
-                        {(b.booking_attachments?.length ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1">
-                            <Paperclip className="h-3 w-3" aria-hidden />
-                            {b.booking_attachments!.length}
-                          </span>
-                        )}
-
-                        {upcoming && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400">
-                            <Calendar className="h-2.5 w-2.5" aria-hidden />
-                            {daysAway === 0 ? "Today" : daysAway === 1 ? "Tomorrow" : `In ${daysAway} days`}
-                          </span>
-                        )}
-
-                        {urgency === "critical" && dlLabel && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                                <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
-                                Cancel · {dlLabel}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Free cancellation deadline is approaching. Act now to avoid charges.
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {urgency === "warning" && dlLabel && (
-                          <span className="font-medium text-amber-600 dark:text-amber-400">
-                            Cancel by {new Date(b.cancellation_deadline!).toLocaleDateString()} · {dlLabel}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-3">
-                      {b.amount != null && (
-                        <span className="tabular text-sm font-medium">
-                          {formatMoney(b.amount, b.currency ?? "USD")}
-                        </span>
-                      )}
-                      <PaymentBadge status={b.payment_status} />
-                    </div>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </Card>
+          {noDateBookings.length > 0 && (
+            <section>
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-medium text-muted-foreground">No date set</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <div className="flex flex-col gap-2">
+                {noDateBookings.map((b) => (
+                  <BookingRow
+                    key={b.id}
+                    booking={b}
+                    onEdit={() => { setFocusedBookingId(b.id); setOpen(b) }}
+                    onDelete={() => handleDelete(b.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       )}
 
       <BookingDrawer
@@ -530,25 +535,110 @@ export function BookingsList({
   )
 }
 
-function PaymentBadge({ status }: { status: Booking["payment_status"] }) {
-  const styles =
-    status === "paid" || status === "confirmed"
-      ? "bg-[#A9D6C5]/20 text-[#2C4A45] border border-[#A9D6C5]/40"
-      : status === "partial"
-        ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
-        : status === "cancelled"
-          ? "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
-          : "bg-secondary text-muted-foreground border border-transparent"
+// ── BookingRow ───────────────────────────────────────────────────────────────
+
+function BookingRow({
+  booking: b,
+  onEdit,
+  onDelete,
+}: {
+  booking: Booking
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const typeLabel = getBookingTypeLabel(b)
+  const subtitle = getSubtitle(b)
+  const amountStr = b.amount != null ? formatMoney(b.amount, "THB") : "—"
+
   return (
-    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium capitalize", styles)}>
-      {status}
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-accent/30">
+      {/* Type label */}
+      <span className="w-[108px] shrink-0 text-xs font-medium text-muted-foreground">
+        {typeLabel}
+      </span>
+
+      {/* Name + subtitle */}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-sm font-semibold leading-snug">{b.title}</span>
+        <div className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+          {subtitle && <span>{subtitle}</span>}
+          {b.confirmation_number ? (
+            <span className={cn("text-green-600 dark:text-green-500", subtitle && "before:mr-1 before:content-['·']")}>
+              Confirmed
+            </span>
+          ) : (
+            <span className={cn("text-amber-500 dark:text-amber-400", subtitle && "before:mr-1 before:content-['·']")}>
+              TBC
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Amount + status + actions */}
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="min-w-[72px] text-right text-sm font-medium tabular-nums text-foreground">
+          {amountStr}
+        </span>
+        <div className="w-[52px] flex justify-center">
+          <StatusBadge status={b.payment_status} />
+        </div>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          aria-label="Edit booking"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          aria-label="Delete booking"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Status badge ─────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: Booking["payment_status"] }) {
+  if (status === "paid" || status === "confirmed") {
+    return <span aria-label="Paid">✅</span>
+  }
+  if (status === "partial") {
+    return (
+      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+        Partial
+      </span>
+    )
+  }
+  if (status === "cancelled") {
+    return (
+      <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+        Cancelled
+      </span>
+    )
+  }
+  return (
+    <span className="rounded-full border border-transparent bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+      Pending
     </span>
   )
 }
 
+// ── Formatters ───────────────────────────────────────────────────────────────
+
 function formatMoney(amount: number, currency: string) {
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount)
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount)
   } catch {
     return `${currency} ${amount}`
   }

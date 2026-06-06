@@ -12,9 +12,10 @@ type Props = {
   onPhotoUrl?: (url: string | null) => void
   placeholder?: string
   className?: string
+  nameOnly?: boolean
 }
 
-export function LocationAutocomplete({ id, value, onChange, onPhotoUrl, placeholder, className }: Props) {
+export function LocationAutocomplete({ id, value, onChange, onPhotoUrl, placeholder, className, nameOnly }: Props) {
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompleteSuggestion[]>([])
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -58,7 +59,7 @@ export function LocationAutocomplete({ id, value, onChange, onPhotoUrl, placehol
   async function select(suggestion: google.maps.places.AutocompleteSuggestion) {
     const pred = suggestion.placePrediction
     if (!pred) return
-    onChange(pred.text.text)
+    onChange(nameOnly ? (pred.mainText?.text ?? pred.text.text) : pred.text.text)
     setSuggestions([])
     setOpen(false)
     sessionTokenRef.current = null
