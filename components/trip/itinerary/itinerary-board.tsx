@@ -929,6 +929,11 @@ export function ItineraryBoard({
                     <SortableContext items={items.map((a) => a.id)} strategy={verticalListSortingStrategy}>
                       {items.map((a) => {
                         const linkedBooking = activityBookingMap.get(a.id)
+                        const bookingStatus = !a.booking_id
+                          ? "not-required" as const
+                          : linkedBooking?.confirmation_number
+                            ? "booked" as const
+                            : "pending" as const
                         return (
                           <div
                             key={a.id}
@@ -940,7 +945,7 @@ export function ItineraryBoard({
                             <ActivityCard
                               activity={a}
                               conflicts={conflicts.get(a.id)}
-                              hasBooking={!!linkedBooking}
+                              bookingStatus={bookingStatus}
                               onClick={() => {
                                 setFocusedActivityId(a.id)
                                 setDrawerState({ mode: "edit", activity: a })
@@ -1072,6 +1077,7 @@ export function ItineraryBoard({
         currency={trip.default_currency ?? "USD"}
         tripStart={trip.start_date}
         tripEnd={trip.end_date}
+        linkedBooking={drawerState?.mode === "edit" ? (activityBookingMap.get(drawerState.activity.id) ?? null) : null}
         onClose={() => setDrawerState(null)}
         onSave={handleSave}
         onDelete={handleDelete}

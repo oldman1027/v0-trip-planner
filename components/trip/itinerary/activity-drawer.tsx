@@ -12,7 +12,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { LocationAutocomplete } from "./location-autocomplete"
 import { Spinner } from "@/components/ui/spinner"
 import { formatDayLabel, getBlockFromTime } from "@/lib/dates"
-import type { Activity, TimeBlock } from "@/lib/types"
+import type { Activity, Booking, TimeBlock } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -37,6 +37,7 @@ export function ActivityDrawer({
   currency,
   tripStart,
   tripEnd,
+  linkedBooking,
   onClose,
   onSave,
   onDelete,
@@ -46,6 +47,7 @@ export function ActivityDrawer({
   currency: string
   tripStart: string
   tripEnd: string
+  linkedBooking?: Booking | null
   onClose: () => void
   onSave: (input: {
     id?: string
@@ -446,6 +448,19 @@ export function ActivityDrawer({
                     </span>
                   </div>
                 </label>
+                {needsBooking && state?.mode === "edit" && (
+                  <div className="mt-2 flex items-center gap-1.5 pl-1">
+                    {linkedBooking?.confirmation_number ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
+                        ✅ Booked · #{linkedBooking.confirmation_number}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+                        Pending — add confirmation # in Bookings
+                      </span>
+                    )}
+                  </div>
+                )}
               </Field>
 
               <Field>

@@ -29,19 +29,21 @@ const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: Rea
   other:         { bg: "bg-[#A9D6C5]/20", icon: MoreHorizontal, iconCls: "text-[#6D8F87]" },
 }
 
+export type BookingStatus = "not-required" | "pending" | "booked"
+
 export function ActivityCard({
   activity,
   dragging,
   onClick,
   conflicts,
-  hasBooking,
+  bookingStatus,
   onBookingClick,
 }: {
   activity: Activity
   dragging?: boolean
   onClick?: () => void
   conflicts?: ConflictInfo[]
-  hasBooking?: boolean
+  bookingStatus?: BookingStatus
   onBookingClick?: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -96,19 +98,22 @@ export function ActivityCard({
         <div className="flex w-full items-start justify-between gap-2">
           <div className="min-w-0 truncate font-medium leading-tight">{activity.title}</div>
           <div className="flex shrink-0 items-center gap-1.5">
-            {hasBooking && (
+            {(bookingStatus === "booked" || bookingStatus === "pending") && (
               <span
                 role={onBookingClick ? "button" : undefined}
                 tabIndex={onBookingClick ? 0 : undefined}
                 onClick={onBookingClick ? (e) => { e.stopPropagation(); onBookingClick() } : undefined}
                 onKeyDown={onBookingClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onBookingClick() } } : undefined}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
-                  onBookingClick && "cursor-pointer hover:bg-emerald-100 transition-colors",
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                  bookingStatus === "booked"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+                    : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400",
+                  onBookingClick && "cursor-pointer hover:opacity-80",
                 )}
               >
                 <CalendarCheck className="h-2.5 w-2.5" aria-hidden />
-                Booked
+                {bookingStatus === "booked" ? "Booked" : "Pending"}
               </span>
             )}
             {activity.cost_amount != null ? (
