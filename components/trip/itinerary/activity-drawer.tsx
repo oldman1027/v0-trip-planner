@@ -26,6 +26,12 @@ const CATEGORIES: { value: Activity["category"]; label: string }[] = [
   { value: "other",         label: "Other" },
 ]
 
+const VALID_CATEGORIES = new Set<string>(CATEGORIES.map((c) => c.value))
+
+function safeCategory(raw: string | null | undefined): Activity["category"] {
+  return VALID_CATEGORIES.has(raw ?? "") ? (raw as Activity["category"]) : "other"
+}
+
 type State =
   | { mode: "create"; day_date: string; time_block: TimeBlock; start_time?: string }
   | { mode: "edit"; activity: Activity }
@@ -141,7 +147,7 @@ export function ActivityDrawer({
         notes: a.notes ?? "",
         cost: a.cost_amount != null ? String(a.cost_amount) : "",
         photo: a.photo_url ?? "",
-        category: a.category ?? "other",
+        category: safeCategory(a.category),
         needsBooking: !!a.booking_id,
       }
     }
@@ -223,7 +229,7 @@ export function ActivityDrawer({
       notes: notes.trim() || null,
       cost_amount: cost ? Number(cost) : null,
       photo_url: resolvedPhoto,
-      category,
+      category: safeCategory(category),
       needs_booking: needsBooking,
     })
   }

@@ -33,9 +33,13 @@ export function BookingAttachments({
 
   useEffect(() => {
     if (!viewerFile) return
+    document.body.style.overflow = "hidden"
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setViewerFile(null) }
     document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      document.body.style.overflow = ""
+    }
   }, [viewerFile])
 
   const handleFileSelect = useCallback(
@@ -193,11 +197,11 @@ export function BookingAttachments({
       {viewerFile && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 animate-in fade-in duration-200"
-          onClick={() => setViewerFile(null)}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setViewerFile(null) }}
         >
           <div
             className="relative flex h-[90vh] w-[90vw] flex-col overflow-hidden rounded-xl"
-            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             {/* Header bar */}
             <div className="flex shrink-0 items-center justify-between bg-black/60 px-4 py-3 backdrop-blur-sm">
@@ -237,7 +241,7 @@ export function BookingAttachments({
               ) : isPdfFile(viewerFile.file_type) ? (
                 <iframe
                   src={viewerFile.public_url}
-                  className="h-full w-full bg-white"
+                  className="h-full w-full overflow-auto bg-white"
                   title={viewerFile.file_name}
                 />
               ) : (

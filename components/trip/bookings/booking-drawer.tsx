@@ -81,7 +81,11 @@ export function BookingDrawer({
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const [saveLabel, setSaveLabel] = useState<"idle" | "saving" | "saved">("idle")
   const formRef = useRef<HTMLFormElement>(null)
+  const saveLabelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -96,6 +100,11 @@ export function BookingDrawer({
   }, [open])
 
   useEffect(() => {
+    if (saveLabelTimerRef.current) clearTimeout(saveLabelTimerRef.current)
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    setIsDirty(false)
+    setSaveLabel("idle")
+
     if (booking) {
       const t = booking.type as DrawerType
       setType(t)
@@ -205,7 +214,7 @@ export function BookingDrawer({
       setSelectedCurrency("THB")
       setPendingFiles([])
     }
-  }, [booking, open])
+  }, [booking?.id, open])
 
   const isDining = type === "dining"
   const isAccommodation = type === "accommodation"
@@ -260,12 +269,8 @@ export function BookingDrawer({
     )
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-
+  function buildSaveInput(): BookingSaveInput {
     const existingActivityId = ((booking?.details as Record<string, unknown> | null)?.activity_id as string) ?? undefined
-
     let effectiveTitle: string
     let effectiveDetails: Record<string, unknown> | null
     let effectiveBookingDate: string | null
@@ -288,20 +293,14 @@ export function BookingDrawer({
       effectiveBookingDate = restaurantDatetime ? restaurantDatetime.slice(0, 10) : null
     } else if (type === "accommodation") {
       effectiveTitle = title.trim()
-      effectiveDetails = {
-        address: address.trim() || null,
-        notes: notes.trim() || null,
-      }
+      effectiveDetails = { address: address.trim() || null, notes: notes.trim() || null }
       effectiveBookingDate = isLinked ? (booking?.booking_date ?? null) : bookingDate || null
       effectiveCheckInTime = checkInTime || null
       effectiveCheckOutTime = checkOutTime || null
       effectiveCheckOutDate = checkOutDate || null
     } else if (type === "activities") {
       effectiveTitle = title.trim()
-      effectiveDetails = {
-        location: activityLocation.trim() || null,
-        notes: notes.trim() || null,
-      }
+      effectiveDetails = { location: activityLocation.trim() || null, notes: notes.trim() || null }
       effectiveBookingDate = bookingDate || null
       effectiveDepartureTime = startTime || null
     } else if (type === "transport") {
@@ -323,28 +322,69 @@ export function BookingDrawer({
       effectiveBookingDate = bookingDate || null
     }
 
+    return {
+      id: booking?.id,
+      type,
+      title: effectiveTitle,
+      details: effectiveDetails,
+      amount: convertToTHB(amount),
+      currency: booking?.currency ?? currency,
+      payment_status: status,
+      cancellation_deadline: deadline ? new Date(deadline + "T23:59:00").toISOString() : null,
+      booking_date: effectiveBookingDate,
+      confirmation_number: confirmationNumber.trim() || null,
+      booking_url: bookingUrl.trim() || null,
+      check_in_time: effectiveCheckInTime,
+      check_out_time: effectiveCheckOutTime,
+      check_out_date: effectiveCheckOutDate,
+      departure_time: effectiveDepartureTime,
+      arrival_time: effectiveArrivalTime,
+      trackInCosts: !booking && trackInCosts,
+      addToItinerary: !booking && addToItinerary,
+    }
+  }
+
+  async function saveBooking(): Promise<boolean> {
+    setSaving(true)
+    setSaveLabel("saving")
     try {
-      const newId = await onSave({
-        id: booking?.id,
-        type,
-        title: effectiveTitle,
-        details: effectiveDetails,
-        amount: convertToTHB(amount),
-        currency: booking?.currency ?? currency,
-        payment_status: status,
-        cancellation_deadline: deadline ? new Date(deadline + "T23:59:00").toISOString() : null,
-        booking_date: effectiveBookingDate,
-        confirmation_number: confirmationNumber.trim() || null,
-        booking_url: bookingUrl.trim() || null,
-        check_in_time: effectiveCheckInTime,
-        check_out_time: effectiveCheckOutTime,
-        check_out_date: effectiveCheckOutDate,
-        departure_time: effectiveDepartureTime,
-        arrival_time: effectiveArrivalTime,
-        trackInCosts: !booking && trackInCosts,
-        addToItinerary: !booking && addToItinerary,
+      await onSave(buildSaveInput())
+      setIsDirty(false)
+      setSaveLabel("saved")
+      saveLabelTimerRef.current = setTimeout(() => setSaveLabel("idle"), 1500)
+      return true
+    } catch (err) {
+      const e = err as { message?: string; details?: string }
+      toast.error("Could not save booking", {
+        description: e?.message ?? e?.details ?? JSON.stringify(err),
       })
-      if (!booking && newId && pendingFiles.length > 0) {
+      setSaveLabel("idle")
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleSheetOpenChange(v: boolean) {
+    if (!v) {
+      if (booking && isDirty) {
+        saveBooking().then(() => onClose())
+      } else {
+        onClose()
+      }
+    }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (booking) {
+      await saveBooking()
+      return
+    }
+    setSaving(true)
+    try {
+      const newId = await onSave(buildSaveInput())
+      if (newId && pendingFiles.length > 0) {
         for (const file of pendingFiles) {
           try { await uploadBookingAttachment(newId, tripId, file) } catch { /* ignore per-file errors */ }
         }
@@ -374,6 +414,7 @@ export function BookingDrawer({
   const submitDisabled =
     saving ||
     !!dateError ||
+    (!!booking && !isDirty) ||
     (isDining
       ? !restaurantName.trim() || !restaurantDatetime || !partySize
       : isTransport
@@ -381,13 +422,23 @@ export function BookingDrawer({
       : !title.trim())
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
         <SheetHeader className="border-b border-border px-4 py-4">
           <SheetTitle className="font-serif text-2xl">{booking ? "Edit booking" : "Add booking"}</SheetTitle>
         </SheetHeader>
 
-        <form ref={formRef} onSubmit={onSubmit} className="flex flex-1 flex-col">
+        <form
+          ref={formRef}
+          onSubmit={onSubmit}
+          onChange={() => setIsDirty(true)}
+          onBlur={() => {
+            if (!booking || !isDirty) return
+            if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+            autoSaveTimerRef.current = setTimeout(() => saveBooking(), 800)
+          }}
+          className="flex flex-1 flex-col"
+        >
           <div className="flex-1 px-4 py-6">
             <FieldGroup>
               {/* Type selector */}
@@ -398,6 +449,7 @@ export function BookingDrawer({
                   onValueChange={(v) => {
                     const next = v as DrawerType
                     setType(next)
+                    setIsDirty(true)
                     if ((next === "dining") !== isDining) setStatus("pending")
                   }}
                 >
@@ -506,7 +558,7 @@ export function BookingDrawer({
                     <LocationAutocomplete
                       id="address"
                       value={address}
-                      onChange={setAddress}
+                      onChange={(v) => { setAddress(v); setIsDirty(true) }}
                       placeholder="Hotel address"
                     />
                   </Field>
@@ -564,7 +616,7 @@ export function BookingDrawer({
                     <LocationAutocomplete
                       id="restaurant-location"
                       value={restaurantLocation}
-                      onChange={setRestaurantLocation}
+                      onChange={(v) => { setRestaurantLocation(v); setIsDirty(true) }}
                       placeholder="Restaurant address"
                     />
                   </Field>
@@ -617,7 +669,7 @@ export function BookingDrawer({
                     <LocationAutocomplete
                       id="activity-location"
                       value={activityLocation}
-                      onChange={setActivityLocation}
+                      onChange={(v) => { setActivityLocation(v); setIsDirty(true) }}
                       placeholder="Tokyo DisneySea, Japan"
                     />
                   </Field>
@@ -774,7 +826,7 @@ export function BookingDrawer({
                     <div className="absolute right-1 top-1/2 flex -translate-y-1/2 overflow-hidden rounded-lg border border-border">
                       <button
                         type="button"
-                        onClick={() => setSelectedCurrency("THB")}
+                        onClick={() => { setSelectedCurrency("THB"); setIsDirty(true) }}
                         className={cn(
                           "px-2 py-1 text-xs font-medium transition-colors",
                           selectedCurrency === "THB"
@@ -786,7 +838,7 @@ export function BookingDrawer({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSelectedCurrency("MYR")}
+                        onClick={() => { setSelectedCurrency("MYR"); setIsDirty(true) }}
                         className={cn(
                           "px-2 py-1 text-xs font-medium transition-colors",
                           selectedCurrency === "MYR"
@@ -808,7 +860,7 @@ export function BookingDrawer({
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="status">{isDining ? "Reservation" : "Payment"}</FieldLabel>
-                  <Select value={status} onValueChange={(v) => setStatus(v as Booking["payment_status"])}>
+                  <Select value={status} onValueChange={(v) => { setStatus(v as Booking["payment_status"]); setIsDirty(true) }}>
                     <SelectTrigger id="status" className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
@@ -933,9 +985,9 @@ export function BookingDrawer({
                 disabled={submitDisabled}
               >
                 {saving ? (
-                  <>
-                    <Spinner className="mr-2 size-4" /> Saving...
-                  </>
+                  <><Spinner className="mr-2 size-4" /> Saving...</>
+                ) : saveLabel === "saved" ? (
+                  "Saved ✓"
                 ) : (
                   "Save"
                 )}

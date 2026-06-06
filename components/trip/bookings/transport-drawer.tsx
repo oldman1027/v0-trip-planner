@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -117,8 +117,16 @@ export function TransportDrawer({
   const [editingField, setEditingField] = useState<EditingField>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const [saveLabel, setSaveLabel] = useState<"idle" | "saving" | "saved">("idle")
+  const saveLabelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    if (saveLabelTimerRef.current) clearTimeout(saveLabelTimerRef.current)
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    setIsDirty(false)
+    setSaveLabel("idle")
     if (!open) {
       setEditingField(null)
       return
@@ -162,45 +170,84 @@ export function TransportDrawer({
       setPendingFiles([])
     }
     setEditingField(null)
-  }, [booking, open, defaultType])
+  }, [booking?.id, open, defaultType])
 
   const duration = calcDuration(departureTime, arrivalTime)
 
+  function buildSaveInput(): BookingSaveInput {
+    return {
+      id: booking?.id,
+      type: "transport",
+      title: flightNumber.trim() || (type === "flight" ? "Flight" : "Transport"),
+      addToItinerary: !booking && addToItinerary,
+      details: {
+        transport_type: type,
+        from_code: fromCode.trim().toUpperCase() || null,
+        from_city: fromCity.trim() || null,
+        to_code: toCode.trim().toUpperCase() || null,
+        to_city: toCity.trim() || null,
+        departure_time: departureTime || null,
+        arrival_time: arrivalTime || null,
+        notes: notes.trim() || null,
+      },
+      confirmation_number: confirmationNumber.trim() || null,
+      booking_url: bookingUrl.trim() || null,
+      check_in_time: null,
+      check_out_time: null,
+      check_out_date: null,
+      departure_time: null,
+      arrival_time: null,
+      amount: amount ? (selectedCurrency === "MYR" ? Number(amount) * 7.69 : Number(amount)) : null,
+      currency: "THB",
+      payment_status: paymentStatus,
+      cancellation_deadline: cancellationDeadline
+        ? new Date(cancellationDeadline + "T23:59:00").toISOString()
+        : null,
+      booking_date: departureTime ? departureTime.slice(0, 10) : null,
+    }
+  }
+
+  async function saveBooking(): Promise<boolean> {
+    setSaving(true)
+    setSaveLabel("saving")
+    try {
+      await onSave(buildSaveInput())
+      setIsDirty(false)
+      setSaveLabel("saved")
+      saveLabelTimerRef.current = setTimeout(() => setSaveLabel("idle"), 1500)
+      return true
+    } catch (err) {
+      const e = err as { message?: string; details?: string }
+      toast.error("Could not save transport", {
+        description: e?.message ?? e?.details ?? JSON.stringify(err),
+      })
+      setSaveLabel("idle")
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleSheetOpenChange(v: boolean) {
+    if (!v) {
+      if (booking && isDirty) {
+        saveBooking().then(() => onClose())
+      } else {
+        onClose()
+      }
+    }
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    if (booking) {
+      await saveBooking()
+      return
+    }
     setSaving(true)
     try {
-      const newId = await onSave({
-        id: booking?.id,
-        type: "transport",
-        title: flightNumber.trim() || (type === "flight" ? "Flight" : "Transport"),
-        addToItinerary: !booking && addToItinerary,
-        details: {
-          transport_type: type,
-          from_code: fromCode.trim().toUpperCase() || null,
-          from_city: fromCity.trim() || null,
-          to_code: toCode.trim().toUpperCase() || null,
-          to_city: toCity.trim() || null,
-          departure_time: departureTime || null,
-          arrival_time: arrivalTime || null,
-          notes: notes.trim() || null,
-        },
-        confirmation_number: confirmationNumber.trim() || null,
-        booking_url: bookingUrl.trim() || null,
-        check_in_time: null,
-        check_out_time: null,
-        check_out_date: null,
-        departure_time: null,
-        arrival_time: null,
-        amount: amount ? (selectedCurrency === "MYR" ? Number(amount) * 7.69 : Number(amount)) : null,
-        currency: "THB",
-        payment_status: paymentStatus,
-        cancellation_deadline: cancellationDeadline
-          ? new Date(cancellationDeadline + "T23:59:00").toISOString()
-          : null,
-        booking_date: departureTime ? departureTime.slice(0, 10) : null,
-      })
-      if (!booking && newId && pendingFiles.length > 0) {
+      const newId = await onSave(buildSaveInput())
+      if (newId && pendingFiles.length > 0) {
         for (const file of pendingFiles) {
           try { await uploadBookingAttachment(newId, tripId, file) } catch { /* ignore per-file errors */ }
         }
@@ -229,6 +276,10 @@ export function TransportDrawer({
 
   function stopEdit() {
     setEditingField(null)
+    if (booking && isDirty) {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = setTimeout(() => saveBooking(), 800)
+    }
   }
 
   const routeLabel =
@@ -237,9 +288,9 @@ export function TransportDrawer({
     fromCity && toCity ? `${fromCity} → ${toCity}` : null
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-md overflow-hidden">
-        <form onSubmit={handleSave} className="flex h-full flex-col">
+        <form onSubmit={handleSave} onChange={() => setIsDirty(true)} className="flex h-full flex-col">
           {/* ── Scrollable body ── */}
           <div className="flex-1 overflow-y-auto">
 
@@ -365,7 +416,7 @@ export function TransportDrawer({
                   <div className="mt-0.5">
                     <LocationAutocomplete
                       value={fromCity}
-                      onChange={setFromCity}
+                      onChange={(v) => { setFromCity(v); setIsDirty(true) }}
                       placeholder="Departure city"
                       className="h-8 rounded-lg font-semibold"
                       nameOnly
@@ -422,7 +473,7 @@ export function TransportDrawer({
                   <div className="mt-0.5">
                     <LocationAutocomplete
                       value={toCity}
-                      onChange={setToCity}
+                      onChange={(v) => { setToCity(v); setIsDirty(true) }}
                       placeholder="Arrival city"
                       className="h-8 rounded-lg font-semibold"
                       nameOnly
@@ -471,7 +522,7 @@ export function TransportDrawer({
                   <div className="flex overflow-hidden rounded-md border border-border">
                     <button
                       type="button"
-                      onClick={() => setSelectedCurrency("THB")}
+                      onClick={() => { setSelectedCurrency("THB"); setIsDirty(true) }}
                       className={cn(
                         "px-1.5 py-0.5 text-[10px] font-medium transition-colors",
                         selectedCurrency === "THB"
@@ -483,7 +534,7 @@ export function TransportDrawer({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSelectedCurrency("MYR")}
+                      onClick={() => { setSelectedCurrency("MYR"); setIsDirty(true) }}
                       className={cn(
                         "px-1.5 py-0.5 text-[10px] font-medium transition-colors",
                         selectedCurrency === "MYR"
@@ -541,7 +592,7 @@ export function TransportDrawer({
                 </p>
                 <Select
                   value={paymentStatus}
-                  onValueChange={(v) => setPaymentStatus(v as Booking["payment_status"])}
+                  onValueChange={(v) => { setPaymentStatus(v as Booking["payment_status"]); setIsDirty(true) }}
                 >
                   <SelectTrigger className="h-8 rounded-lg text-sm">
                     <SelectValue />
@@ -646,12 +697,11 @@ export function TransportDrawer({
 
           {/* ── Sticky CTA ── */}
           <div className="shrink-0 border-t border-border bg-card p-4">
-            <Button type="submit" className="w-full rounded-xl" disabled={saving}>
+            <Button type="submit" className="w-full rounded-xl" disabled={saving || (!!booking && !isDirty)}>
               {saving ? (
-                <>
-                  <Spinner className="mr-2 size-4" />
-                  Saving...
-                </>
+                <><Spinner className="mr-2 size-4" /> Saving...</>
+              ) : saveLabel === "saved" ? (
+                "Saved ✓"
               ) : (
                 "Save Transport"
               )}
