@@ -572,6 +572,7 @@ export function ItineraryBoard({
               amount: input.cost_amount,
               currency: trip.default_currency ?? "USD",
               payment_status: "pending",
+              reservation_status: "tbc",
               details: _newLinkFields.details,
               ..._newLinkFields.topLevel,
             })
@@ -974,7 +975,9 @@ export function ItineraryBoard({
                         const linkedBooking = activityBookingMap.get(a.id)
                         const bookingStatus = !a.booking_id
                           ? "not-required" as const
-                          : linkedBooking?.confirmation_number || linkedBooking?.payment_status === "confirmed"
+                          : linkedBooking?.confirmation_number
+                            || linkedBooking?.reservation_status === "confirmed"
+                            || (!linkedBooking?.reservation_status && linkedBooking?.payment_status === "confirmed")
                             ? "booked" as const
                             : "pending" as const
                         return (

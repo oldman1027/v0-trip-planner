@@ -108,6 +108,7 @@ export function TransportDrawer({
   const [amount, setAmount] = useState("")
   const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
   const [paymentStatus, setPaymentStatus] = useState<Booking["payment_status"]>("pending")
+  const [reservationStatus, setReservationStatus] = useState<"confirmed" | "pending" | "tbc" | "cancelled">("tbc")
   const [cancellationDeadline, setCancellationDeadline] = useState("")
   const [confirmationNumber, setConfirmationNumber] = useState("")
   const [bookingUrl, setBookingUrl] = useState("")
@@ -121,6 +122,7 @@ export function TransportDrawer({
   const [saveLabel, setSaveLabel] = useState<"idle" | "saving" | "saved">("idle")
   const saveLabelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevReservationStatusRef = useRef<"confirmed" | "pending" | "tbc" | "cancelled" | null>(null)
 
   useEffect(() => {
     if (saveLabelTimerRef.current) clearTimeout(saveLabelTimerRef.current)
@@ -147,6 +149,7 @@ export function TransportDrawer({
       setCancellationDeadline(
         booking.cancellation_deadline ? booking.cancellation_deadline.slice(0, 10) : ""
       )
+      setReservationStatus((booking.reservation_status ?? "tbc") as "confirmed" | "pending" | "tbc" | "cancelled")
       setConfirmationNumber(booking.confirmation_number ?? "")
       setBookingUrl(booking.booking_url ?? "")
       setNotes(d.notes ?? "")
@@ -163,6 +166,7 @@ export function TransportDrawer({
       setAmount("")
       setSelectedCurrency("THB")
       setPaymentStatus("pending")
+      setReservationStatus("tbc")
       setCancellationDeadline("")
       setConfirmationNumber("")
       setBookingUrl("")
@@ -190,6 +194,7 @@ export function TransportDrawer({
         arrival_time: arrivalTime || null,
         notes: notes.trim() || null,
       },
+      reservation_status: reservationStatus,
       confirmation_number: confirmationNumber.trim() || null,
       booking_url: bookingUrl.trim() || null,
       check_in_time: null,
@@ -627,10 +632,29 @@ export function TransportDrawer({
                 </p>
                 <Input
                   value={confirmationNumber}
-                  onChange={(e) => setConfirmationNumber(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setConfirmationNumber(val)
+                    if (val.trim()) {
+                      if (reservationStatus !== "confirmed") {
+                        prevReservationStatusRef.current = reservationStatus
+                        setReservationStatus("confirmed")
+                      }
+                    } else {
+                      if (reservationStatus === "confirmed" && prevReservationStatusRef.current !== null) {
+                        setReservationStatus(prevReservationStatusRef.current)
+                        prevReservationStatusRef.current = null
+                      }
+                    }
+                  }}
                   placeholder="ABC123"
                   className="rounded-xl"
                 />
+                {!confirmationNumber && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Having a ref number will auto-mark this as Confirmed
+                  </p>
+                )}
               </div>
               <div>
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -644,6 +668,24 @@ export function TransportDrawer({
                   className="rounded-xl"
                 />
               </div>
+            </div>
+
+            {/* ── Reservation status ── */}
+            <div className="px-5 pb-5">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Reservation
+              </p>
+              <Select value={reservationStatus} onValueChange={(v) => { setReservationStatus(v as "confirmed" | "pending" | "tbc" | "cancelled"); setIsDirty(true) }}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="tbc">TBC</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* ── Notes ── */}

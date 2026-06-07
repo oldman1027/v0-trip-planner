@@ -564,20 +564,18 @@ function BookingRow({
           {subtitle && <span>{subtitle}</span>}
           {(() => {
             const rs = getReservationStatus(b)
+            const dot = subtitle && "before:mr-1 before:content-['·']"
             if (rs === "confirmed") return (
-              <span className={cn("text-green-600 dark:text-green-500", subtitle && "before:mr-1 before:content-['·']")}>
-                Confirmed
-              </span>
+              <span className={cn("text-green-600 dark:text-green-500", dot)}>Confirmed</span>
+            )
+            if (rs === "cancelled") return (
+              <span className={cn("text-red-500 dark:text-red-400", dot)}>Cancelled</span>
             )
             if (rs === "pending") return (
-              <span className={cn("text-muted-foreground/70", subtitle && "before:mr-1 before:content-['·']")}>
-                Pending
-              </span>
+              <span className={cn("text-muted-foreground/70", dot)}>Pending</span>
             )
             return (
-              <span className={cn("text-amber-500 dark:text-amber-400", subtitle && "before:mr-1 before:content-['·']")}>
-                TBC
-              </span>
+              <span className={cn("text-amber-500 dark:text-amber-400", dot)}>TBC</span>
             )
           })()}
         </div>
@@ -614,12 +612,13 @@ function BookingRow({
 
 // ── Reservation status helper ─────────────────────────────────────────────────
 
-function getReservationStatus(booking: Pick<Booking, "confirmation_number" | "payment_status">) {
+function getReservationStatus(booking: Pick<Booking, "confirmation_number" | "payment_status" | "reservation_status">) {
   const hasConfirmationNumber = !!booking.confirmation_number?.trim()
-  const isDropdownConfirmed = booking.payment_status === "confirmed"
-  if (hasConfirmationNumber || isDropdownConfirmed) return "confirmed" as const
-  if (booking.payment_status === "tbc") return "tbc" as const
-  if (booking.payment_status === "pending") return "pending" as const
+  // Use reservation_status if set; fall back to payment_status for pre-migration rows
+  const rs = booking.reservation_status ?? booking.payment_status
+  if (rs === "cancelled") return "cancelled" as const
+  if (hasConfirmationNumber || rs === "confirmed") return "confirmed" as const
+  if (rs === "pending") return "pending" as const
   return "tbc" as const
 }
 

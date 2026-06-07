@@ -73,6 +73,7 @@ export function BookingDrawer({
   const [bookingUrl, setBookingUrl] = useState("")
   const [amount, setAmount] = useState("")
   const [status, setStatus] = useState<Booking["payment_status"]>("pending")
+  const [reservationStatus, setReservationStatus] = useState<"confirmed" | "pending" | "tbc" | "cancelled">("tbc")
   const [deadline, setDeadline] = useState("")
   const [notes, setNotes] = useState("")
   const [trackInCosts, setTrackInCosts] = useState(false)
@@ -86,7 +87,7 @@ export function BookingDrawer({
   const formRef = useRef<HTMLFormElement>(null)
   const saveLabelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const prevStatusBeforeAutoConfirm = useRef<Booking["payment_status"] | null>(null)
+  const prevReservationStatusRef = useRef<"confirmed" | "pending" | "tbc" | "cancelled" | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -111,6 +112,7 @@ export function BookingDrawer({
       setType(t)
       setAmount(booking.amount != null ? String(booking.amount) : "")
       setStatus(booking.payment_status)
+      setReservationStatus((booking.reservation_status ?? "tbc") as "confirmed" | "pending" | "tbc" | "cancelled")
       setDeadline(booking.cancellation_deadline ? booking.cancellation_deadline.slice(0, 10) : "")
       setConfirmationNumber(booking.confirmation_number ?? "")
       setBookingUrl(booking.booking_url ?? "")
@@ -208,6 +210,7 @@ export function BookingDrawer({
       setBookingUrl("")
       setAmount("")
       setStatus("pending")
+      setReservationStatus("tbc")
       setDeadline("")
       setNotes("")
       setTrackInCosts(false)
@@ -331,6 +334,7 @@ export function BookingDrawer({
       amount: convertToTHB(amount),
       currency: booking?.currency ?? currency,
       payment_status: status,
+      reservation_status: reservationStatus,
       cancellation_deadline: deadline ? new Date(deadline + "T23:59:00").toISOString() : null,
       booking_date: effectiveBookingDate,
       confirmation_number: confirmationNumber.trim() || null,
@@ -799,14 +803,14 @@ export function BookingDrawer({
                       const val = e.target.value
                       setConfirmationNumber(val)
                       if (val.trim()) {
-                        if (status !== "confirmed") {
-                          prevStatusBeforeAutoConfirm.current = status
-                          setStatus("confirmed")
+                        if (reservationStatus !== "confirmed") {
+                          prevReservationStatusRef.current = reservationStatus
+                          setReservationStatus("confirmed")
                         }
                       } else {
-                        if (status === "confirmed" && prevStatusBeforeAutoConfirm.current !== null) {
-                          setStatus(prevStatusBeforeAutoConfirm.current)
-                          prevStatusBeforeAutoConfirm.current = null
+                        if (reservationStatus === "confirmed" && prevReservationStatusRef.current !== null) {
+                          setReservationStatus(prevReservationStatusRef.current)
+                          prevReservationStatusRef.current = null
                         }
                       }
                     }}
@@ -836,8 +840,24 @@ export function BookingDrawer({
                 </Field>
               </div>
 
-              {/* ── Shared: amount + status ── */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* ── Shared: reservation status ── */}
+              <Field>
+                <FieldLabel htmlFor="reservation-status">Reservation</FieldLabel>
+                <Select value={reservationStatus} onValueChange={(v) => { setReservationStatus(v as "confirmed" | "pending" | "tbc" | "cancelled"); setIsDirty(true) }}>
+                  <SelectTrigger id="reservation-status" className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="tbc">TBC</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {/* ── Shared: amount + payment (payment hidden for dining) ── */}
+              <div className={cn("grid gap-4", !isDining && "sm:grid-cols-2")}>
                 <Field>
                   <FieldLabel htmlFor="amount">Amount ({selectedCurrency})</FieldLabel>
                   <div className="relative">
@@ -886,30 +906,21 @@ export function BookingDrawer({
                     </p>
                   )}
                 </Field>
-                <Field>
-                  <FieldLabel htmlFor="status">{isDining ? "Reservation" : "Payment"}</FieldLabel>
-                  <Select value={status} onValueChange={(v) => { setStatus(v as Booking["payment_status"]); setIsDirty(true) }}>
-                    <SelectTrigger id="status" className="rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isDining ? (
-                        <>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                          <SelectItem value="tbc">TBC</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </>
-                      ) : (
-                        <>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="partial">Partial</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                {!isDining && (
+                  <Field>
+                    <FieldLabel htmlFor="payment-status">Payment</FieldLabel>
+                    <Select value={status} onValueChange={(v) => { setStatus(v as Booking["payment_status"]); setIsDirty(true) }}>
+                      <SelectTrigger id="payment-status" className="rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="partial">Partial</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
               </div>
 
               {/* ── Cancel by (not for dining) ── */}

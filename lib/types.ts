@@ -86,6 +86,7 @@ export type Booking = {
   amount: number | null
   currency: string | null
   payment_status: "pending" | "paid" | "partial" | "confirmed" | "tbc" | "cancelled"
+  reservation_status: "confirmed" | "pending" | "tbc" | "cancelled" | null
   cancellation_deadline: string | null
   booking_date: string | null
   confirmation_number: string | null
