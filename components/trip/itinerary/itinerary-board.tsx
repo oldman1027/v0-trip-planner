@@ -62,6 +62,40 @@ function categoryToBookingType(cat: Activity["category"]): Booking["type"] {
   return "other"
 }
 
+/** Build the booking fields to pre-fill when auto-creating or syncing a linked booking. */
+function buildLinkedBookingFields(
+  type: Booking["type"],
+  input: { title: string; day_date: string; start_time: string | null; location: string | null },
+  activityId: string,
+  existingDetails?: Record<string, unknown>,
+): { topLevel: Record<string, unknown>; details: Record<string, unknown> } {
+  const base = existingDetails ? { ...existingDetails } : {}
+  if (type === "dining") {
+    const datetime = input.day_date && input.start_time ? `${input.day_date}T${input.start_time}` : null
+    return {
+      topLevel: { booking_date: input.day_date || null },
+      details: { ...base, activity_id: activityId, restaurant_name: input.title, datetime, location: input.location || null },
+    }
+  }
+  if (type === "accommodation") {
+    return {
+      topLevel: { booking_date: input.day_date || null, check_in_time: input.start_time || null },
+      details: { ...base, activity_id: activityId, address: input.location || null },
+    }
+  }
+  if (type === "transport") {
+    return {
+      topLevel: { booking_date: input.day_date || null, departure_time: input.start_time || null },
+      details: { ...base, activity_id: activityId, transport_type: "transport", from_city: input.location || null },
+    }
+  }
+  // activities / other
+  return {
+    topLevel: { booking_date: input.day_date || null, departure_time: input.start_time || null },
+    details: { ...base, activity_id: activityId, location: input.location || null },
+  }
+}
+
 const TIME_BLOCKS: TimeBlock[] = ["morning", "afternoon", "night"]
 
 const BLOCK_START_TIMES: Record<TimeBlock, string> = {
@@ -496,7 +530,7 @@ export function ItineraryBoard({
             }
             await supabase
               .from("bookings")
-              .update({ title: input.title, details: newDetails })
+              .update({ title: input.title, details: newDetails, booking_date: input.day_date || null })
               .eq("id", existingBooking.id)
             setBookings((prev) =>
               prev.map((b) =>
@@ -504,35 +538,42 @@ export function ItineraryBoard({
               ),
             )
           } else {
-            // Update the linked booking
+            // Sync name, date, time, location back to the linked booking (not amount/status/notes)
+            const _syncType = categoryToBookingType(input.category)
+            const _syncExistingDetails = (existingBooking.details ?? {}) as Record<string, unknown>
+            const _syncFields = buildLinkedBookingFields(_syncType, input, _syncExistingDetails.activity_id as string, _syncExistingDetails)
             await supabase
               .from("bookings")
               .update({
                 title: input.title,
-                amount: input.cost_amount,
-                type: categoryToBookingType(input.category),
+                type: _syncType,
+                details: _syncFields.details,
+                ..._syncFields.topLevel,
               })
               .eq("id", existingBooking.id)
             setBookings((prev) =>
               prev.map((b) =>
                 b.id === existingBooking.id
-                  ? { ...b, title: input.title, amount: input.cost_amount, type: categoryToBookingType(input.category) }
+                  ? { ...b, title: input.title, type: _syncType, details: _syncFields.details, ..._syncFields.topLevel }
                   : b,
               ),
             )
           }
         } else {
           // Create new linked booking
+          const _newLinkType = categoryToBookingType(input.category)
+          const _newLinkFields = buildLinkedBookingFields(_newLinkType, input, input.id!)
           const { data: newBooking } = await supabase
             .from("bookings")
             .insert({
               trip_id: trip.id,
-              type: categoryToBookingType(input.category),
+              type: _newLinkType,
               title: input.title,
               amount: input.cost_amount,
               currency: trip.default_currency ?? "USD",
               payment_status: "pending",
-              details: { activity_id: input.id },
+              details: _newLinkFields.details,
+              ..._newLinkFields.topLevel,
             })
             .select()
             .single()
@@ -582,17 +623,19 @@ export function ItineraryBoard({
 
       // Auto-create booking if requested
       if (input.needs_booking) {
+        const _createType = categoryToBookingType(input.category)
+        const _createFields = buildLinkedBookingFields(_createType, input, newActivity.id)
         const { data: newBooking } = await supabase
           .from("bookings")
           .insert({
             trip_id: trip.id,
-            type: categoryToBookingType(input.category),
+            type: _createType,
             title: input.title,
             amount: input.cost_amount,
             currency: trip.default_currency ?? "USD",
             payment_status: "pending",
-            details: { activity_id: newActivity.id },
-            booking_date: input.day_date,
+            details: _createFields.details,
+            ..._createFields.topLevel,
           })
           .select()
           .single()

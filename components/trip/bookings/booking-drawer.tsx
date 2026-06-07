@@ -426,6 +426,14 @@ export function BookingDrawer({
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
         <SheetHeader className="border-b border-border px-4 py-4">
           <SheetTitle className="font-serif text-2xl">{booking ? "Edit booking" : "Add booking"}</SheetTitle>
+          {isLinked && booking && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              🔗 Linked to activity: <span className="font-medium text-foreground">{booking.title}</span>
+              <span className="mt-0.5 block text-muted-foreground/70">
+                Date, time and location sync automatically from the activity.
+              </span>
+            </p>
+          )}
         </SheetHeader>
 
         <form
