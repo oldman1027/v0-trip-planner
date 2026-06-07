@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Pencil, Trash2, Ticket } from "lucide-react"
+import { Plus, Pencil, Trash2, Ticket, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { BookingDrawer, type BookingSaveInput } from "./booking-drawer"
@@ -291,6 +291,7 @@ export function BookingsList({
           amount: bookingData.amount,
           currency: bookingData.currency,
           payment_status: bookingData.payment_status,
+          reservation_status: bookingData.reservation_status,
           cancellation_deadline: bookingData.cancellation_deadline,
           booking_date: bookingData.booking_date,
           confirmation_number: bookingData.confirmation_number,
@@ -373,6 +374,26 @@ export function BookingsList({
       setBookings((prev) => [data as Booking, ...prev])
       toast.success(trackInCosts && bookingData.amount ? "Booking added and expense created" : "Booking added")
       return (data as Booking).id
+    }
+  }
+
+  async function handleToggleReservation(id: string, newStatus: "confirmed" | "tbc") {
+    setBookings((prev) =>
+      prev.map((b) => b.id === id ? { ...b, reservation_status: newStatus } : b),
+    )
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("bookings")
+        .update({ reservation_status: newStatus })
+        .eq("id", id)
+      if (error) throw error
+      toast.success(newStatus === "confirmed" ? "Marked as Confirmed" : "Marked as TBC")
+    } catch {
+      setBookings((prev) =>
+        prev.map((b) => b.id === id ? { ...b, reservation_status: newStatus === "confirmed" ? "tbc" : "confirmed" } : b),
+      )
+      toast.error("Could not update status")
     }
   }
 
@@ -480,6 +501,7 @@ export function BookingsList({
                     booking={b}
                     onEdit={() => { setFocusedBookingId(b.id); setOpen(b) }}
                     onDelete={() => handleDelete(b.id)}
+                    onToggle={handleToggleReservation}
                   />
                 ))}
               </div>
@@ -500,6 +522,7 @@ export function BookingsList({
                     booking={b}
                     onEdit={() => { setFocusedBookingId(b.id); setOpen(b) }}
                     onDelete={() => handleDelete(b.id)}
+                    onToggle={handleToggleReservation}
                   />
                 ))}
               </div>
@@ -541,14 +564,17 @@ function BookingRow({
   booking: b,
   onEdit,
   onDelete,
+  onToggle,
 }: {
   booking: Booking
   onEdit: () => void
   onDelete: () => void
+  onToggle: (id: string, newStatus: "confirmed" | "tbc") => void
 }) {
   const typeLabel = getBookingTypeLabel(b)
   const subtitle = getSubtitle(b)
   const amountStr = b.amount != null ? formatMoney(b.amount, "THB") : "—"
+  const rs = getReservationStatus(b)
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-accent/30">
@@ -560,35 +586,23 @@ function BookingRow({
       {/* Name + subtitle */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-sm font-semibold leading-snug">{b.title}</span>
-        <div className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
-          {subtitle && <span>{subtitle}</span>}
-          {(() => {
-            const rs = getReservationStatus(b)
-            const dot = subtitle && "before:mr-1 before:content-['·']"
-            if (rs === "confirmed") return (
-              <span className={cn("text-green-600 dark:text-green-500", dot)}>Confirmed</span>
-            )
-            if (rs === "cancelled") return (
-              <span className={cn("text-red-500 dark:text-red-400", dot)}>Cancelled</span>
-            )
-            if (rs === "pending") return (
-              <span className={cn("text-muted-foreground/70", dot)}>Pending</span>
-            )
-            return (
-              <span className={cn("text-amber-500 dark:text-amber-400", dot)}>TBC</span>
-            )
-          })()}
-        </div>
+        {subtitle && (
+          <span className="text-xs text-muted-foreground">{subtitle}</span>
+        )}
       </div>
 
-      {/* Amount + status + actions */}
+      {/* Amount · status text · toggle · edit · delete */}
       <div className="flex shrink-0 items-center gap-2">
         <span className="min-w-[72px] text-right text-sm font-medium tabular-nums text-foreground">
           {amountStr}
         </span>
-        <div className="w-[52px] flex justify-center">
-          <StatusBadge status={b.payment_status} />
-        </div>
+        <ReservationStatusText status={rs} />
+        {rs !== "cancelled" && (
+          <QuickToggle
+            isConfirmed={rs === "confirmed"}
+            onToggle={() => onToggle(b.id, rs === "confirmed" ? "tbc" : "confirmed")}
+          />
+        )}
         <button
           type="button"
           onClick={onEdit}
@@ -622,30 +636,37 @@ function getReservationStatus(booking: Pick<Booking, "confirmation_number" | "pa
   return "tbc" as const
 }
 
-// ── Status badge ─────────────────────────────────────────────────────────────
+// ── Reservation status text ───────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: Booking["payment_status"] }) {
-  if (status === "paid") {
-    return <span aria-label="Paid">✅</span>
+function ReservationStatusText({ status }: { status: "confirmed" | "pending" | "tbc" | "cancelled" }) {
+  const map = {
+    confirmed: { label: "Confirmed", cls: "text-green-600 dark:text-green-500" },
+    pending:   { label: "Pending",   cls: "text-amber-500 dark:text-amber-400" },
+    tbc:       { label: "TBC",       cls: "text-amber-500 dark:text-amber-400" },
+    cancelled: { label: "Cancelled", cls: "text-red-500 dark:text-red-400" },
   }
-  if (status === "partial") {
-    return (
-      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-        Partial
-      </span>
-    )
-  }
-  if (status === "cancelled") {
-    return (
-      <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-        Cancelled
-      </span>
-    )
-  }
+  const { label, cls } = map[status] ?? map.tbc
+  return <span className={cn("w-[68px] text-right text-xs font-medium", cls)}>{label}</span>
+}
+
+// ── Quick toggle ──────────────────────────────────────────────────────────────
+
+function QuickToggle({ isConfirmed, onToggle }: { isConfirmed: boolean; onToggle: () => void }) {
   return (
-    <span className="rounded-full border border-transparent bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-      Pending
-    </span>
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onToggle() }}
+      title={isConfirmed ? "Mark as TBC" : "Mark as Confirmed"}
+      className={cn(
+        "flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors",
+        isConfirmed
+          ? "border-green-500 bg-green-50 text-green-600 hover:border-red-300 hover:bg-red-50 hover:text-red-400 dark:bg-green-900/20"
+          : "border-border bg-background text-transparent hover:border-green-400 hover:text-green-400",
+      )}
+      aria-label={isConfirmed ? "Mark as TBC" : "Mark as Confirmed"}
+    >
+      <Check className="h-3 w-3" />
+    </button>
   )
 }
 
