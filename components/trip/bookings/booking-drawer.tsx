@@ -733,22 +733,22 @@ export function BookingDrawer({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field>
                       <FieldLabel htmlFor="transport-from">From</FieldLabel>
-                      <Input
+                      <LocationAutocomplete
                         id="transport-from"
                         value={transportFrom}
-                        onChange={(e) => setTransportFrom(e.target.value)}
+                        onChange={(v) => { setTransportFrom(v); setIsDirty(true) }}
                         placeholder="Kuala Lumpur"
-                        className="rounded-xl"
+                        nameOnly
                       />
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="transport-to">To</FieldLabel>
-                      <Input
+                      <LocationAutocomplete
                         id="transport-to"
                         value={transportTo}
-                        onChange={(e) => setTransportTo(e.target.value)}
+                        onChange={(v) => { setTransportTo(v); setIsDirty(true) }}
                         placeholder="Bangkok"
-                        className="rounded-xl"
+                        nameOnly
                       />
                     </Field>
                   </div>
