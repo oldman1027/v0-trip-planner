@@ -562,15 +562,24 @@ function BookingRow({
         <span className="truncate text-sm font-semibold leading-snug">{b.title}</span>
         <div className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
           {subtitle && <span>{subtitle}</span>}
-          {b.confirmation_number ? (
-            <span className={cn("text-green-600 dark:text-green-500", subtitle && "before:mr-1 before:content-['·']")}>
-              Confirmed
-            </span>
-          ) : (
-            <span className={cn("text-amber-500 dark:text-amber-400", subtitle && "before:mr-1 before:content-['·']")}>
-              TBC
-            </span>
-          )}
+          {(() => {
+            const rs = getReservationStatus(b)
+            if (rs === "confirmed") return (
+              <span className={cn("text-green-600 dark:text-green-500", subtitle && "before:mr-1 before:content-['·']")}>
+                Confirmed
+              </span>
+            )
+            if (rs === "pending") return (
+              <span className={cn("text-muted-foreground/70", subtitle && "before:mr-1 before:content-['·']")}>
+                Pending
+              </span>
+            )
+            return (
+              <span className={cn("text-amber-500 dark:text-amber-400", subtitle && "before:mr-1 before:content-['·']")}>
+                TBC
+              </span>
+            )
+          })()}
         </div>
       </div>
 
@@ -603,10 +612,21 @@ function BookingRow({
   )
 }
 
+// ── Reservation status helper ─────────────────────────────────────────────────
+
+function getReservationStatus(booking: Pick<Booking, "confirmation_number" | "payment_status">) {
+  const hasConfirmationNumber = !!booking.confirmation_number?.trim()
+  const isDropdownConfirmed = booking.payment_status === "confirmed"
+  if (hasConfirmationNumber || isDropdownConfirmed) return "confirmed" as const
+  if (booking.payment_status === "tbc") return "tbc" as const
+  if (booking.payment_status === "pending") return "pending" as const
+  return "tbc" as const
+}
+
 // ── Status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: Booking["payment_status"] }) {
-  if (status === "paid" || status === "confirmed") {
+  if (status === "paid") {
     return <span aria-label="Paid">✅</span>
   }
   if (status === "partial") {

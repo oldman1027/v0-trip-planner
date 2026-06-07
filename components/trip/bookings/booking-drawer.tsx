@@ -86,6 +86,7 @@ export function BookingDrawer({
   const formRef = useRef<HTMLFormElement>(null)
   const saveLabelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevStatusBeforeAutoConfirm = useRef<Booking["payment_status"] | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -794,10 +795,29 @@ export function BookingDrawer({
                   <Input
                     id="conf-number"
                     value={confirmationNumber}
-                    onChange={(e) => setConfirmationNumber(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setConfirmationNumber(val)
+                      if (val.trim()) {
+                        if (status !== "confirmed") {
+                          prevStatusBeforeAutoConfirm.current = status
+                          setStatus("confirmed")
+                        }
+                      } else {
+                        if (status === "confirmed" && prevStatusBeforeAutoConfirm.current !== null) {
+                          setStatus(prevStatusBeforeAutoConfirm.current)
+                          prevStatusBeforeAutoConfirm.current = null
+                        }
+                      }
+                    }}
                     placeholder="ABC123"
                     className="rounded-xl"
                   />
+                  {!confirmationNumber && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Having a ref number will auto-mark this as Confirmed
+                    </p>
+                  )}
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="booking-url">
@@ -877,6 +897,7 @@ export function BookingDrawer({
                         <>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="tbc">TBC</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </>
                       ) : (

@@ -41,6 +41,7 @@ const BOOKING_TYPE_ICON: Record<string, string> = {
 const STATUS_BADGE: Record<Booking["payment_status"], string> = {
   paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
   confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  tbc: "bg-amber-50 text-amber-700 border-amber-200",
   pending: "bg-amber-50 text-amber-700 border-amber-200",
   partial: "bg-amber-50 text-amber-700 border-amber-200",
   cancelled: "bg-red-50 text-red-700 border-red-200",

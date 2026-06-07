@@ -974,7 +974,7 @@ export function ItineraryBoard({
                         const linkedBooking = activityBookingMap.get(a.id)
                         const bookingStatus = !a.booking_id
                           ? "not-required" as const
-                          : linkedBooking?.confirmation_number
+                          : linkedBooking?.confirmation_number || linkedBooking?.payment_status === "confirmed"
                             ? "booked" as const
                             : "pending" as const
                         return (
