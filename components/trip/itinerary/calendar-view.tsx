@@ -683,8 +683,7 @@ export function CalendarView({
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         top,
-                        height:    isResizing ? ds!.currentHeight : "auto",
-                        minHeight: isResizing ? 0 : blockH,
+                        height: isResizing ? ds!.currentHeight : blockH,
                         left:  `calc(${leftPct}%  + 2px)`,
                         width: `calc(${widthPct}% - 4px)`,
                         backgroundColor: cat.bg,
@@ -695,7 +694,7 @@ export function CalendarView({
                       {/* Move handle — whole block except the resize strip */}
                       <div
                         className="relative cursor-grab overflow-hidden rounded-lg px-1.5 py-1 active:cursor-grabbing"
-                        style={{ paddingBottom: 10, touchAction: "none" }}
+                        style={{ height: "100%", paddingBottom: 10, touchAction: "none" }}
                         onPointerDown={(e) => startDrag(e, a.id, "move")}
                       >
                         {/* Numbered pin badge — top-right */}
