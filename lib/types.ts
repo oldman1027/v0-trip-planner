@@ -12,6 +12,7 @@ export type Trip = {
   created_at: string
   is_sample?: boolean
   share_token: string | null
+  share_token_expires_at: string | null
   is_public: boolean
 }
 
