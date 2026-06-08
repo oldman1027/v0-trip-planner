@@ -1251,6 +1251,8 @@ export function ItineraryBoard({
               destination={trip.destination ?? null}
               days={days}
               selectedActivityId={mapSelectedId}
+              filterDay={mapFilterDay}
+              onFilterDayChange={setMapFilterDay}
               className="h-full w-full"
               containerClassName="h-full w-full"
               onPinClick={(a) => {

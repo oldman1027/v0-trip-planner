@@ -120,6 +120,8 @@ export function TripMap({
   className,
   containerClassName,
   onPinClick,
+  filterDay: filterDayProp,
+  onFilterDayChange,
 }: {
   activities: Activity[]
   destination: string | null
@@ -128,6 +130,9 @@ export function TripMap({
   className?: string
   containerClassName?: string
   onPinClick?: (activity: Activity) => void
+  /** Controlled day filter — when provided the internal filter buttons are hidden */
+  filterDay?: string | null
+  onFilterDayChange?: (day: string | null) => void
 }) {
   // ── Refs ────────────────────────────────────────────────────────────────
   const containerRef  = useRef<HTMLDivElement>(null)
@@ -143,11 +148,20 @@ export function TripMap({
   const selectedIdRef   = useRef<string | null>(null)
 
   // ── State ───────────────────────────────────────────────────────────────
-  const [loading,     setLoading]     = useState(true)
-  const [pinCount,    setPinCount]    = useState(0)
-  const [activeDays,  setActiveDays]  = useState<string[]>([])
-  const [filterDay,   setFilterDay]   = useState<string | null>(null)
-  const [selectedId,  setSelectedId]  = useState<string | null>(null)
+  const [loading,          setLoading]          = useState(true)
+  const [pinCount,         setPinCount]         = useState(0)
+  const [activeDays,       setActiveDays]       = useState<string[]>([])
+  const [internalFilterDay, setInternalFilterDay] = useState<string | null>(null)
+  const [selectedId,       setSelectedId]       = useState<string | null>(null)
+
+  // Controlled vs. uncontrolled — when parent provides filterDay, use it.
+  const isControlled = filterDayProp !== undefined
+  const filterDay = isControlled ? (filterDayProp ?? null) : internalFilterDay
+
+  function setFilterDay(day: string | null) {
+    if (isControlled) onFilterDayChange?.(day)
+    else setInternalFilterDay(day)
+  }
 
   // Keep refs in sync on every render so async callbacks always see fresh values.
   filterDayRef.current  = filterDay
@@ -175,6 +189,32 @@ export function TripMap({
 
   // Re-apply whenever filter or selection changes.
   useEffect(() => { applyVisibility() }, [filterDay, selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-zoom map to fit pins for the selected day (or all pins when cleared).
+  useEffect(() => {
+    if (loading || geocodedRef.current.length === 0) return
+    const map = mapRef.current
+    if (!map) return
+
+    const pinsToFit = filterDay
+      ? geocodedRef.current.filter((p) => p.activity.day_date === filterDay)
+      : geocodedRef.current
+
+    if (pinsToFit.length === 0) return
+
+    if (pinsToFit.length === 1) {
+      map.panTo({ lat: pinsToFit[0].lat, lng: pinsToFit[0].lng })
+      if ((map.getZoom() ?? 0) < 14) map.setZoom(14)
+      return
+    }
+
+    const bounds = new google.maps.LatLngBounds()
+    pinsToFit.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }))
+    map.fitBounds(bounds, 60)
+    google.maps.event.addListenerOnce(map, "idle", () => {
+      if ((map.getZoom() ?? 20) > 15) map.setZoom(15)
+    })
+  }, [filterDay, loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync external selectedActivityId prop → internal state + pan to marker.
   useEffect(() => {
@@ -348,8 +388,8 @@ export function TripMap({
         </div>
       )}
 
-      {/* Day filter — top-right */}
-      {!loading && activeDays.length > 1 && (
+      {/* Day filter — top-right (hidden in controlled mode; parent provides its own) */}
+      {!loading && !isControlled && activeDays.length > 1 && (
         <div className="absolute right-3 top-3 flex gap-1">
           {filterDay && (
             <button
@@ -367,7 +407,7 @@ export function TripMap({
               <button
                 key={day}
                 type="button"
-                onClick={() => setFilterDay((d) => (d === day ? null : day))}
+                onClick={() => setFilterDay(filterDay === day ? null : day)}
                 className={cn(
                   "rounded-full px-2.5 py-1.5 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors",
                   active ? "bg-primary text-primary-foreground" : "bg-card/90 text-muted-foreground hover:bg-card",
