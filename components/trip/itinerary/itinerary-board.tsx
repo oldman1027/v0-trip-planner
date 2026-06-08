@@ -16,7 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { Calendar, Eye, EyeOff, LayoutGrid, MapPin, Plus } from "lucide-react"
+import { Calendar, Eye, EyeOff, LayoutGrid, Map as MapIcon, MapPin, Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DaySidebar } from "./day-sidebar"
@@ -27,15 +27,16 @@ import { CalendarView } from "./calendar-view"
 import { HotelBanner } from "./hotel-banner"
 import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
 import { TransportDrawer } from "@/components/trip/bookings/transport-drawer"
-import { TripMap } from "@/components/trip/overview/trip-map"
+import { TripMap, PIN_PALETTE } from "@/components/trip/overview/trip-map"
 import { TriplettoAI } from "@/components/trip/TriplettoAI"
 import { useRealtimeActivities } from "@/hooks/use-realtime-activities"
 import { usePresence } from "@/hooks/use-presence"
 import { useUndoDelete } from "@/hooks/use-undo-delete"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { createClient } from "@/lib/supabase/client"
-import { moveActivity, reorderActivities } from "@/app/actions/move-activity"
-import { daysBetween, getBlockFromTime } from "@/lib/dates"
+import { moveActivity, reorderActivities, sendActivityToKIV, scheduleKIVActivity } from "@/app/actions/move-activity"
+import { KIVTray } from "./kiv-tray"
+import { daysBetween, formatDayLabel, getBlockFromTime } from "@/lib/dates"
 import { detectConflicts } from "@/lib/time-conflicts"
 import { useTripWeather } from "@/hooks/use-trip-weather"
 import { wmoToDisplay } from "@/lib/weather-utils"
@@ -44,7 +45,8 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 type BlockKey = `${string}::${TimeBlock}`
-type ViewMode = "board" | "calendar"
+type ContainerKey = BlockKey | "kiv"
+type ViewMode = "board" | "calendar" | "map"
 
 const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
   { value: "accommodation", label: "Accommodation" },
@@ -121,6 +123,7 @@ export function ItineraryBoard({
   const [bookings, setBookings] = useState<Booking[]>(initialBookings)
   const [selectedDay, setSelectedDay] = useState<string>(days[0])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const dragStartedFromKIV = useRef(false)
   const [viewMode, setViewMode] = useState<ViewMode>("board")
   const [activeCategories, setActiveCategories] = useState<Set<Activity["category"]>>(new Set())
   const [drawerState, setDrawerState] = useState<
@@ -134,6 +137,8 @@ export function ItineraryBoard({
   const [calendarTransportOpen, setCalendarTransportOpen] = useState(false)
   const [showMap, setShowMap] = useState(true)
   const [mobileTab, setMobileTab] = useState<"calendar" | "map">("calendar")
+  const [mapFilterDay, setMapFilterDay] = useState<string | null>(null)
+  const [mapSelectedId, setMapSelectedId] = useState<string | null>(null)
   const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null)
 
   // Shopping and Entertainment are hidden from filter tabs but grouped under Other
@@ -261,11 +266,16 @@ export function ItineraryBoard({
     return out
   }, [activities, days, effectiveCategories])
 
+  const kivActivities = useMemo(
+    () => activities.filter((a) => a.is_kiv),
+    [activities],
+  )
+
   const dayCounts = useMemo(() => {
     const c = new Map<string, number>()
     for (const day of days) c.set(day, 0)
     for (const a of activities) {
-      if (a.day_date && !a.is_wishlist) c.set(a.day_date, (c.get(a.day_date) ?? 0) + 1)
+      if (a.day_date && !a.is_wishlist && !a.is_kiv) c.set(a.day_date, (c.get(a.day_date) ?? 0) + 1)
     }
     return c
   }, [activities, days])
@@ -348,17 +358,22 @@ export function ItineraryBoard({
     return activities.find((a) => a.id === id) ?? null
   }
 
-  function findContainer(id: string): BlockKey | null {
+  function findContainer(id: string): ContainerKey | null {
     if (!id) return null
+    if (id === "kiv") return "kiv"
     if (id.includes("::")) return id as BlockKey
     if (id.startsWith("day::")) return null
     const a = findActivity(id)
     if (!a) return null
+    if (a.is_kiv) return "kiv"
+    if (!a.day_date || !a.time_block) return null
     return `${a.day_date}::${a.time_block}` as BlockKey
   }
 
   function onDragStart(e: DragStartEvent) {
-    setActiveId(String(e.active.id))
+    const id = String(e.active.id)
+    setActiveId(id)
+    dragStartedFromKIV.current = findActivity(id)?.is_kiv ?? false
   }
 
   function onDragOver(e: DragOverEvent) {
@@ -367,14 +382,37 @@ export function ItineraryBoard({
     const activeIdStr = String(active.id)
     const overIdStr = String(over.id)
     if (activeIdStr === overIdStr) return
-    if (overIdStr.startsWith("day::")) return // handled on drop
+    if (overIdStr.startsWith("day::")) return
 
     const activeContainer = findContainer(activeIdStr)
     const overContainer = findContainer(overIdStr)
     if (!activeContainer || !overContainer) return
     if (activeContainer === overContainer) return
 
-    // Move card to a new container during hover
+    // Dragging into KIV tray
+    if (overContainer === "kiv") {
+      setActivities((prev) =>
+        prev.map((a) =>
+          a.id === activeIdStr ? { ...a, is_kiv: true, day_date: null, time_block: null, start_time: null } : a,
+        ),
+      )
+      return
+    }
+
+    // Dragging out of KIV tray onto a time block
+    if (activeContainer === "kiv") {
+      const [day, block] = overContainer.split("::") as [string, TimeBlock]
+      setActivities((prev) =>
+        prev.map((a) =>
+          a.id === activeIdStr
+            ? { ...a, is_kiv: false, day_date: day, time_block: block, start_time: BLOCK_START_TIMES[block] }
+            : a,
+        ),
+      )
+      return
+    }
+
+    // Cross-container move within board
     const [day, block] = overContainer.split("::") as [string, TimeBlock]
     setActivities((prev) =>
       prev.map((a) => (a.id === activeIdStr ? { ...a, day_date: day, time_block: block, start_time: BLOCK_START_TIMES[block] } : a)),
@@ -384,6 +422,8 @@ export function ItineraryBoard({
   async function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
     setActiveId(null)
+    const wasKIV = dragStartedFromKIV.current
+    dragStartedFromKIV.current = false
     if (!over) return
     const activeIdStr = String(active.id)
     const overIdStr = String(over.id)
@@ -393,7 +433,10 @@ export function ItineraryBoard({
     // Drop on a day card → drop into morning block of that day
     if (overIdStr.startsWith("day::")) {
       const day = overIdStr.replace("day::", "")
-      if (day !== moved.day_date || moved.time_block !== "morning") {
+      if (wasKIV) {
+        setSelectedDay(day)
+        await applyMoveFromKIV(activeIdStr, day, "morning", 0)
+      } else if (day !== moved.day_date || moved.time_block !== "morning") {
         setSelectedDay(day)
         await applyMove(activeIdStr, day, "morning", 0)
       }
@@ -403,6 +446,23 @@ export function ItineraryBoard({
     const activeContainer = findContainer(activeIdStr)
     const overContainer = findContainer(overIdStr)
     if (!activeContainer || !overContainer) return
+
+    // Drop onto or within KIV tray
+    if (overContainer === "kiv") {
+      if (!wasKIV) await applyMoveToKIV(activeIdStr)
+      return
+    }
+
+    // Drop from KIV tray onto a board time block
+    if (wasKIV) {
+      const [overDay, overBlock] = overContainer.split("::") as [string, TimeBlock]
+      const list = activities
+        .filter((a) => a.day_date === overDay && a.time_block === overBlock && !a.is_kiv)
+        .sort((a, b) => a.position - b.position)
+      const overIndex = list.findIndex((a) => a.id === overIdStr)
+      await applyMoveFromKIV(activeIdStr, overDay, overBlock, Math.max(0, overIndex))
+      return
+    }
 
     const [overDay, overBlock] = overContainer.split("::") as [string, TimeBlock]
 
@@ -466,6 +526,61 @@ export function ItineraryBoard({
     } catch (err) {
       toast.error("Could not save order", { description: err instanceof Error ? err.message : "Unknown" })
     }
+  }
+
+  async function applyMoveToKIV(activityId: string) {
+    setActivities((prev) =>
+      prev.map((a) =>
+        a.id === activityId ? { ...a, is_kiv: true, day_date: null, time_block: null, start_time: null } : a,
+      ),
+    )
+    try {
+      await sendActivityToKIV(activityId)
+    } catch (err) {
+      toast.error("Could not save", { description: err instanceof Error ? err.message : "Unknown" })
+    }
+  }
+
+  async function applyMoveFromKIV(activityId: string, day: string, block: TimeBlock, targetIndex: number) {
+    const startTime = BLOCK_START_TIMES[block]
+    setActivities((prev) =>
+      prev.map((a) =>
+        a.id === activityId
+          ? { ...a, is_kiv: false, day_date: day, time_block: block, start_time: startTime }
+          : a,
+      ),
+    )
+    try {
+      await scheduleKIVActivity(activityId, day, block, targetIndex, startTime)
+    } catch (err) {
+      toast.error("Could not save", { description: err instanceof Error ? err.message : "Unknown" })
+    }
+  }
+
+  async function handleKIVAdd(title: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from("activities")
+      .insert({
+        trip_id: trip.id,
+        day_date: null,
+        time_block: null,
+        position: kivActivities.length,
+        title,
+        category: "other",
+        is_kiv: true,
+        is_wishlist: false,
+      })
+      .select()
+      .single()
+    if (error || !data) { toast.error("Could not add idea"); return }
+    setActivities((prev) => [...prev, data as Activity])
+  }
+
+  async function handleKIVAssignDay(activityId: string, day: string) {
+    const block: TimeBlock = "morning"
+    setSelectedDay(day)
+    await applyMoveFromKIV(activityId, day, block, 0)
   }
 
   async function handleSave(input: {
@@ -904,7 +1019,7 @@ export function ItineraryBoard({
                 </button>
               )}
               <div className="flex gap-0.5 rounded-xl border border-border bg-card p-0.5">
-                {(["board", "calendar"] as ViewMode[]).map((mode) => (
+                {(["board", "calendar", "map"] as ViewMode[]).map((mode) => (
                   <button
                     key={mode}
                     type="button"
@@ -918,8 +1033,10 @@ export function ItineraryBoard({
                   >
                     {mode === "board" ? (
                       <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-                    ) : (
+                    ) : mode === "calendar" ? (
                       <Calendar className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <MapIcon className="h-3.5 w-3.5" aria-hidden />
                     )}
                     {mode}
                   </button>
@@ -1019,9 +1136,18 @@ export function ItineraryBoard({
             </div>
           </div>
 
+          <KIVTray
+            tripId={trip.id}
+            activities={kivActivities}
+            days={days}
+            onAssignDay={handleKIVAssignDay}
+            onDelete={handleDelete}
+            onAdd={handleKIVAdd}
+          />
+
           <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
         </DndContext>
-      ) : (
+      ) : viewMode === "calendar" ? (
         <div className="flex flex-col gap-4">
           {/* Mobile tab switcher — hidden on md+ */}
           <div className="flex border-b border-border md:hidden">
@@ -1112,6 +1238,119 @@ export function ItineraryBoard({
                 className="h-full w-full"
                 containerClassName="h-full w-full"
               />
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ── Map tab — full-screen two-column layout ─────────────────────── */
+        <div className="flex h-[calc(100vh-114px)] overflow-hidden rounded-2xl border border-border">
+          {/* Map panel */}
+          <div className="relative flex-1 min-w-0">
+            <TripMap
+              activities={activities}
+              destination={trip.destination ?? null}
+              days={days}
+              selectedActivityId={mapSelectedId}
+              className="h-full w-full"
+              containerClassName="h-full w-full"
+              onPinClick={(a) => {
+                setMapSelectedId(a.id)
+                setFocusedActivityId(a.id)
+                setDrawerState({ mode: "edit", activity: a })
+              }}
+            />
+          </div>
+
+          {/* Activity sidebar */}
+          <div className="flex w-72 shrink-0 flex-col border-l border-border bg-background overflow-hidden">
+            {/* Day filter */}
+            <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2">
+              <button
+                type="button"
+                onClick={() => setMapFilterDay(null)}
+                className={cn(
+                  "whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                  !mapFilterDay
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground",
+                )}
+              >
+                All
+              </button>
+              {days.map((day, i) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setMapFilterDay((d) => (d === day ? null : day))}
+                  className={cn(
+                    "whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    mapFilterDay === day
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  D{i + 1}
+                </button>
+              ))}
+            </div>
+
+            {/* Activity list */}
+            <div className="flex-1 overflow-y-auto">
+              {days
+                .filter((day) => !mapFilterDay || mapFilterDay === day)
+                .map((day, idx) => {
+                  const dayActivities = activities
+                    .filter((a) => a.day_date === day && !a.is_wishlist && !a.is_kiv && a.location)
+                    .sort((a, b) => (a.start_time ?? "99:99").localeCompare(b.start_time ?? "99:99"))
+                  if (dayActivities.length === 0) return null
+                  const dayNum = days.indexOf(day) + 1
+                  return (
+                    <div key={day}>
+                      <div className="sticky top-0 border-b border-border bg-muted/40 px-3 py-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Day {dayNum} · {formatDayLabel(day)}
+                        </span>
+                      </div>
+                      {dayActivities.map((a) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => {
+                            setMapSelectedId(a.id)
+                            setFocusedActivityId(a.id)
+                            setDrawerState({ mode: "edit", activity: a })
+                          }}
+                          className={cn(
+                            "flex w-full items-start gap-2.5 border-b border-border/50 px-3 py-2.5 text-left transition-colors hover:bg-muted/50",
+                            mapSelectedId === a.id && "bg-primary/5",
+                          )}
+                        >
+                          <span
+                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: PIN_PALETTE[(dayNum - 1) % PIN_PALETTE.length].bg }}
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium leading-tight">{a.title}</p>
+                            {(a.start_time || a.location) && (
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                {a.start_time ? a.start_time.slice(0, 5) : ""}
+                                {a.start_time && a.location ? " · " : ""}
+                                {a.location ?? ""}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2">
+              <span className="text-xs text-muted-foreground">
+                {activities.filter((a) => a.location && !a.is_wishlist && !a.is_kiv).length} locations plotted
+              </span>
             </div>
           </div>
         </div>

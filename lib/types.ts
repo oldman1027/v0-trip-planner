@@ -62,6 +62,15 @@ export type Activity = {
   booking_id: string | null
   linked_booking_id: string | null
   is_wishlist: boolean
+  is_kiv: boolean
+  created_at: string
+}
+
+export type KIVNote = {
+  id: string
+  trip_id: string
+  content: string
+  created_by: string | null
   created_at: string
 }
 

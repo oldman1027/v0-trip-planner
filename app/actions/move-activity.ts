@@ -25,6 +25,32 @@ export async function moveActivity(
   return { success: true }
 }
 
+export async function sendActivityToKIV(activityId: string) {
+  const supabase = await createServiceClient()
+  const { error } = await supabase
+    .from("activities")
+    .update({ is_kiv: true, day_date: null, time_block: null, start_time: null, position: 0 })
+    .eq("id", activityId)
+  if (error) throw error
+  return { success: true }
+}
+
+export async function scheduleKIVActivity(
+  activityId: string,
+  day: string,
+  block: TimeBlock,
+  position: number,
+  startTime?: string,
+) {
+  const supabase = await createServiceClient()
+  const { error } = await supabase
+    .from("activities")
+    .update({ is_kiv: false, day_date: day, time_block: block, position, start_time: startTime ?? null })
+    .eq("id", activityId)
+  if (error) throw error
+  return { success: true }
+}
+
 export async function reorderActivities(
   updates: Array<{ id: string; position: number }>
 ) {

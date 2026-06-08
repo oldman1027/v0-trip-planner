@@ -19,7 +19,7 @@ type MarkerEntry = {
 
 // ── Brand colour palette — one hue per trip day, cycling ──────────────────
 
-const PIN_PALETTE: PinColor[] = [
+export const PIN_PALETTE: PinColor[] = [
   { bg: "#A9D6C5", border: "#6D8F87" },
   { bg: "#F7A59E", border: "#de4a66" },
   { bg: "#f9d157", border: "#fd7a56" },
@@ -119,6 +119,7 @@ export function TripMap({
   selectedActivityId,
   className,
   containerClassName,
+  onPinClick,
 }: {
   activities: Activity[]
   destination: string | null
@@ -126,6 +127,7 @@ export function TripMap({
   selectedActivityId?: string | null
   className?: string
   containerClassName?: string
+  onPinClick?: (activity: Activity) => void
 }) {
   // ── Refs ────────────────────────────────────────────────────────────────
   const containerRef  = useRef<HTMLDivElement>(null)
@@ -292,6 +294,7 @@ export function TripMap({
 
           marker.addEventListener("click", () => {
             setSelectedId(a.id)
+            onPinClick?.(a)
             infoWindow.setContent(
               `<div style="padding:4px 2px 2px;min-width:140px;max-width:220px">` +
               `<div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:4px">` +
