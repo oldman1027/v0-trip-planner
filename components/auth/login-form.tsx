@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
+import Image from "next/image"
 import { Mail } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { getAuthCallbackUrl } from "@/lib/auth-url"
@@ -176,8 +177,14 @@ export function LoginForm({
     <div className="flex flex-col gap-6">
       {/* Branding */}
       <div className="text-center">
-        <div className="mb-1 text-3xl" aria-hidden>🌍</div>
-        <h1 className="font-serif text-2xl font-semibold">Tripletto</h1>
+        <Image
+          src="/favicon.png"
+          alt="Tripletto"
+          width={64}
+          height={64}
+          className="mx-auto rounded-xl object-contain"
+        />
+        <h1 className="mt-3 font-serif text-2xl font-semibold">Tripletto</h1>
         <p className="mt-1 text-sm text-muted-foreground">Plan group trips together</p>
       </div>
 
