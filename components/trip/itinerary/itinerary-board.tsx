@@ -16,7 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { Calendar, Eye, EyeOff, LayoutGrid, Map as MapIcon, MapPin, Plus } from "lucide-react"
+import { Calendar, LayoutGrid, Map as MapIcon, MapPin, Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DaySidebar } from "./day-sidebar"
@@ -132,11 +132,8 @@ export function ItineraryBoard({
     | null
   >(null)
   const [bookingOpen, setBookingOpen] = useState<Booking | null>(null)
-  const [calendarSelectedId, setCalendarSelectedId] = useState<string | null>(null)
   const [calendarBookingOpen, setCalendarBookingOpen] = useState(false)
   const [calendarTransportOpen, setCalendarTransportOpen] = useState(false)
-  const [showMap, setShowMap] = useState(true)
-  const [mobileTab, setMobileTab] = useState<"calendar" | "map">("calendar")
   const [mapFilterDay, setMapFilterDay] = useState<string | null>(null)
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null)
   const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null)
@@ -307,12 +304,6 @@ export function ItineraryBoard({
       },
       { key: "1", handler: () => setViewMode("board") },
       { key: "2", handler: () => setViewMode("calendar") },
-      {
-        key: "m",
-        handler: () => {
-          if (viewMode === "calendar") setShowMap((v) => !v)
-        },
-      },
       {
         key: "ArrowRight",
         handler: () => {
@@ -1004,20 +995,6 @@ export function ItineraryBoard({
                   </div>
                 </div>
               )}
-              {viewMode === "calendar" && (
-                <button
-                  type="button"
-                  onClick={() => setShowMap((v) => !v)}
-                  className="hidden md:flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
-                >
-                  {showMap ? (
-                    <EyeOff className="h-3.5 w-3.5" aria-hidden />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                  {showMap ? "Hide map" : "Show map"}
-                </button>
-              )}
               <div className="flex gap-0.5 rounded-xl border border-border bg-card p-0.5">
                 {(["board", "calendar", "map"] as ViewMode[]).map((mode) => (
                   <button
@@ -1148,98 +1125,31 @@ export function ItineraryBoard({
           <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
         </DndContext>
       ) : viewMode === "calendar" ? (
-        <div className="flex flex-col gap-4">
-          {/* Mobile tab switcher — hidden on md+ */}
-          <div className="flex border-b border-border md:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileTab("calendar")}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors",
-                mobileTab === "calendar"
-                  ? "border-[#6D8F87] text-[#6D8F87]"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Calendar className="h-4 w-4" aria-hidden />
-              Calendar
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileTab("map")}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors",
-                mobileTab === "map"
-                  ? "border-[#6D8F87] text-[#6D8F87]"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <MapPin className="h-4 w-4" aria-hidden />
-              Map
-            </button>
-          </div>
-
-          {/* Calendar + Map: responsive grid on desktop */}
-          <div
-            className={cn(
-              showMap ? "md:grid md:grid-cols-[1fr_420px] md:items-start md:gap-4" : "",
+        <div className="overflow-x-auto">
+          <CalendarView
+            days={days}
+            activities={activities}
+            activeCategories={effectiveCategories}
+            onActivityClick={(a) => {
+              setFocusedActivityId(a.id)
+              setDrawerState({ mode: "edit", activity: a })
+            }}
+            onAddActivity={(day_date, start_time, time_block) =>
+              setDrawerState({ mode: "create", day_date, time_block, start_time })
+            }
+            onAddBooking={() => setCalendarBookingOpen(true)}
+            onAddTransport={() => setCalendarTransportOpen(true)}
+            accommodationBookings={bookings.filter(
+              (b) => b.type === "accommodation" && !!b.booking_date && !!b.check_out_date,
             )}
-          >
-            {/* Calendar */}
-            <div
-              className={cn(
-                "overflow-x-auto",
-                mobileTab === "map" && "hidden md:block",
-              )}
-            >
-              <CalendarView
-                days={days}
-                activities={activities}
-                activeCategories={effectiveCategories}
-                onActivityClick={(a) => {
-                  setFocusedActivityId(a.id)
-                  setCalendarSelectedId(a.id)
-                  setDrawerState({ mode: "edit", activity: a })
-                }}
-                onAddActivity={(day_date, start_time, time_block) =>
-                  setDrawerState({ mode: "create", day_date, time_block, start_time })
-                }
-                onAddBooking={() => setCalendarBookingOpen(true)}
-                onAddTransport={() => setCalendarTransportOpen(true)}
-                accommodationBookings={bookings.filter(
-                  (b) => b.type === "accommodation" && !!b.booking_date && !!b.check_out_date,
-                )}
-                onViewBooking={(id) => {
-                  const b = bookings.find((b) => b.id === id)
-                  if (b) setBookingOpen(b)
-                }}
-                onActivityUpdated={handleCalendarActivityUpdated}
-                weatherByDate={weatherByDate}
-                weatherLoading={weatherLoading}
-              />
-            </div>
-
-            {/* Map — mobile: full-height when map tab active; desktop: sticky panel */}
-            <div
-              className={cn(
-                "hidden",
-                mobileTab === "map" &&
-                  "block h-[60vh] rounded-xl overflow-hidden border border-border",
-                showMap
-                  ? "md:block md:self-start md:sticky md:top-[114px] md:h-[calc(100vh-114px)] md:rounded-xl md:overflow-hidden md:border md:border-border"
-                  : "md:hidden",
-              )}
-            >
-              <TripMap
-                activities={activities}
-                destination={trip.destination ?? null}
-                days={days}
-                selectedActivityId={calendarSelectedId}
-                className="h-full w-full"
-                containerClassName="h-full w-full"
-              />
-            </div>
-          </div>
+            onViewBooking={(id) => {
+              const b = bookings.find((b) => b.id === id)
+              if (b) setBookingOpen(b)
+            }}
+            onActivityUpdated={handleCalendarActivityUpdated}
+            weatherByDate={weatherByDate}
+            weatherLoading={weatherLoading}
+          />
         </div>
       ) : (
         /* ── Map tab — full-screen two-column layout ─────────────────────── */
