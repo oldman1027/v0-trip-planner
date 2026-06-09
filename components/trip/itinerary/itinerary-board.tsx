@@ -35,6 +35,7 @@ import { useUndoDelete } from "@/hooks/use-undo-delete"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities, sendActivityToKIV, scheduleKIVActivity } from "@/app/actions/move-activity"
+import { recordHistory } from "@/lib/trip-history"
 import { KIVTray } from "./kiv-tray"
 import { daysBetween, formatDayLabel, getBlockFromTime } from "@/lib/dates"
 import { detectConflicts } from "@/lib/time-conflicts"
@@ -49,18 +50,19 @@ type ContainerKey = BlockKey | "kiv"
 type ViewMode = "board" | "calendar" | "map"
 
 const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
-  { value: "accommodation", label: "Accommodation" },
-  { value: "transport",     label: "Transport" },
-  { value: "food",          label: "Dining" },
-  { value: "attraction",    label: "Activities" },
-  { value: "other",         label: "Other" },
+  { value: "hotel",       label: "Hotel / Stay" },
+  { value: "transport",   label: "Transport" },
+  { value: "food",        label: "Dining" },
+  { value: "sightseeing", label: "Sightseeing" },
+  { value: "activity",    label: "Activities" },
+  { value: "other",       label: "Other" },
 ]
 
 function categoryToBookingType(cat: Activity["category"]): Booking["type"] {
   if (cat === "food") return "dining"
-  if (cat === "accommodation") return "accommodation"
+  if (cat === "hotel") return "accommodation"
   if (cat === "transport") return "transport"
-  if (cat === "attraction" || cat === "entertainment" || cat === "shopping") return "activities"
+  if (cat === "sightseeing" || cat === "activity") return "activities"
   return "other"
 }
 
@@ -124,6 +126,8 @@ export function ItineraryBoard({
   const [selectedDay, setSelectedDay] = useState<string>(days[0])
   const [activeId, setActiveId] = useState<string | null>(null)
   const dragStartedFromKIV = useRef(false)
+  const dragOriginalDayRef = useRef<string | null>(null)
+  const currentUserRef = useRef<{ id: string; name: string } | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("board")
   const [activeCategories, setActiveCategories] = useState<Set<Activity["category"]>>(new Set())
   const [drawerState, setDrawerState] = useState<
@@ -138,14 +142,7 @@ export function ItineraryBoard({
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null)
   const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null)
 
-  // Shopping and Entertainment are hidden from filter tabs but grouped under Other
-  const effectiveCategories = useMemo(() => {
-    if (!activeCategories.has("other")) return activeCategories
-    const expanded = new Set(activeCategories)
-    expanded.add("shopping")
-    expanded.add("entertainment")
-    return expanded
-  }, [activeCategories])
+  const effectiveCategories = activeCategories
 
   const conflicts = useMemo(() => detectConflicts(activities), [activities])
 
@@ -217,6 +214,23 @@ export function ItineraryBoard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally runs only once on mount
 
+  // Load current user once for history recording
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle()
+      currentUserRef.current = {
+        id: user.id,
+        name: profile?.full_name ?? user.email?.split("@")[0] ?? "Someone",
+      }
+    })
+  }, [])
+
   // Map activity_id → booking for cross-referencing the "Booked" badge
   const activityBookingMap = useMemo(() => {
     const m = new Map<string, Booking>()
@@ -259,7 +273,14 @@ export function ItineraryBoard({
         if (list) list.push(a)
       }
     }
-    for (const list of out.values()) list.sort((a, b) => a.position - b.position)
+    for (const list of out.values()) {
+      list.sort((a, b) => {
+        if (!a.start_time && !b.start_time) return (a.position ?? 0) - (b.position ?? 0)
+        if (!a.start_time) return 1
+        if (!b.start_time) return -1
+        return a.start_time.localeCompare(b.start_time)
+      })
+    }
     return out
   }, [activities, days, effectiveCategories])
 
@@ -281,7 +302,7 @@ export function ItineraryBoard({
   const hotelByDay = useMemo(() => {
     const m = new Map<string, { activity: Activity; booking: Booking | undefined }>()
     for (const a of activities) {
-      if (a.category === "accommodation" && !a.is_wishlist && a.day_date && !m.has(a.day_date)) {
+      if (a.category === "hotel" && !a.is_wishlist && a.day_date && !m.has(a.day_date)) {
         m.set(a.day_date, { activity: a, booking: activityBookingMap.get(a.id) })
       }
     }
@@ -364,7 +385,9 @@ export function ItineraryBoard({
   function onDragStart(e: DragStartEvent) {
     const id = String(e.active.id)
     setActiveId(id)
-    dragStartedFromKIV.current = findActivity(id)?.is_kiv ?? false
+    const act = findActivity(id)
+    dragStartedFromKIV.current = act?.is_kiv ?? false
+    dragOriginalDayRef.current = act?.day_date ?? null
   }
 
   function onDragOver(e: DragOverEvent) {
@@ -427,9 +450,11 @@ export function ItineraryBoard({
       if (wasKIV) {
         setSelectedDay(day)
         await applyMoveFromKIV(activeIdStr, day, "morning", 0)
+        maybeRecord("moved", "activity", moved.title)
       } else if (day !== moved.day_date || moved.time_block !== "morning") {
         setSelectedDay(day)
         await applyMove(activeIdStr, day, "morning", 0)
+        if (day !== dragOriginalDayRef.current) maybeRecord("moved", "activity", moved.title)
       }
       return
     }
@@ -440,7 +465,10 @@ export function ItineraryBoard({
 
     // Drop onto or within KIV tray
     if (overContainer === "kiv") {
-      if (!wasKIV) await applyMoveToKIV(activeIdStr)
+      if (!wasKIV) {
+        await applyMoveToKIV(activeIdStr)
+        maybeRecord("moved", "activity", moved.title)
+      }
       return
     }
 
@@ -452,6 +480,7 @@ export function ItineraryBoard({
         .sort((a, b) => a.position - b.position)
       const overIndex = list.findIndex((a) => a.id === overIdStr)
       await applyMoveFromKIV(activeIdStr, overDay, overBlock, Math.max(0, overIndex))
+      maybeRecord("moved", "activity", moved.title)
       return
     }
 
@@ -460,6 +489,7 @@ export function ItineraryBoard({
     // If dropped on a block container directly (empty zone)
     if (overIdStr === overContainer) {
       await applyMove(activeIdStr, overDay, overBlock, buckets.get(overContainer)?.length ?? 0)
+      if (overDay !== dragOriginalDayRef.current) maybeRecord("moved", "activity", moved.title)
       return
     }
 
@@ -479,6 +509,7 @@ export function ItineraryBoard({
     }
 
     await applyMove(activeIdStr, overDay, overBlock, newIndex)
+    if (overDay !== dragOriginalDayRef.current) maybeRecord("moved", "activity", moved.title)
   }
 
   async function applyMove(activityId: string, day: string, block: TimeBlock, targetIndex: number) {
@@ -568,6 +599,24 @@ export function ItineraryBoard({
     setActivities((prev) => [...prev, data as Activity])
   }
 
+  function maybeRecord(
+    action: Parameters<typeof recordHistory>[0]["action"],
+    entityType: Parameters<typeof recordHistory>[0]["entityType"],
+    entityName: string,
+  ) {
+    const user = currentUserRef.current
+    if (!user) return
+    void recordHistory({
+      supabase: createClient(),
+      tripId: trip.id,
+      userId: user.id,
+      userName: user.name,
+      action,
+      entityType,
+      entityName,
+    }).catch(() => null)
+  }
+
   async function handleKIVAssignDay(activityId: string, day: string) {
     const block: TimeBlock = "morning"
     setSelectedDay(day)
@@ -596,6 +645,8 @@ export function ItineraryBoard({
     // but the drawer's handleStartChange already keeps them in sync — this is a safety net)
     const resolvedBlock = input.start_time ? getBlockFromTime(input.start_time) : input.time_block
     const resolvedInput = { ...input, time_block: resolvedBlock }
+    const VALID_CATEGORIES = ['food','sightseeing','transport','hotel','activity','other'] as const
+    const safeCategory = (VALID_CATEGORIES as readonly string[]).includes(resolvedInput.category) ? resolvedInput.category : 'other' as const
     const supabase = createClient()
     if (resolvedInput.id) {
       // Edit existing activity
@@ -611,7 +662,7 @@ export function ItineraryBoard({
           notes: resolvedInput.notes,
           cost_amount: resolvedInput.cost_amount,
           photo_url: resolvedInput.photo_url,
-          category: resolvedInput.category,
+          category: safeCategory,
         })
         .eq("id", resolvedInput.id)
       if (error) throw error
@@ -702,6 +753,7 @@ export function ItineraryBoard({
         prev.map((a) => (a.id === resolvedInput.id ? { ...a, ...resolvedInput, booking_id: resolvedBookingId } : a)),
       )
       toast.success("Activity updated")
+      maybeRecord("edited", "activity", resolvedInput.title)
     } else {
       // Create new activity
       const targetIndex = (buckets.get(`${resolvedInput.day_date}::${resolvedInput.time_block}` as BlockKey) ?? []).length
@@ -720,7 +772,7 @@ export function ItineraryBoard({
           cost_amount: input.cost_amount,
           cost_currency: trip.default_currency ?? "USD",
           photo_url: input.photo_url,
-          category: input.category,
+          category: safeCategory,
         })
         .select()
         .single()
@@ -757,6 +809,7 @@ export function ItineraryBoard({
       }
 
       toast.success("Activity added")
+      maybeRecord("added", "activity", input.title)
     }
   }
 
@@ -775,6 +828,7 @@ export function ItineraryBoard({
         if (linkedBooking) {
           await supabase.from("bookings").delete().eq("id", linkedBooking.id)
         }
+        maybeRecord("deleted", "activity", act.title)
       },
       onRestore: (act) => {
         setActivities((prev) => [...prev, act])
@@ -1056,16 +1110,22 @@ export function ItineraryBoard({
               {TIME_BLOCKS.map((block) => {
                 const key = `${selectedDay}::${block}` as BlockKey
                 const items = buckets.get(key) ?? []
+                const sortedItems = [...items].sort((a, b) => {
+                  if (!a.start_time && !b.start_time) return 0
+                  if (!a.start_time) return 1
+                  if (!b.start_time) return -1
+                  return a.start_time.localeCompare(b.start_time)
+                })
                 return (
                   <TimeBlockColumn
                     key={key}
                     id={key}
                     block={block}
-                    items={items}
+                    items={sortedItems}
                     onAdd={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: block })}
                   >
-                    <SortableContext items={items.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-                      {items.map((a) => {
+                    <SortableContext items={sortedItems.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                      {sortedItems.map((a) => {
                         const linkedBooking = activityBookingMap.get(a.id)
                         const bookingStatus = !a.booking_id
                           ? "not-required" as const
@@ -1125,8 +1185,8 @@ export function ItineraryBoard({
           <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
         </DndContext>
       ) : viewMode === "calendar" ? (
-        <div className="overflow-x-auto">
-          <CalendarView
+        <CalendarView
+            tripId={trip.id}
             days={days}
             activities={activities}
             activeCategories={effectiveCategories}
@@ -1146,11 +1206,14 @@ export function ItineraryBoard({
               const b = bookings.find((b) => b.id === id)
               if (b) setBookingOpen(b)
             }}
+            onSendToKIV={async (activityId) => {
+              await applyMoveToKIV(activityId)
+            }}
+            onKIVAssignDay={handleKIVAssignDay}
             onActivityUpdated={handleCalendarActivityUpdated}
             weatherByDate={weatherByDate}
             weatherLoading={weatherLoading}
           />
-        </div>
       ) : (
         /* ── Map tab — full-screen two-column layout ─────────────────────── */
         <div className="flex h-[calc(100vh-114px)] overflow-hidden rounded-2xl border border-border">
