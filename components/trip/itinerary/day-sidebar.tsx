@@ -15,9 +15,10 @@ type Props = {
   onSelect: (day: string) => void
   activeDragId: string | null
   weatherByDay?: Map<string, WeatherDay>
+  firstTitleByDay?: Map<string, string>
 }
 
-export function DaySidebar({ days, counts, selected, onSelect, activeDragId, weatherByDay }: Props) {
+export function DaySidebar({ days, counts, selected, onSelect, activeDragId, weatherByDay, firstTitleByDay }: Props) {
   return (
     <ScrollArea className="h-full">
       <div className="flex flex-col gap-2 pr-1">
@@ -31,6 +32,7 @@ export function DaySidebar({ days, counts, selected, onSelect, activeDragId, wea
             onSelect={() => onSelect(day)}
             isDragging={activeDragId !== null}
             weather={weatherByDay?.get(day)}
+            firstTitle={firstTitleByDay?.get(day)}
           />
         ))}
       </div>
@@ -46,6 +48,7 @@ function DayItem({
   onSelect,
   isDragging,
   weather,
+  firstTitle,
 }: {
   day: string
   dayIndex: number
@@ -54,6 +57,7 @@ function DayItem({
   onSelect: () => void
   isDragging: boolean
   weather?: WeatherDay
+  firstTitle?: string
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day::${day}` })
   const date = parseDateOnly(day)
@@ -83,6 +87,9 @@ function DayItem({
         </span>
         <div className={cn("font-serif text-base", selected ? "text-white" : "")}>{format(date, "EEE")}</div>
         <div className={cn("text-sm", selected ? "text-white/70" : "text-muted-foreground")}>{format(date, "MMM d")}</div>
+        {!selected && firstTitle && (
+          <p className="mt-0.5 max-w-[120px] truncate text-[11px] text-muted-foreground/70">{firstTitle}</p>
+        )}
         {weather && (
           <div className={cn("mt-1 flex items-center gap-1 text-xs", selected ? "text-white/60" : "text-muted-foreground")}>
             <span>{weather.icon}</span>

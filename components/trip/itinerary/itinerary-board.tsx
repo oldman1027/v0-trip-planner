@@ -50,7 +50,7 @@ type ContainerKey = BlockKey | "kiv"
 type ViewMode = "board" | "calendar" | "map"
 
 const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
-  { value: "hotel",       label: "Hotel / Stay" },
+  { value: "hotel",       label: "Accommodation" },
   { value: "transport",   label: "Transport" },
   { value: "food",        label: "Dining" },
   { value: "sightseeing", label: "Sightseeing" },
@@ -296,6 +296,17 @@ export function ItineraryBoard({
       if (a.day_date && !a.is_wishlist && !a.is_kiv) c.set(a.day_date, (c.get(a.day_date) ?? 0) + 1)
     }
     return c
+  }, [activities, days])
+
+  const firstTitleByDay = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const day of days) {
+      const first = activities
+        .filter((a) => !a.is_wishlist && !a.is_kiv && a.day_date === day)
+        .sort((a, b) => (a.start_time ?? "99:99").localeCompare(b.start_time ?? "99:99"))[0]
+      if (first) m.set(day, first.title)
+    }
+    return m
   }, [activities, days])
 
   // Hotel activity per day for the banner shown above time-block columns
@@ -1096,6 +1107,7 @@ export function ItineraryBoard({
                 onSelect={setSelectedDay}
                 activeDragId={activeId}
                 weatherByDay={weatherByDay}
+                firstTitleByDay={firstTitleByDay}
               />
             </aside>
 

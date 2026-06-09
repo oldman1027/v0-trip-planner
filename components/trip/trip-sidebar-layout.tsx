@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -19,6 +19,8 @@ import { ShareTripDialog } from "./share-trip-dialog"
 import { HistoryPanel } from "./history-panel"
 import { UserMenu } from "@/components/user-menu"
 import { NotificationsPopover } from "@/components/notifications-popover"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import type { Trip } from "@/lib/types"
 
@@ -56,6 +58,26 @@ export function TripSidebarLayout({
     isTokenValid(trip) ? trip.share_token : null,
   )
   const [shareLoading, setShareLoading] = useState(false)
+  const [members, setMembers] = useState<Array<{ id: string; name: string; avatarUrl: string | null }>>([])
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from("trip_members")
+      .select("user_id, profiles(full_name, avatar_url)")
+      .eq("trip_id", trip.id)
+      .then(({ data }) => {
+        if (!data) return
+        setMembers(
+          (data as Array<{ user_id: string; profiles: { full_name: string | null; avatar_url: string | null } | null }>)
+            .map((m) => ({
+              id: m.user_id,
+              name: m.profiles?.full_name ?? "?",
+              avatarUrl: m.profiles?.avatar_url ?? null,
+            }))
+        )
+      })
+  }, [trip.id])
 
   const cover =
     trip.cover_image_url ??
@@ -158,6 +180,26 @@ export function TripSidebarLayout({
               <span>{fmtBudget(totalBudget, trip.default_currency)}</span>
             </div>
           )}
+          {members.length > 0 && (
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex -space-x-1.5">
+                {members.slice(0, 4).map((m) => (
+                  <Avatar key={m.id} className="h-6 w-6 border-2 border-background" title={m.name}>
+                    {m.avatarUrl && <AvatarImage src={m.avatarUrl} alt={m.name} />}
+                    <AvatarFallback className="text-[9px] font-bold bg-primary/20 text-primary">
+                      {m.name[0]?.toUpperCase() ?? "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {members.length === 1
+                  ? "1 member"
+                  : `${members.length} members`}
+                {members.length > 4 && ` (+${members.length - 4})`}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Nav items */}
@@ -172,12 +214,15 @@ export function TripSidebarLayout({
                 key={item.label}
                 href={href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   active
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
+                {active && (
+                  <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-primary rounded-full" />
+                )}
                 <item.icon className="w-4 h-4 flex-shrink-0" />
                 {item.label}
               </Link>
@@ -297,7 +342,7 @@ export function TripSidebarLayout({
         </div>
 
         {/* Tab content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto bg-gray-50/50 dark:bg-transparent">
           <div className="px-4 py-4 pb-16 sm:px-6 lg:px-8">
             {children}
           </div>

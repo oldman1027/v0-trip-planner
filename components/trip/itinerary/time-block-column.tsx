@@ -2,15 +2,15 @@
 
 import type { ReactNode } from "react"
 import { useDroppable } from "@dnd-kit/core"
-import { Plus, Sunrise, Sun, Moon } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { Activity, TimeBlock } from "@/lib/types"
 
-const META: Record<TimeBlock, { label: string; icon: typeof Sunrise }> = {
-  morning: { label: "Morning", icon: Sunrise },
-  afternoon: { label: "Afternoon", icon: Sun },
-  night: { label: "Night", icon: Moon },
+const META: Record<TimeBlock, { label: string; emoji: string; badgeCls: string }> = {
+  morning:   { label: "Morning",   emoji: "🌅", badgeCls: "bg-amber-50 text-amber-600 dark:bg-amber-900/30" },
+  afternoon: { label: "Afternoon", emoji: "☀️", badgeCls: "bg-yellow-50 text-yellow-600 dark:bg-yellow-900/30" },
+  night:     { label: "Night",     emoji: "🌙", badgeCls: "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30" },
 }
 
 export function TimeBlockColumn({
@@ -27,7 +27,6 @@ export function TimeBlockColumn({
   children: ReactNode
 }) {
   const { setNodeRef, isOver } = useDroppable({ id })
-  const Icon = META[block].icon
 
   return (
     <section
@@ -39,14 +38,16 @@ export function TimeBlockColumn({
       )}
     >
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary">
-            <Icon className="h-4 w-4" aria-hidden />
+        <div className="flex items-center gap-3">
+          <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-[18px]", META[block].badgeCls)}>
+            {META[block].emoji}
           </span>
-          <h3 className="font-serif text-lg">{META[block].label}</h3>
-          <span className="tabular text-xs text-muted-foreground">
-            {items.length} {items.length === 1 ? "activity" : "activities"}
-          </span>
+          <div>
+            <h3 className="font-serif text-base leading-tight">{META[block].label}</h3>
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              {items.length} {items.length === 1 ? "activity" : "activities"}
+            </p>
+          </div>
         </div>
         <Button variant="ghost" size="sm" className="rounded-lg" onClick={onAdd}>
           <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />

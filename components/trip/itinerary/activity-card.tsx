@@ -13,9 +13,27 @@ const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }
   food:        { label: "Food & Dining", cls: "bg-orange-100 text-orange-700 border-orange-200" },
   sightseeing: { label: "Sightseeing",   cls: "bg-blue-100 text-blue-700 border-blue-200" },
   transport:   { label: "Transport",     cls: "bg-slate-100 text-slate-700 border-slate-200" },
-  hotel:       { label: "Hotel / Stay",  cls: "bg-purple-100 text-purple-700 border-purple-200" },
+  hotel:       { label: "Accommodation", cls: "bg-purple-100 text-purple-700 border-purple-200" },
   activity:    { label: "Activity",      cls: "bg-amber-100 text-amber-700 border-amber-200" },
   other:       { label: "Other",         cls: "bg-secondary text-muted-foreground border-border" },
+}
+
+const CATEGORY_ACCENT: Record<Activity["category"], string> = {
+  food:        "bg-orange-400",
+  sightseeing: "bg-blue-400",
+  transport:   "bg-slate-400",
+  hotel:       "bg-purple-400",
+  activity:    "bg-amber-400",
+  other:       "bg-gray-300",
+}
+
+const CATEGORY_DOT: Record<Activity["category"], string> = {
+  food:        "bg-orange-400",
+  sightseeing: "bg-blue-400",
+  transport:   "bg-slate-400",
+  hotel:       "bg-purple-400",
+  activity:    "bg-amber-400",
+  other:       "bg-gray-400",
 }
 
 const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
@@ -59,18 +77,25 @@ export function ActivityCard({
   const validPhoto = activity.photo_url?.startsWith("https://") && !imgError
   const placeholder = CATEGORY_PLACEHOLDER[activity.category] ?? CATEGORY_PLACEHOLDER.other
   const PlaceholderIcon = placeholder.icon
+  const shortLocation = activity.location ? activity.location.split(",")[0].trim() : null
 
   return (
     <div
       ref={dragging ? undefined : setNodeRef}
       style={dragging ? undefined : style}
       className={cn(
-        "group/card relative flex items-stretch gap-3 rounded-xl border border-border bg-card p-3 transition-shadow",
+        "group/card relative flex overflow-hidden rounded-xl border border-border bg-card transition-all duration-150",
+        "hover:shadow-md hover:-translate-y-0.5",
         conflicts && conflicts.length > 0 && "border-yellow-500/50 bg-yellow-50/20 dark:bg-yellow-900/10",
         isDragging && !dragging && "opacity-40",
         dragging && "shadow-md ring-1 ring-primary/30",
       )}
     >
+      {/* Left category accent bar */}
+      <div className={cn("w-[3px] shrink-0", CATEGORY_ACCENT[activity.category ?? "other"])} />
+
+      {/* Card content */}
+      <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3">
       {validPhoto ? (
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -115,16 +140,17 @@ export function ActivityCard({
               </span>
             )}
             {activity.cost_amount != null ? (
-              <span className="tabular rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary">
+              <span className="tabular rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
                 {formatCost(activity.cost_amount, activity.cost_currency)}
               </span>
             ) : null}
           </div>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {activity.category && activity.category !== "other" && CATEGORY_META[activity.category] && (
-            <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-medium", CATEGORY_META[activity.category]!.cls)}>
-              {CATEGORY_META[activity.category]!.label}
+          {activity.category && CATEGORY_META[activity.category] && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", CATEGORY_DOT[activity.category])} />
+              <span className="text-[10px] text-muted-foreground">{CATEGORY_META[activity.category]!.label}</span>
             </span>
           )}
           {conflicts && conflicts.length > 0 && (
@@ -152,10 +178,10 @@ export function ActivityCard({
               </TooltipContent>
             </Tooltip>
           )}
-          {activity.location ? (
+          {shortLocation ? (
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3 w-3" aria-hidden />
-              {activity.location}
+              {shortLocation}
             </span>
           ) : null}
           {time ? (
@@ -181,6 +207,7 @@ export function ActivityCard({
       >
         <GripVertical className="h-4 w-4" aria-hidden />
       </button>
+      </div>
     </div>
   )
 }
