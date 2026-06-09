@@ -150,10 +150,10 @@ CRITICAL RULES — VIOLATIONS WILL BREAK THE APP:
 3. EXACT DATES: The day_date field MUST be the exact date shown in the DAY-BY-DAY map (YYYY-MM-DD)
 
 Return ONLY a valid JSON array — no markdown, no explanation, no code blocks:
-[{"title":"Activity Name","category":"attraction","location":"Specific Place, City","notes":"One helpful tip","time_block":"afternoon","day_date":"YYYY-MM-DD","start_time":null,"end_time":null,"cost_amount":null}]
+[{"title":"Activity Name","category":"sightseeing","location":"Specific Place, City","notes":"One helpful tip","time_block":"afternoon","day_date":"YYYY-MM-DD","start_time":null,"end_time":null,"cost_amount":null}]
 
 Schema rules:
-- category: food | attraction | transport | accommodation | shopping | entertainment | other
+- category: food | sightseeing | transport | hotel | activity | other
 - time_block: morning | afternoon | night
 - day_date: exact YYYY-MM-DD from the DAY-BY-DAY LOCATION MAP above — never invent a date`
 }

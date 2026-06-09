@@ -17,13 +17,12 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 const CATEGORIES: { value: Activity["category"]; label: string }[] = [
-  { value: "food",          label: "Food & Dining" },
-  { value: "attraction",    label: "Attraction" },
-  { value: "transport",     label: "Transport" },
-  { value: "accommodation", label: "Accommodation" },
-  { value: "shopping",      label: "Shopping" },
-  { value: "entertainment", label: "Entertainment" },
-  { value: "other",         label: "Other" },
+  { value: "food",        label: "Food & Dining" },
+  { value: "sightseeing", label: "Sightseeing" },
+  { value: "transport",   label: "Transport" },
+  { value: "hotel",       label: "Hotel / Stay" },
+  { value: "activity",    label: "Activity" },
+  { value: "other",       label: "Other" },
 ]
 
 const VALID_CATEGORIES = new Set<string>(CATEGORIES.map((c) => c.value))

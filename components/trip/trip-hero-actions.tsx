@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { FileDown, Link as LinkIcon, Mail, MessageCircle, Send, Share2, Trash2 } from "lucide-react"
+import { FileDown, History, Link as LinkIcon, Mail, MessageCircle, Send, Share2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ShareTripDialog } from "./share-trip-dialog"
+import { HistoryPanel } from "./history-panel"
 import type { Trip } from "@/lib/types"
 
 function isTokenValid(trip: Trip): boolean {
@@ -22,6 +23,7 @@ function isTokenValid(trip: Trip): boolean {
 
 export function TripHeroActions({ trip, isOwner = false }: { trip: Trip; isOwner?: boolean }) {
   const [shareOpen, setShareOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [shareToken, setShareToken] = useState<string | null>(
     isTokenValid(trip) ? trip.share_token : null,
   )
@@ -148,6 +150,16 @@ export function TripHeroActions({ trip, isOwner = false }: { trip: Trip; isOwner
           variant="outline"
           size="sm"
           className="h-8 rounded-lg px-3 text-xs"
+          onClick={() => setHistoryOpen(true)}
+        >
+          <History className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+          History
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 rounded-lg px-3 text-xs"
           disabled
           title="Coming soon"
         >
@@ -162,6 +174,12 @@ export function TripHeroActions({ trip, isOwner = false }: { trip: Trip; isOwner
         isOwner={isOwner}
         open={shareOpen}
         onOpenChange={setShareOpen}
+      />
+
+      <HistoryPanel
+        tripId={trip.id}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
       />
     </>
   )

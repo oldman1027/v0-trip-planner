@@ -29,10 +29,12 @@ export async function addAIActivities(tripId: string, currency: string, suggesti
     positionMap.set(key, Math.max(positionMap.get(key) ?? 0, a.position + 1))
   }
 
+  const VALID_CATEGORIES = ['food','sightseeing','transport','hotel','activity','other']
   const rows = suggestions.map((s) => {
     const key = `${s.day_date}::${s.time_block}`
     const pos = positionMap.get(key) ?? 0
     positionMap.set(key, pos + 1)
+    const safeCategory = VALID_CATEGORIES.includes(s.category) ? s.category : 'other'
     return {
       trip_id: tripId,
       day_date: s.day_date,
@@ -45,7 +47,7 @@ export async function addAIActivities(tripId: string, currency: string, suggesti
       notes: s.notes,
       cost_amount: s.cost_amount,
       cost_currency: currency,
-      category: s.category,
+      category: safeCategory,
       photo_url: null,
       booking_id: null,
       is_wishlist: false,

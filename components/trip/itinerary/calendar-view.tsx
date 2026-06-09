@@ -6,7 +6,7 @@ import { BedDouble, CalendarPlus, Ticket, Bus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseDateOnly } from "@/lib/dates"
 import { createClient } from "@/lib/supabase/client"
-import type { Activity, Booking, TimeBlock } from "@/lib/types"
+import type { Activity, Booking, KIVNote, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 import { GapIndicator } from "./gap-indicator"
 import { wmoToDisplay } from "@/lib/weather-utils"
@@ -18,13 +18,12 @@ const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  food:          { bg: "#E8F5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  attraction:    { bg: "#EAF5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  transport:     { bg: "#EDF5F3", border: "#8EC4B2", text: "#2C4A45", badge: "#5A7870" },
-  accommodation: { bg: "#F0F7F5", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  shopping:      { bg: "#EBF4F2", border: "#8EC4B2", text: "#2C4A45", badge: "#6D8F87" },
-  entertainment: { bg: "#EEF6F4", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  other:         { bg: "#F3F8F7", border: "#C0D8D2", text: "#2C4A45", badge: "#8EC4B2" },
+  food:        { bg: "#E8F5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  sightseeing: { bg: "#EAF5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  transport:   { bg: "#EDF5F3", border: "#8EC4B2", text: "#2C4A45", badge: "#5A7870" },
+  hotel:       { bg: "#F0F7F5", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  activity:    { bg: "#EEF6F4", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  other:       { bg: "#F3F8F7", border: "#C0D8D2", text: "#2C4A45", badge: "#8EC4B2" },
 }
 
 // ── Accommodation band colors ───────────────────────────────────────────────
@@ -206,8 +205,114 @@ function fmtDuration(mins: number): string {
   return `${h}h ${m}m`
 }
 
+// ── KIV Calendar Column ────────────────────────────────────────────────────
+
+function KIVCalendarColumn({
+  tripId,
+  kivActivities,
+  days,
+  onAssignDay,
+}: {
+  tripId: string
+  kivActivities: Activity[]
+  days: string[]
+  onAssignDay?: (activityId: string, day: string) => void
+}) {
+  const [notes, setNotes] = useState<KIVNote[]>([])
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!tripId) return
+    const supabase = createClient()
+    supabase
+      .from("kiv_notes")
+      .select("*")
+      .eq("trip_id", tripId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => setNotes((data ?? []) as KIVNote[]))
+  }, [tripId])
+
+  const total = kivActivities.length + notes.length
+
+  return (
+    <div className="flex flex-col w-[140px] shrink-0 border-l-2 border-dashed border-muted-foreground/20 bg-card">
+      {/* Header */}
+      <div className="flex min-h-[44px] items-center justify-between border-b border-border px-2 py-2 sticky top-0 bg-card z-10">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">KIV</p>
+          <p className="text-[9px] text-muted-foreground/60">Keep in view</p>
+        </div>
+        {total > 0 && (
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+            {total}
+          </span>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto p-1.5 space-y-1.5">
+        {kivActivities.map((a) => (
+          <div key={a.id} className="group rounded-lg border border-dashed border-border bg-background p-1.5">
+            <p className="text-[11px] font-medium leading-tight text-foreground line-clamp-2">{a.title}</p>
+            {a.location && (
+              <p className="text-[9px] text-muted-foreground truncate mt-0.5">{a.location.split(",")[0]}</p>
+            )}
+            {onAssignDay && (
+              expandedId === a.id ? (
+                <div className="mt-1 space-y-0.5">
+                  {days.map((day, i) => (
+                    <button
+                      key={day}
+                      type="button"
+                      className="w-full rounded px-1 py-0.5 text-left text-[9px] text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => { onAssignDay(a.id, day); setExpandedId(null) }}
+                    >
+                      D{i + 1} · {day.slice(5)}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="w-full rounded px-1 py-0.5 text-[9px] text-muted-foreground hover:bg-muted transition-colors"
+                    onClick={() => setExpandedId(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-1 w-full rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => setExpandedId(a.id)}
+                >
+                  Assign to day
+                </button>
+              )
+            )}
+          </div>
+        ))}
+
+        {notes.map((note) => (
+          <div key={note.id} className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 p-1.5">
+            <p className="text-[9px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">Note</p>
+            <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground line-clamp-5">{note.content}</p>
+          </div>
+        ))}
+
+        {total === 0 && (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-[9px] text-muted-foreground/60 text-center leading-relaxed px-1">
+              Click KIV on any activity to save it here
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 export function CalendarView({
+  tripId,
   days,
   activities: initialActivities,
   activeCategories,
@@ -218,9 +323,12 @@ export function CalendarView({
   accommodationBookings,
   onViewBooking,
   onActivityUpdated,
+  onSendToKIV,
+  onKIVAssignDay,
   weatherByDate,
   weatherLoading,
 }: {
+  tripId?: string
   days: string[]
   activities: Activity[]
   activeCategories?: Set<Activity["category"]>
@@ -231,6 +339,8 @@ export function CalendarView({
   accommodationBookings?: Booking[]
   onViewBooking?: (bookingId: string) => void
   onActivityUpdated?: (activity: Activity) => void
+  onSendToKIV?: (activityId: string) => void
+  onKIVAssignDay?: (activityId: string, day: string) => void
   weatherByDate?: Record<string, DailyWeather>
   weatherLoading?: boolean
 }) {
@@ -265,11 +375,16 @@ export function CalendarView({
   useEffect(() => { onClickRef.current = onActivityClick }, [onActivityClick])
   useEffect(() => { onActivityUpdatedRef.current = onActivityUpdated }, [onActivityUpdated])
 
+  const kivActivities = useMemo(
+    () => initialActivities.filter((a) => a.is_kiv),
+    [initialActivities],
+  )
+
   const byDay = useMemo(() => {
     const m = new Map<string, Activity[]>()
     for (const day of days) m.set(day, [])
     for (const a of activities) {
-      if (!a.day_date || a.is_wishlist) continue
+      if (!a.day_date || a.is_wishlist || a.is_kiv) continue
       if (activeCategories && activeCategories.size > 0 && !activeCategories.has(a.category)) continue
       m.get(a.day_date)?.push(a)
     }
@@ -440,7 +555,8 @@ export function CalendarView({
   // ── Render ─────────────────────────────────────────────────────────────────
   const todayStr = format(new Date(), "yyyy-MM-dd")
   const calendarGrid = (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+    <div className="flex overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="flex-1 overflow-x-auto min-w-0">
       <div className="min-w-max">
 
         {/* ── Combined header: bands above, day labels below ── */}
@@ -761,6 +877,18 @@ export function CalendarView({
                       >
                         <div className="h-0.5 w-5 rounded-full" style={{ backgroundColor: cat.badge }} />
                       </div>
+
+                      {/* Send to KIV button */}
+                      {onSendToKIV && (
+                        <button
+                          type="button"
+                          className="absolute top-0.5 left-0.5 z-10 opacity-0 group-hover/block:opacity-100 transition-opacity rounded px-1 py-0.5 text-[8px] font-semibold bg-amber-100 border border-amber-300 text-amber-700 hover:bg-amber-200 leading-none"
+                          onClick={(e) => { e.stopPropagation(); onSendToKIV(a.id) }}
+                          title="Save for later (KIV)"
+                        >
+                          KIV
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -787,6 +915,13 @@ export function CalendarView({
           })}
         </div>
       </div>
+    </div>
+    <KIVCalendarColumn
+      tripId={tripId ?? ""}
+      kivActivities={kivActivities}
+      days={days}
+      onAssignDay={onKIVAssignDay}
+    />
     </div>
   )
 

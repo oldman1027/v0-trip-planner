@@ -58,7 +58,7 @@ export type Activity = {
   cost_amount: number | null
   cost_currency: string | null
   photo_url: string | null
-  category: "food" | "attraction" | "transport" | "accommodation" | "shopping" | "entertainment" | "other"
+  category: "food" | "sightseeing" | "transport" | "hotel" | "activity" | "other"
   booking_id: string | null
   linked_booking_id: string | null
   is_wishlist: boolean

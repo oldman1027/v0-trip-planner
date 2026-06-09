@@ -3,30 +3,28 @@
 import { useState } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, MapPin, Clock, AlertCircle, CalendarCheck, BedDouble, Plane, Utensils, ShoppingBag, Music, MoreHorizontal } from "lucide-react"
+import { GripVertical, MapPin, Clock, AlertCircle, CalendarCheck, BedDouble, Plane, Utensils, Music, MoreHorizontal } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { Activity } from "@/lib/types"
 import type { ConflictInfo } from "@/lib/time-conflicts"
 
 const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }> = {
-  food:          { label: "Food & Dining",  cls: "bg-orange-100 text-orange-700 border-orange-200" },
-  attraction:    { label: "Attraction",     cls: "bg-blue-100 text-blue-700 border-blue-200" },
-  transport:     { label: "Transport",      cls: "bg-slate-100 text-slate-700 border-slate-200" },
-  accommodation: { label: "Accommodation",  cls: "bg-purple-100 text-purple-700 border-purple-200" },
-  shopping:      { label: "Shopping",       cls: "bg-pink-100 text-pink-700 border-pink-200" },
-  entertainment: { label: "Entertainment",  cls: "bg-amber-100 text-amber-700 border-amber-200" },
-  other:         { label: "Other",          cls: "bg-secondary text-muted-foreground border-border" },
+  food:        { label: "Food & Dining", cls: "bg-orange-100 text-orange-700 border-orange-200" },
+  sightseeing: { label: "Sightseeing",   cls: "bg-blue-100 text-blue-700 border-blue-200" },
+  transport:   { label: "Transport",     cls: "bg-slate-100 text-slate-700 border-slate-200" },
+  hotel:       { label: "Hotel / Stay",  cls: "bg-purple-100 text-purple-700 border-purple-200" },
+  activity:    { label: "Activity",      cls: "bg-amber-100 text-amber-700 border-amber-200" },
+  other:       { label: "Other",         cls: "bg-secondary text-muted-foreground border-border" },
 }
 
 const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
-  food:          { bg: "bg-orange-100", icon: Utensils,       iconCls: "text-orange-300" },
-  attraction:    { bg: "bg-[#A9D6C5]/30", icon: MapPin,        iconCls: "text-[#6D8F87]" },
-  transport:     { bg: "bg-gray-100",   icon: Plane,          iconCls: "text-gray-300" },
-  accommodation: { bg: "bg-blue-100",   icon: BedDouble,      iconCls: "text-blue-300" },
-  shopping:      { bg: "bg-pink-100",   icon: ShoppingBag,    iconCls: "text-pink-300" },
-  entertainment: { bg: "bg-purple-100", icon: Music,          iconCls: "text-purple-300" },
-  other:         { bg: "bg-[#A9D6C5]/20", icon: MoreHorizontal, iconCls: "text-[#6D8F87]" },
+  food:        { bg: "bg-orange-100",    icon: Utensils,       iconCls: "text-orange-300" },
+  sightseeing: { bg: "bg-[#A9D6C5]/30", icon: MapPin,          iconCls: "text-[#6D8F87]" },
+  transport:   { bg: "bg-gray-100",     icon: Plane,           iconCls: "text-gray-300" },
+  hotel:       { bg: "bg-blue-100",     icon: BedDouble,       iconCls: "text-blue-300" },
+  activity:    { bg: "bg-purple-100",   icon: Music,           iconCls: "text-purple-300" },
+  other:       { bg: "bg-[#A9D6C5]/20", icon: MoreHorizontal,  iconCls: "text-[#6D8F87]" },
 }
 
 export type BookingStatus = "not-required" | "pending" | "booked"

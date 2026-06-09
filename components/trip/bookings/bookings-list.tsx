@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Plus, Pencil, Trash2, Ticket, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { BookingDrawer, type BookingSaveInput } from "./booking-drawer"
 import { TransportDrawer } from "./transport-drawer"
 import { createClient } from "@/lib/supabase/client"
+import { recordHistory } from "@/lib/trip-history"
 import type { Booking } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -65,7 +66,7 @@ function buildActivityInsert(
     const startTime = input.check_in_time ?? null
     return {
       ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
-      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "accommodation" as const,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "hotel" as const,
       location: (details.address as string | null) ?? null, cost_amount: input.amount ?? null,
     }
   }
@@ -94,7 +95,7 @@ function buildActivityInsert(
     const startTime = input.departure_time ?? null
     return {
       ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
-      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "attraction" as const,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "sightseeing" as const,
       location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null,
     }
   }
@@ -203,8 +204,43 @@ export function BookingsList({
   const [filter, setFilter] = useState<string>("all")
   const [open, setOpen] = useState<Booking | "new" | null>(null)
   const [focusedBookingId, setFocusedBookingId] = useState<string | null>(null)
+  const currentUserRef = useRef<{ id: string; name: string } | null>(null)
 
   const { softDelete: softDeleteBooking } = useUndoDelete<Booking>()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle()
+      currentUserRef.current = {
+        id: user.id,
+        name: profile?.full_name ?? user.email?.split("@")[0] ?? "Someone",
+      }
+    })
+  }, [])
+
+  function maybeRecord(
+    action: Parameters<typeof recordHistory>[0]["action"],
+    entityType: Parameters<typeof recordHistory>[0]["entityType"],
+    entityName: string,
+  ) {
+    const user = currentUserRef.current
+    if (!user) return
+    void recordHistory({
+      supabase: createClient(),
+      tripId,
+      userId: user.id,
+      userName: user.name,
+      action,
+      entityType,
+      entityName,
+    }).catch(() => null)
+  }
 
   const drawerOpen = open !== null
 
@@ -337,6 +373,7 @@ export function BookingsList({
         ),
       )
       toast.success("Booking updated")
+      maybeRecord("edited", "booking", bookingData.title)
     } else {
       const { data, error } = await supabase
         .from("bookings")
@@ -373,6 +410,7 @@ export function BookingsList({
 
       setBookings((prev) => [data as Booking, ...prev])
       toast.success(trackInCosts && bookingData.amount ? "Booking added and expense created" : "Booking added")
+      maybeRecord("added", "booking", bookingData.title)
       return (data as Booking).id
     }
   }
@@ -415,6 +453,7 @@ export function BookingsList({
             await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
           }
         }
+        maybeRecord("deleted", "booking", b.title)
       },
       onRestore: (b) => {
         setBookings((prev) => [...prev, b])

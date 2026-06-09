@@ -34,13 +34,12 @@ type Message = {
 }
 
 const CATEGORY_COLORS: Record<Activity["category"], string> = {
-  food: "bg-orange-100 text-orange-700",
-  attraction: "bg-blue-100 text-blue-700",
-  transport: "bg-slate-100 text-slate-700",
-  accommodation: "bg-purple-100 text-purple-700",
-  shopping: "bg-pink-100 text-pink-700",
-  entertainment: "bg-amber-100 text-amber-700",
-  other: "bg-secondary text-muted-foreground",
+  food:        "bg-orange-100 text-orange-700",
+  sightseeing: "bg-blue-100 text-blue-700",
+  transport:   "bg-slate-100 text-slate-700",
+  hotel:       "bg-purple-100 text-purple-700",
+  activity:    "bg-amber-100 text-amber-700",
+  other:       "bg-secondary text-muted-foreground",
 }
 
 const STARTERS = [

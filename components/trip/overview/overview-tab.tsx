@@ -13,23 +13,21 @@ import { wmoToDisplay } from "@/lib/weather-utils"
 import type { Activity, Booking, Trip } from "@/lib/types"
 
 const CATEGORY_LABELS: Record<Activity["category"], string> = {
-  food: "Food & Dining",
-  attraction: "Attraction",
-  transport: "Transport",
-  accommodation: "Accommodation",
-  shopping: "Shopping",
-  entertainment: "Entertainment",
-  other: "Other",
+  food:        "Food & Dining",
+  sightseeing: "Sightseeing",
+  transport:   "Transport",
+  hotel:       "Hotel / Stay",
+  activity:    "Activity",
+  other:       "Other",
 }
 
 const CATEGORY_BADGE: Record<Activity["category"], string> = {
-  food: "bg-orange-100 text-orange-700 border-orange-200",
-  attraction: "bg-blue-100 text-blue-700 border-blue-200",
-  transport: "bg-slate-100 text-slate-700 border-slate-200",
-  accommodation: "bg-purple-100 text-purple-700 border-purple-200",
-  shopping: "bg-pink-100 text-pink-700 border-pink-200",
-  entertainment: "bg-amber-100 text-amber-700 border-amber-200",
-  other: "bg-secondary text-muted-foreground border-border",
+  food:        "bg-orange-100 text-orange-700 border-orange-200",
+  sightseeing: "bg-blue-100 text-blue-700 border-blue-200",
+  transport:   "bg-slate-100 text-slate-700 border-slate-200",
+  hotel:       "bg-purple-100 text-purple-700 border-purple-200",
+  activity:    "bg-amber-100 text-amber-700 border-amber-200",
+  other:       "bg-secondary text-muted-foreground border-border",
 }
 
 const BOOKING_TYPE_ICON: Record<string, string> = {
