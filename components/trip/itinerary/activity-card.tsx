@@ -91,11 +91,11 @@ export function ActivityCard({
         dragging && "shadow-md ring-1 ring-primary/30",
       )}
     >
-      {/* Left category accent bar */}
-      <div className={cn("w-[3px] shrink-0", CATEGORY_ACCENT[activity.category ?? "other"])} />
+      {/* Left category accent bar — absolute so it doesn't consume flex space */}
+      <div className={cn("absolute inset-y-0 left-0 w-1", CATEGORY_ACCENT[activity.category ?? "other"])} />
 
-      {/* Card content */}
-      <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3">
+      {/* Card content — pl-4 clears the 4px accent bar */}
+      <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3 pl-4">
       {validPhoto ? (
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -147,7 +147,7 @@ export function ActivityCard({
           </div>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {activity.category && CATEGORY_META[activity.category] && (
+          {activity.category && activity.category !== "other" && CATEGORY_META[activity.category] && (
             <span className="inline-flex items-center gap-1.5">
               <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", CATEGORY_DOT[activity.category])} />
               <span className="text-[10px] text-muted-foreground">{CATEGORY_META[activity.category]!.label}</span>
