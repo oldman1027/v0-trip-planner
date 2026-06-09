@@ -29,7 +29,7 @@ export async function addAIActivities(tripId: string, currency: string, suggesti
     positionMap.set(key, Math.max(positionMap.get(key) ?? 0, a.position + 1))
   }
 
-  const VALID_CATEGORIES = ['food','sightseeing','transport','hotel','activity','other']
+  const VALID_CATEGORIES = ['accommodation','transport','dining','experiences','other']
   const rows = suggestions.map((s) => {
     const key = `${s.day_date}::${s.time_block}`
     const pos = positionMap.get(key) ?? 0

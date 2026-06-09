@@ -18,12 +18,11 @@ const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  food:        { bg: "#E8F5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  sightseeing: { bg: "#EAF5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  transport:   { bg: "#EDF5F3", border: "#8EC4B2", text: "#2C4A45", badge: "#5A7870" },
-  hotel:       { bg: "#F0F7F5", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  activity:    { bg: "#EEF6F4", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  other:       { bg: "#F3F8F7", border: "#C0D8D2", text: "#2C4A45", badge: "#8EC4B2" },
+  dining:        { bg: "#E8F5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  experiences:   { bg: "#EAF5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  transport:     { bg: "#EDF5F3", border: "#8EC4B2", text: "#2C4A45", badge: "#5A7870" },
+  accommodation: { bg: "#F0F7F5", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
+  other:         { bg: "#F3F8F7", border: "#C0D8D2", text: "#2C4A45", badge: "#8EC4B2" },
 }
 
 // ── Accommodation band colors ───────────────────────────────────────────────

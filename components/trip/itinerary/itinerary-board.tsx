@@ -50,19 +50,18 @@ type ContainerKey = BlockKey | "kiv"
 type ViewMode = "board" | "calendar" | "map"
 
 const CATEGORY_FILTERS: { value: Activity["category"]; label: string }[] = [
-  { value: "hotel",       label: "Accommodation" },
-  { value: "transport",   label: "Transport" },
-  { value: "food",        label: "Dining" },
-  { value: "sightseeing", label: "Sightseeing" },
-  { value: "activity",    label: "Activities" },
-  { value: "other",       label: "Other" },
+  { value: "accommodation", label: "Accommodation" },
+  { value: "transport",     label: "Transport" },
+  { value: "dining",        label: "Dining" },
+  { value: "experiences",   label: "Experiences" },
+  { value: "other",         label: "Other" },
 ]
 
 function categoryToBookingType(cat: Activity["category"]): Booking["type"] {
-  if (cat === "food") return "dining"
-  if (cat === "hotel") return "accommodation"
+  if (cat === "dining") return "dining"
+  if (cat === "accommodation") return "accommodation"
   if (cat === "transport") return "transport"
-  if (cat === "sightseeing" || cat === "activity") return "activities"
+  if (cat === "experiences") return "activities"
   return "other"
 }
 
@@ -313,7 +312,7 @@ export function ItineraryBoard({
   const hotelByDay = useMemo(() => {
     const m = new Map<string, { activity: Activity; booking: Booking | undefined }>()
     for (const a of activities) {
-      if (a.category === "hotel" && !a.is_wishlist && a.day_date && !m.has(a.day_date)) {
+      if (a.category === "accommodation" && !a.is_wishlist && a.day_date && !m.has(a.day_date)) {
         m.set(a.day_date, { activity: a, booking: activityBookingMap.get(a.id) })
       }
     }
@@ -656,7 +655,7 @@ export function ItineraryBoard({
     // but the drawer's handleStartChange already keeps them in sync — this is a safety net)
     const resolvedBlock = input.start_time ? getBlockFromTime(input.start_time) : input.time_block
     const resolvedInput = { ...input, time_block: resolvedBlock }
-    const VALID_CATEGORIES = ['food','sightseeing','transport','hotel','activity','other'] as const
+    const VALID_CATEGORIES = ['accommodation','transport','dining','experiences','other'] as const
     const safeCategory = (VALID_CATEGORIES as readonly string[]).includes(resolvedInput.category) ? resolvedInput.category : 'other' as const
     const supabase = createClient()
     if (resolvedInput.id) {

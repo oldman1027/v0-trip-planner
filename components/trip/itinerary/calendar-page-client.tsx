@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { X, Pencil, MapPin, Clock, DollarSign, BedDouble, Plane, Utensils, Music, MoreHorizontal } from "lucide-react"
+import { X, Pencil, MapPin, Clock, DollarSign, BedDouble, Plane, Utensils, MoreHorizontal } from "lucide-react"
 import { CalendarView } from "./calendar-view"
 import { ActivityDrawer } from "./activity-drawer"
 import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
@@ -17,21 +17,19 @@ import { cn } from "@/lib/utils"
 import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
 
 const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
-  food:        { bg: "bg-orange-100",    icon: Utensils,       iconCls: "text-orange-300" },
-  sightseeing: { bg: "bg-[#A9D6C5]/30", icon: MapPin,          iconCls: "text-[#6D8F87]" },
-  transport:   { bg: "bg-gray-100",     icon: Plane,           iconCls: "text-gray-300" },
-  hotel:       { bg: "bg-blue-100",     icon: BedDouble,       iconCls: "text-blue-300" },
-  activity:    { bg: "bg-purple-100",   icon: Music,           iconCls: "text-purple-300" },
-  other:       { bg: "bg-[#A9D6C5]/20", icon: MoreHorizontal,  iconCls: "text-[#6D8F87]" },
+  dining:        { bg: "bg-orange-100",    icon: Utensils,       iconCls: "text-orange-300" },
+  experiences:   { bg: "bg-[#A9D6C5]/30", icon: MapPin,          iconCls: "text-[#6D8F87]" },
+  transport:     { bg: "bg-gray-100",      icon: Plane,           iconCls: "text-gray-300" },
+  accommodation: { bg: "bg-blue-100",      icon: BedDouble,       iconCls: "text-blue-300" },
+  other:         { bg: "bg-[#A9D6C5]/20",  icon: MoreHorizontal,  iconCls: "text-[#6D8F87]" },
 }
 
 const CATEGORY_LABEL: Record<Activity["category"], string> = {
-  food:        "Food & Dining",
-  sightseeing: "Sightseeing",
-  transport:   "Transport",
-  hotel:       "Hotel / Stay",
-  activity:    "Activity",
-  other:       "Other",
+  dining:        "Dining",
+  experiences:   "Experiences",
+  transport:     "Transport",
+  accommodation: "Accommodation",
+  other:         "Other",
 }
 
 export function CalendarPageClient({
@@ -75,7 +73,7 @@ export function CalendarPageClient({
     category: Activity["category"]
     needs_booking: boolean
   }) {
-    const VALID_CATEGORIES = ['food','sightseeing','transport','hotel','activity','other'] as const
+    const VALID_CATEGORIES = ['accommodation','transport','dining','experiences','other'] as const
     const safeCategory = (VALID_CATEGORIES as readonly string[]).includes(input.category) ? input.category : 'other' as const
     const supabase = createClient()
 

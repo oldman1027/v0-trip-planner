@@ -66,7 +66,7 @@ function buildActivityInsert(
     const startTime = input.check_in_time ?? null
     return {
       ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
-      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "hotel" as const,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "accommodation" as const,
       location: (details.address as string | null) ?? null, cost_amount: input.amount ?? null,
     }
   }
@@ -87,7 +87,7 @@ function buildActivityInsert(
     const startTime = datetime ? datetime.slice(11, 16) : null
     return {
       ...base, title: input.title, day_date: dayDate, start_time: startTime,
-      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "food" as const,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "dining" as const,
       location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null,
     }
   }
@@ -95,7 +95,7 @@ function buildActivityInsert(
     const startTime = input.departure_time ?? null
     return {
       ...base, title: input.title, day_date: input.booking_date ?? null, start_time: startTime,
-      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "sightseeing" as const,
+      time_block: startTime ? getTimeBlock(startTime) : "morning", category: "experiences" as const,
       location: (details.location as string | null) ?? null, cost_amount: input.amount ?? null,
     }
   }

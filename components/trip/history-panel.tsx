@@ -122,7 +122,7 @@ export function HistoryPanel({
         if (error) throw error
       }
       if (activities?.length) {
-        const VALID_CATEGORIES = ['food','sightseeing','transport','hotel','activity','other']
+        const VALID_CATEGORIES = ['accommodation','transport','dining','experiences','other']
         const sanitized = activities.map((a: Record<string, unknown>) => ({
           ...a,
           category: VALID_CATEGORIES.includes(a.category as string) ? a.category : 'other',

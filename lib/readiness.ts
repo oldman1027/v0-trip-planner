@@ -25,7 +25,7 @@ export function computeReadiness(
   for (const b of bookings) paymentStatus.set(b.id, b.payment_status)
 
   // Key-category buckets
-  const accomActs = planned.filter((a) => a.category === "hotel")
+  const accomActs = planned.filter((a) => a.category === "accommodation")
   const transportActs = planned.filter((a) => a.category === "transport")
 
   const accommodationStatus: CategoryStatus =
@@ -41,7 +41,7 @@ export function computeReadiness(
   // Score denominator: key-category activities (whether booked or not) +
   // non-key activities that the user explicitly linked to a booking.
   const nonKeyBooked = planned.filter(
-    (a) => a.booking_id && a.category !== "hotel" && a.category !== "transport",
+    (a) => a.booking_id && a.category !== "accommodation" && a.category !== "transport",
   )
   const totalBookable = accomActs.length + transportActs.length + nonKeyBooked.length
 

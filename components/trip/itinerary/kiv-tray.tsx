@@ -32,12 +32,11 @@ import { toast } from "sonner"
 import type { Activity, KIVNote } from "@/lib/types"
 
 const CATEGORY_ICON: Record<Activity["category"], string> = {
-  food:        "🍽️",
-  sightseeing: "🎯",
-  transport:   "✈️",
-  hotel:       "🏨",
-  activity:    "🎭",
-  other:       "📌",
+  dining:        "🍽️",
+  experiences:   "🎯",
+  transport:     "✈️",
+  accommodation: "🏨",
+  other:         "📌",
 }
 
 // ── KIV Activity Card ─────────────────────────────────────────────────────────

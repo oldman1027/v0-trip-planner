@@ -37,12 +37,11 @@ type SafeBooking = {
 // ── Category icons ────────────────────────────────────────────────────────────
 
 const CATEGORY_ICON: Record<string, string> = {
-  food:        "🍽️",
-  sightseeing: "🎯",
-  transport:   "✈️",
-  hotel:       "🏨",
-  activity:    "🎭",
-  other:       "📍",
+  dining:        "🍽️",
+  experiences:   "🎯",
+  transport:     "✈️",
+  accommodation: "🏨",
+  other:         "📍",
 }
 
 // ── Error states ──────────────────────────────────────────────────────────────
