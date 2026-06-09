@@ -1,8 +1,5 @@
 import { notFound, redirect } from "next/navigation"
-import { AppHeader } from "@/components/app-header"
-import { TripHeader } from "@/components/trip/trip-header"
-import { TripTabs } from "@/components/trip/trip-tabs"
-import { NotificationsPopover } from "@/components/notifications-popover"
+import { TripSidebarLayout } from "@/components/trip/trip-sidebar-layout"
 import { KeyboardShortcutsProvider } from "@/components/keyboard-shortcuts-provider"
 import { createClient } from "@/lib/supabase/server"
 import type { Trip } from "@/lib/types"
@@ -40,16 +37,15 @@ export default async function TripLayout({
   const isOwner = membership?.role === "owner"
 
   return (
-    <div className="min-h-svh">
-      <AppHeader>
-        <NotificationsPopover />
-      </AppHeader>
-      <TripHeader trip={trip as Trip} totalBudget={totalBudget} isOwner={isOwner} />
-      <TripTabs tripId={id} />
-      <main className="w-full pb-16 pt-4">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">{children}</div>
-      </main>
+    <>
+      <TripSidebarLayout
+        trip={trip as Trip}
+        totalBudget={totalBudget}
+        isOwner={isOwner}
+      >
+        {children}
+      </TripSidebarLayout>
       <KeyboardShortcutsProvider />
-    </div>
+    </>
   )
 }
