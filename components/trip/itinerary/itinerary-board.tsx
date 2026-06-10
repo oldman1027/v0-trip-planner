@@ -32,11 +32,12 @@ import { TriplettoAI } from "@/components/trip/TriplettoAI"
 import { useRealtimeActivities } from "@/hooks/use-realtime-activities"
 import { usePresence } from "@/hooks/use-presence"
 import { useUndoDelete } from "@/hooks/use-undo-delete"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities, sendActivityToKIV, scheduleKIVActivity } from "@/app/actions/move-activity"
 import { recordHistory } from "@/lib/trip-history"
-import { KIVTray } from "./kiv-tray"
+import { KIVTray, KIVPanel } from "./kiv-tray"
 import { daysBetween, formatDayLabel, getBlockFromTime } from "@/lib/dates"
 import { detectConflicts } from "@/lib/time-conflicts"
 import { useTripWeather } from "@/hooks/use-trip-weather"
@@ -117,6 +118,7 @@ export function ItineraryBoard({
   initialBookings: Booking[]
 }) {
   const days = useMemo(() => daysBetween(trip.start_date, trip.end_date), [trip.start_date, trip.end_date])
+  const isMobile = useIsMobile()
 
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
   const activitiesRef = useRef(activities)
@@ -984,52 +986,15 @@ export function ItineraryBoard({
         onActivitiesAdded={handleActivitiesAdded}
       />
 
-      {/* Category filter + view mode toggle — single toolbar row, sticky */}
+      {/* Toolbar: [day-list spacer | filter chips | view switcher] — sticky */}
       <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-border gap-3">
-            {/* Filter chips — left aligned, scrollable on mobile */}
-            <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0">
-              <button
-                type="button"
-                onClick={() => setActiveCategories(new Set())}
-                className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0",
-                  activeCategories.size === 0
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
-                )}
-              >
-                All
-              </button>
-              {CATEGORY_FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() =>
-                    setActiveCategories((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(f.value)) next.delete(f.value)
-                      else next.add(f.value)
-                      return next
-                    })
-                  }
-                  className={cn(
-                    "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0",
-                    activeCategories.has(f.value)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80",
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center border-b border-border">
 
-            {/* Right side: presence + view switcher — never wraps */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Left spacer — matches day list width; shows presence on desktop */}
+            <div className="hidden md:flex w-[260px] flex-shrink-0 items-center justify-end gap-1.5 px-3 py-2">
               {onlineUsers.length > 0 && (
-                <div className="hidden sm:flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5">
                   <div className="flex -space-x-1.5">
                     {onlineUsers.slice(0, 4).map((user) => (
                       <Avatar
@@ -1057,7 +1022,49 @@ export function ItineraryBoard({
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
+            </div>
+
+            {/* Filter chips — aligns with activity content column */}
+            <div className="flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto px-4 py-2">
+              <button
+                type="button"
+                onClick={() => setActiveCategories(new Set())}
+                className={cn(
+                  "flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  activeCategories.size === 0
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
+              >
+                All
+              </button>
+              {CATEGORY_FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() =>
+                    setActiveCategories((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(f.value)) next.delete(f.value)
+                      else next.add(f.value)
+                      return next
+                    })
+                  }
+                  className={cn(
+                    "flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    activeCategories.has(f.value)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* View switcher — aligns with KIV panel on desktop */}
+            <div className="flex flex-shrink-0 items-center justify-center px-3 py-2 md:w-[220px] md:border-l md:border-border">
+              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
                 {(
                   [
                     { id: "board" as ViewMode,    icon: LayoutGrid, label: "Board"    },
@@ -1070,7 +1077,7 @@ export function ItineraryBoard({
                     type="button"
                     onClick={() => setViewMode(view.id)}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
                       viewMode === view.id
                         ? "bg-background shadow-sm text-foreground"
                         : "text-muted-foreground hover:text-foreground",
@@ -1082,6 +1089,7 @@ export function ItineraryBoard({
                 ))}
               </div>
             </div>
+
           </div>
         </div>
       </div>
@@ -1094,22 +1102,26 @@ export function ItineraryBoard({
           onDragOver={onDragOver}
           onDragEnd={onDragEnd}
         >
-          <div className="flex gap-6 items-start">
-            {/* Day navigation sidebar — 30% */}
-            <aside className="sticky top-[114px] w-[28%] shrink-0 h-[calc(100vh-114px)] rounded-2xl border border-border bg-card p-3">
-              <DaySidebar
-                days={days}
-                counts={dayCounts}
-                selected={selectedDay}
-                onSelect={setSelectedDay}
-                activeDragId={activeId}
-                weatherByDay={weatherByDay}
-                firstTitleByDay={firstTitleByDay}
-              />
+          {/* 3-column layout: day list | activity content | KIV panel */}
+          <div className="flex items-start">
+
+            {/* Day list — left column */}
+            <aside className="sticky top-[114px] w-[260px] flex-shrink-0 h-[calc(100vh-114px)] overflow-y-auto border-r border-border bg-card/50">
+              <div className="p-3">
+                <DaySidebar
+                  days={days}
+                  counts={dayCounts}
+                  selected={selectedDay}
+                  onSelect={setSelectedDay}
+                  activeDragId={activeId}
+                  weatherByDay={weatherByDay}
+                  firstTitleByDay={firstTitleByDay}
+                />
+              </div>
             </aside>
 
-            {/* Activity columns — 70% */}
-            <div className="flex-1 min-w-0 flex flex-col gap-4">
+            {/* Activity content — center column */}
+            <div className="flex-1 min-w-0 flex flex-col gap-4 px-4 py-3">
               {hotelByDay.has(selectedDay) && (
                 <HotelBanner
                   activity={hotelByDay.get(selectedDay)!.activity}
@@ -1180,16 +1192,33 @@ export function ItineraryBoard({
                 </Button>
               </div>
             </div>
+
+            {/* KIV right panel — desktop only (conditionally mounted to avoid duplicate droppable id) */}
+            {!isMobile && (
+              <aside className="sticky top-[114px] flex w-[220px] flex-shrink-0 h-[calc(100vh-114px)] flex-col overflow-hidden border-l border-border bg-muted/10">
+                <KIVPanel
+                  tripId={trip.id}
+                  activities={kivActivities}
+                  days={days}
+                  onAssignDay={handleKIVAssignDay}
+                  onDelete={handleDelete}
+                  onAdd={handleKIVAdd}
+                />
+              </aside>
+            )}
           </div>
 
-          <KIVTray
-            tripId={trip.id}
-            activities={kivActivities}
-            days={days}
-            onAssignDay={handleKIVAssignDay}
-            onDelete={handleDelete}
-            onAdd={handleKIVAdd}
-          />
+          {/* KIV bottom tray — mobile only */}
+          {isMobile && (
+            <KIVTray
+              tripId={trip.id}
+              activities={kivActivities}
+              days={days}
+              onAssignDay={handleKIVAssignDay}
+              onDelete={handleDelete}
+              onAdd={handleKIVAdd}
+            />
+          )}
 
           <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
         </DndContext>

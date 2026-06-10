@@ -46,11 +46,13 @@ function KIVActivityCard({
   days,
   onAssignDay,
   onDelete,
+  className,
 }: {
   activity: Activity
   days: string[]
   onAssignDay: (activityId: string, day: string) => void
   onDelete: (activityId: string) => void
+  className?: string
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
@@ -70,6 +72,7 @@ function KIVActivityCard({
         "group/kiv relative flex shrink-0 flex-col gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm transition-shadow",
         "w-[180px]",
         isDragging && "opacity-40 shadow-md ring-1 ring-primary/30",
+        className,
       )}
     >
       {/* Drag handle */}
@@ -142,10 +145,12 @@ function KIVNoteCard({
   note,
   onEdit,
   onDelete,
+  className,
 }: {
   note: KIVNote
   onEdit: (id: string, content: string) => void
   onDelete: (id: string) => void
+  className?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(note.content)
@@ -196,7 +201,7 @@ function KIVNoteCard({
   }
 
   return (
-    <div className="group/note relative flex shrink-0 w-[200px] flex-col gap-1 rounded-xl border border-border bg-amber-50/60 px-3 py-2.5 shadow-sm dark:bg-amber-950/20">
+    <div className={cn("group/note relative flex shrink-0 w-[200px] flex-col gap-1 rounded-xl border border-border bg-amber-50/60 px-3 py-2.5 shadow-sm dark:bg-amber-950/20", className)}>
       <StickyNote className="h-3 w-3 text-amber-500/70" />
       <p className="text-xs leading-snug text-foreground">{note.content}</p>
       <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/note:opacity-100">
@@ -221,7 +226,7 @@ function KIVNoteCard({
 
 // ── Quick-add input ───────────────────────────────────────────────────────────
 
-function QuickAddInput({ onAdd }: { onAdd: (title: string) => void }) {
+function QuickAddInput({ onAdd, className }: { onAdd: (title: string) => void; className?: string }) {
   const [value, setValue] = useState("")
   const [focused, setFocused] = useState(false)
 
@@ -237,6 +242,7 @@ function QuickAddInput({ onAdd }: { onAdd: (title: string) => void }) {
       className={cn(
         "flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border bg-card/60 px-3 py-2.5 transition-colors w-[180px]",
         focused && "border-primary/40 bg-card",
+        className,
       )}
     >
       <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -268,7 +274,7 @@ function QuickAddInput({ onAdd }: { onAdd: (title: string) => void }) {
 
 // ── Add Note Input ────────────────────────────────────────────────────────────
 
-function AddNoteInput({ onAdd }: { onAdd: (content: string) => void }) {
+function AddNoteInput({ onAdd, className }: { onAdd: (content: string) => void; className?: string }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState("")
 
@@ -285,7 +291,10 @@ function AddNoteInput({ onAdd }: { onAdd: (content: string) => void }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border bg-amber-50/40 px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:border-amber-300/60 hover:bg-amber-50/60 dark:bg-amber-950/10 w-[160px]"
+        className={cn(
+          "flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border bg-amber-50/40 px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:border-amber-300/60 hover:bg-amber-50/60 dark:bg-amber-950/10 w-[160px]",
+          className,
+        )}
       >
         <Plus className="h-3.5 w-3.5" />
         Add note
@@ -294,7 +303,7 @@ function AddNoteInput({ onAdd }: { onAdd: (content: string) => void }) {
   }
 
   return (
-    <div className="flex shrink-0 w-[220px] flex-col gap-1.5 rounded-xl border border-amber-300/60 bg-amber-50/60 p-2.5 dark:bg-amber-950/20">
+    <div className={cn("flex shrink-0 w-[220px] flex-col gap-1.5 rounded-xl border border-amber-300/60 bg-amber-50/60 p-2.5 dark:bg-amber-950/20", className)}>
       <Textarea
         autoFocus
         value={value}
@@ -465,6 +474,130 @@ export function KIVTray({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── KIV Panel (desktop right column) ─────────────────────────────────────────
+
+export function KIVPanel({
+  tripId,
+  activities,
+  days,
+  onAssignDay,
+  onDelete,
+  onAdd,
+}: {
+  tripId: string
+  activities: Activity[]
+  days: string[]
+  onAssignDay: (activityId: string, day: string) => void
+  onDelete: (activityId: string) => void
+  onAdd: (title: string) => void
+}) {
+  const [notes, setNotes] = useState<KIVNote[]>([])
+  const [notesLoaded, setNotesLoaded] = useState(false)
+
+  const { setNodeRef, isOver } = useDroppable({ id: "kiv" })
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from("kiv_notes")
+      .select("*")
+      .eq("trip_id", tripId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (data) setNotes(data as KIVNote[])
+        setNotesLoaded(true)
+      })
+  }, [tripId])
+
+  async function handleAddNote(content: string) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data, error } = await supabase
+      .from("kiv_notes")
+      .insert({ trip_id: tripId, content, created_by: user?.id ?? null })
+      .select()
+      .single()
+    if (error) { toast.error("Could not save note"); return }
+    setNotes((prev) => [...prev, data as KIVNote])
+  }
+
+  async function handleEditNote(id: string, content: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from("kiv_notes").update({ content }).eq("id", id)
+    if (error) { toast.error("Could not update note"); return }
+    setNotes((prev) => prev.map((n) => n.id === id ? { ...n, content } : n))
+  }
+
+  async function handleDeleteNote(id: string) {
+    setNotes((prev) => prev.filter((n) => n.id !== id))
+    const supabase = createClient()
+    const { error } = await supabase.from("kiv_notes").delete().eq("id", id)
+    if (error) toast.error("Could not delete note")
+  }
+
+  const totalCount = activities.length + notes.length
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Panel header */}
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Keep in View
+          </span>
+          {totalCount > 0 && (
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {totalCount}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Drop zone — vertically scrollable */}
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex flex-1 flex-col gap-2 overflow-y-auto p-2 transition-colors",
+          isOver && "bg-primary/5",
+        )}
+      >
+        <SortableContext items={activities.map((a) => a.id)} strategy={rectSortingStrategy}>
+          {activities.map((a) => (
+            <KIVActivityCard
+              key={a.id}
+              activity={a}
+              days={days}
+              onAssignDay={onAssignDay}
+              onDelete={onDelete}
+              className="w-full"
+            />
+          ))}
+        </SortableContext>
+
+        {notes.map((n) => (
+          <KIVNoteCard
+            key={n.id}
+            note={n}
+            onEdit={handleEditNote}
+            onDelete={handleDeleteNote}
+            className="w-full"
+          />
+        ))}
+
+        {totalCount === 0 && !isOver && (
+          <p className="px-2 pt-6 text-center text-[10px] leading-relaxed text-muted-foreground">
+            Drag activities here to save for later
+          </p>
+        )}
+
+        <QuickAddInput onAdd={onAdd} className="w-full" />
+        {notesLoaded && <AddNoteInput onAdd={handleAddNote} className="w-full" />}
+      </div>
     </div>
   )
 }
