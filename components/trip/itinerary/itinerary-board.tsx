@@ -984,55 +984,50 @@ export function ItineraryBoard({
         onActivitiesAdded={handleActivitiesAdded}
       />
 
-      {/* Category filter + view mode toggle — sticky below content top */}
+      {/* Category filter + view mode toggle — single toolbar row, sticky */}
       <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-6 items-center py-2">
-            {/* Spacer: mirrors day sidebar width so chips align with activity columns */}
-            <div className="hidden md:block w-[28%] shrink-0" />
-            <div className="flex flex-1 min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {/* "All" is always visible; active when nothing is filtered */}
+        <div className="mx-auto max-w-6xl">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border gap-3">
+            {/* Filter chips — left aligned, scrollable on mobile */}
+            <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0">
               <button
                 type="button"
                 onClick={() => setActiveCategories(new Set())}
                 className={cn(
-                  "whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0",
                   activeCategories.size === 0
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground",
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
                 )}
               >
                 All
               </button>
-              {CATEGORY_FILTERS.map((f) => {
-                const active = activeCategories.has(f.value)
-                return (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() =>
-                      setActiveCategories((prev) => {
-                        const next = new Set(prev)
-                        if (next.has(f.value)) next.delete(f.value)
-                        else next.add(f.value)
-                        return next
-                      })
-                    }
-                    className={cn(
-                      "whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                      active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {f.label}
-                  </button>
-                )
-              })}
+              {CATEGORY_FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() =>
+                    setActiveCategories((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(f.value)) next.delete(f.value)
+                      else next.add(f.value)
+                      return next
+                    })
+                  }
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0",
+                    activeCategories.has(f.value)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              {/* Presence: who else is viewing this trip */}
+
+            {/* Right side: presence + view switcher — never wraps */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               {onlineUsers.length > 0 && (
                 <div className="hidden sm:flex items-center gap-1.5">
                   <div className="flex -space-x-1.5">
@@ -1062,31 +1057,30 @@ export function ItineraryBoard({
                   </div>
                 </div>
               )}
-              <div className="flex gap-0.5 rounded-xl border border-border bg-card p-0.5">
-                {(["board", "calendar", "map"] as ViewMode[]).map((mode) => (
+              <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
+                {(
+                  [
+                    { id: "board" as ViewMode,    icon: LayoutGrid, label: "Board"    },
+                    { id: "calendar" as ViewMode, icon: Calendar,   label: "Calendar" },
+                    { id: "map" as ViewMode,      icon: MapIcon,    label: "Map"      },
+                  ] as const
+                ).map((view) => (
                   <button
-                    key={mode}
+                    key={view.id}
                     type="button"
-                    onClick={() => setViewMode(mode)}
+                    onClick={() => setViewMode(view.id)}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",
-                      viewMode === mode
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                      viewMode === view.id
+                        ? "bg-background shadow-sm text-foreground"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {mode === "board" ? (
-                      <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-                    ) : mode === "calendar" ? (
-                      <Calendar className="h-3.5 w-3.5" aria-hidden />
-                    ) : (
-                      <MapIcon className="h-3.5 w-3.5" aria-hidden />
-                    )}
-                    {mode}
+                    <view.icon className="w-3.5 h-3.5" aria-hidden />
+                    {view.label}
                   </button>
                 ))}
               </div>
-            </div>
             </div>
           </div>
         </div>
