@@ -986,45 +986,12 @@ export function ItineraryBoard({
         onActivitiesAdded={handleActivitiesAdded}
       />
 
-      {/* Toolbar: [day-list spacer | filter chips | view switcher] — sticky */}
+      {/* Toolbar: [filter chips | online users | view switcher] — sticky */}
       <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-background/95 backdrop-blur-sm">
         <div className="flex items-center border-b border-border px-4 sm:px-6 lg:px-8">
 
-            {/* Left spacer — exact same 280px as day list column */}
-            <div className="hidden md:flex w-[280px] flex-shrink-0 items-center justify-end gap-1.5 px-3 py-2">
-              {onlineUsers.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <div className="flex -space-x-1.5">
-                    {onlineUsers.slice(0, 4).map((user) => (
-                      <Avatar
-                        key={user.userId}
-                        className="h-6 w-6 border-2 border-background shrink-0"
-                        title={`${user.name} is viewing`}
-                      >
-                        {user.avatarUrl ? (
-                          <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        ) : null}
-                        <AvatarFallback
-                          className="text-[9px] font-bold text-white"
-                          style={{ backgroundColor: user.color }}
-                        >
-                          {user.name[0]?.toUpperCase() ?? "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#A9D6C5] animate-pulse" />
-                    <span className="text-[10px] text-[#6D8F87] font-medium">
-                      {onlineUsers.length === 1 ? "1 online" : `${onlineUsers.length} online`}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Filter chips — aligns with activity content column */}
-            <div className="flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto px-4 py-2">
+            {/* Filter chips — px-3 matches day-list p-3 so chips left-align with the Day 1 box */}
+            <div className="flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto px-3 py-2">
               <button
                 type="button"
                 onClick={() => setActiveCategories(new Set())}
@@ -1060,6 +1027,37 @@ export function ItineraryBoard({
                 </button>
               ))}
             </div>
+
+            {/* Online users — right of chips */}
+            {onlineUsers.length > 0 && (
+              <div className="hidden md:flex flex-shrink-0 items-center gap-1.5 px-3 py-2">
+                <div className="flex -space-x-1.5">
+                  {onlineUsers.slice(0, 4).map((user) => (
+                    <Avatar
+                      key={user.userId}
+                      className="h-6 w-6 border-2 border-background shrink-0"
+                      title={`${user.name} is viewing`}
+                    >
+                      {user.avatarUrl ? (
+                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                      ) : null}
+                      <AvatarFallback
+                        className="text-[9px] font-bold text-white"
+                        style={{ backgroundColor: user.color }}
+                      >
+                        {user.name[0]?.toUpperCase() ?? "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#A9D6C5] animate-pulse" />
+                  <span className="text-[10px] text-[#6D8F87] font-medium">
+                    {onlineUsers.length === 1 ? "1 online" : `${onlineUsers.length} online`}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* View switcher — exact same 220px as KIV panel */}
             <div className="flex flex-shrink-0 items-center justify-center px-3 py-2 md:w-[220px] md:border-l md:border-border">

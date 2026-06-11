@@ -22,7 +22,7 @@ const CATEGORY_ACCENT: Record<Activity["category"], string> = {
   experiences:   "bg-blue-400",
   transport:     "bg-slate-400",
   accommodation: "bg-purple-400",
-  other:         "bg-gray-200",
+  other:         "bg-gray-400",
 }
 
 const CATEGORY_DOT: Record<Activity["category"], string> = {
@@ -88,13 +88,10 @@ export function ActivityCard({
       )}
     >
       {/* Left category accent bar */}
-      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${
-        activity.category === "dining"        ? "bg-orange-400" :
-        activity.category === "transport"     ? "bg-slate-400"  :
-        activity.category === "accommodation" ? "bg-purple-400" :
-        activity.category === "experiences"   ? "bg-blue-400"   :
-        "bg-gray-200"
-      }`} />
+      <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-[3px]",
+        CATEGORY_ACCENT[activity.category] ?? CATEGORY_ACCENT.other,
+      )} />
 
       {/* Card content — pl-[14px] clears the 3px accent bar */}
       <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3 pl-[14px]">
