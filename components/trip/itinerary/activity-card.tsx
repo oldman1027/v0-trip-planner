@@ -88,7 +88,13 @@ export function ActivityCard({
       )}
     >
       {/* Left category accent bar */}
-      <div className={cn("absolute inset-y-0 left-0 w-[3px]", CATEGORY_ACCENT[activity.category ?? "other"])} />
+      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${
+        activity.category === "dining"        ? "bg-orange-400" :
+        activity.category === "transport"     ? "bg-slate-400"  :
+        activity.category === "accommodation" ? "bg-purple-400" :
+        activity.category === "experiences"   ? "bg-blue-400"   :
+        "bg-gray-200"
+      }`} />
 
       {/* Card content — pl-[14px] clears the 3px accent bar */}
       <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3 pl-[14px]">

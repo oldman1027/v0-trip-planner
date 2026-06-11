@@ -979,10 +979,7 @@ export function ItineraryBoard({
   }, [])
 
   return (
-    <div
-      className="flex flex-col gap-4"
-      style={{ '--day-list-width': '280px', '--kiv-panel-width': '220px' } as React.CSSProperties}
-    >
+    <div className="flex flex-col gap-4">
       <TriplettoAI
         trip={trip}
         activities={activities}
@@ -991,11 +988,10 @@ export function ItineraryBoard({
 
       {/* Toolbar: [day-list spacer | filter chips | view switcher] — sticky */}
       <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex items-center border-b border-border">
+        <div className="flex items-center border-b border-border px-4 sm:px-6 lg:px-8">
 
-            {/* Left spacer — matches day list width; shows presence on desktop */}
-            <div className="hidden md:flex w-[var(--day-list-width)] flex-shrink-0 items-center justify-end gap-1.5 px-3 py-2">
+            {/* Left spacer — exact same 280px as day list column */}
+            <div className="hidden md:flex w-[280px] flex-shrink-0 items-center justify-end gap-1.5 px-3 py-2">
               {onlineUsers.length > 0 && (
                 <div className="flex items-center gap-1.5">
                   <div className="flex -space-x-1.5">
@@ -1065,8 +1061,8 @@ export function ItineraryBoard({
               ))}
             </div>
 
-            {/* View switcher — aligns with KIV panel on desktop */}
-            <div className="flex flex-shrink-0 items-center justify-center px-3 py-2 md:w-[var(--kiv-panel-width)] md:border-l md:border-border">
+            {/* View switcher — exact same 220px as KIV panel */}
+            <div className="flex flex-shrink-0 items-center justify-center px-3 py-2 md:w-[220px] md:border-l md:border-border">
               <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
                 {(
                   [
@@ -1093,7 +1089,6 @@ export function ItineraryBoard({
               </div>
             </div>
 
-          </div>
         </div>
       </div>
 
@@ -1109,10 +1104,7 @@ export function ItineraryBoard({
           <div className="flex items-start">
 
             {/* Day list — left column */}
-            <aside
-              className="sticky top-[114px] flex-shrink-0 h-[calc(100vh-114px)] overflow-y-auto border-r border-border bg-card/50"
-              style={{ width: 'var(--day-list-width)' }}
-            >
+            <aside className="sticky top-[114px] w-[280px] flex-shrink-0 h-[calc(100vh-114px)] overflow-y-auto border-r border-border bg-card/50">
               <div className="p-3">
                 <DaySidebar
                   days={days}
@@ -1201,10 +1193,7 @@ export function ItineraryBoard({
 
             {/* KIV right panel — desktop only (conditionally mounted to avoid duplicate droppable id) */}
             {!isMobile && (
-              <aside
-                className="sticky top-[114px] flex flex-shrink-0 h-[calc(100vh-114px)] flex-col overflow-hidden border-l border-border bg-muted/10"
-                style={{ width: 'var(--kiv-panel-width)' }}
-              >
+              <aside className="sticky top-[114px] flex w-[220px] flex-shrink-0 h-[calc(100vh-114px)] flex-col overflow-hidden border-l border-border bg-muted/10">
                 <KIVPanel
                   tripId={trip.id}
                   activities={kivActivities}
