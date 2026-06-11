@@ -1060,7 +1060,7 @@ export function ItineraryBoard({
             )}
 
             {/* View switcher — exact same 220px as KIV panel */}
-            <div className="flex flex-shrink-0 items-center justify-center px-3 py-2 md:w-[220px] md:border-l md:border-border">
+            <div className="flex flex-shrink-0 items-center justify-center px-3 py-2 md:w-[220px]">
               <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
                 {(
                   [
@@ -1102,7 +1102,7 @@ export function ItineraryBoard({
           <div className="flex items-start">
 
             {/* Day list — left column */}
-            <aside className="sticky top-[114px] w-[280px] flex-shrink-0 h-[calc(100vh-114px)] overflow-y-auto border-r border-border bg-card/50">
+            <aside className="sticky top-[51px] w-[280px] flex-shrink-0 h-[calc(100vh-51px)] overflow-y-auto border-r border-border bg-card/50">
               <div className="p-3">
                 <DaySidebar
                   days={days}
@@ -1191,7 +1191,7 @@ export function ItineraryBoard({
 
             {/* KIV right panel — desktop only (conditionally mounted to avoid duplicate droppable id) */}
             {!isMobile && (
-              <aside className="sticky top-[114px] flex w-[220px] flex-shrink-0 h-[calc(100vh-114px)] flex-col overflow-hidden border-l border-border bg-muted/10">
+              <aside className="sticky top-[51px] flex w-[220px] flex-shrink-0 h-[calc(100vh-51px)] flex-col overflow-hidden border-l border-border bg-muted/10 pt-3">
                 <KIVPanel
                   tripId={trip.id}
                   activities={kivActivities}
