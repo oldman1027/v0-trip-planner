@@ -342,7 +342,7 @@ export function TripSidebarLayout({
         </div>
 
         {/* Tab content */}
-        <main className="flex-1 overflow-auto bg-gray-50/40 dark:bg-transparent">
+        <main className="flex-1 overflow-auto bg-[#F9F9F8] dark:bg-transparent">
           <div className="px-4 py-4 pb-16 sm:px-6 lg:px-8">
             {children}
           </div>

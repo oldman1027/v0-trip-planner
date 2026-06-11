@@ -22,7 +22,7 @@ const CATEGORY_ACCENT: Record<Activity["category"], string> = {
   experiences:   "bg-blue-400",
   transport:     "bg-slate-400",
   accommodation: "bg-purple-400",
-  other:         "bg-gray-300",
+  other:         "bg-gray-200",
 }
 
 const CATEGORY_DOT: Record<Activity["category"], string> = {
@@ -87,11 +87,11 @@ export function ActivityCard({
         dragging && "shadow-md ring-1 ring-primary/30",
       )}
     >
-      {/* Left category accent bar — absolute so it doesn't consume flex space */}
-      <div className={cn("absolute inset-y-0 left-0 w-1", CATEGORY_ACCENT[activity.category ?? "other"])} />
+      {/* Left category accent bar */}
+      <div className={cn("absolute inset-y-0 left-0 w-[3px]", CATEGORY_ACCENT[activity.category ?? "other"])} />
 
-      {/* Card content — pl-4 clears the 4px accent bar */}
-      <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3 pl-4">
+      {/* Card content — pl-[14px] clears the 3px accent bar */}
+      <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3 pl-[14px]">
       {validPhoto ? (
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}

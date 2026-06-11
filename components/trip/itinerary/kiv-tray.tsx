@@ -544,10 +544,10 @@ export function KIVPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Panel header */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-border px-3 py-2.5 bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center gap-1.5">
           <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Keep in View
           </span>
           {totalCount > 0 && (
