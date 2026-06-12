@@ -18,11 +18,11 @@ const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  dining:        { bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.18)",  text: "#2C4A45", badge: "#F97316" },
-  experiences:   { bg: "rgba(96,165,250,0.08)",  border: "rgba(96,165,250,0.18)",  text: "#2C4A45", badge: "#60A5FA" },
-  transport:     { bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.18)", text: "#2C4A45", badge: "#94A3B8" },
-  accommodation: { bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.18)", text: "#2C4A45", badge: "#A78BFA" },
-  other:         { bg: "rgba(203,213,225,0.08)", border: "rgba(203,213,225,0.18)", text: "#2C4A45", badge: "#CBD5E1" },
+  dining:        { bg: "#FEF3E8", border: "rgba(249,115,22,0.18)",  text: "#2C4A45", badge: "#F97316" },
+  experiences:   { bg: "#EFF6FF", border: "rgba(96,165,250,0.18)",  text: "#2C4A45", badge: "#60A5FA" },
+  transport:     { bg: "#F0F4F8", border: "rgba(148,163,184,0.18)", text: "#2C4A45", badge: "#94A3B8" },
+  accommodation: { bg: "#F5F3FF", border: "rgba(167,139,250,0.18)", text: "#2C4A45", badge: "#A78BFA" },
+  other:         { bg: "#F8F7F5", border: "rgba(203,213,225,0.18)", text: "#2C4A45", badge: "#CBD5E1" },
 }
 
 // ── Accommodation band colors — all purple pill per spec ───────────────────
@@ -374,18 +374,6 @@ export function CalendarView({
   useEffect(() => { onClickRef.current = onActivityClick }, [onActivityClick])
   useEffect(() => { onActivityUpdatedRef.current = onActivityUpdated }, [onActivityUpdated])
 
-  // Current time line
-  const [nowMins, setNowMins] = useState(() => {
-    const n = new Date()
-    return n.getHours() * 60 + n.getMinutes()
-  })
-  useEffect(() => {
-    const id = setInterval(() => {
-      const n = new Date()
-      setNowMins(n.getHours() * 60 + n.getMinutes())
-    }, 60_000)
-    return () => clearInterval(id)
-  }, [])
 
   const kivActivities = useMemo(
     () => initialActivities.filter((a) => a.is_kiv),
@@ -566,10 +554,6 @@ export function CalendarView({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const todayStr = format(new Date(), "yyyy-MM-dd")
-  const nowTop =
-    nowMins >= HOUR_START * 60 && nowMins <= HOUR_END * 60
-      ? minsToTop(nowMins)
-      : null
   const calendarGrid = (
     <div className="flex overflow-hidden rounded-2xl bg-[#FDFAF6]" style={{ border: "0.5px solid #D4C9BC" }}>
     <div className="flex-1 overflow-x-auto min-w-0">
@@ -721,32 +705,6 @@ export function CalendarView({
               </div>
             ))}
           </div>
-
-          {/* Current time line */}
-          {nowTop !== null && (
-            <div
-              className="pointer-events-none absolute z-20"
-              style={{
-                top: nowTop,
-                left: TIME_COL_W,
-                right: 0,
-                height: 0,
-                borderTop: "1.5px solid #F2686C",
-              }}
-            >
-              <div
-                className="absolute"
-                style={{
-                  left: 0,
-                  top: -3,
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  backgroundColor: "#F2686C",
-                }}
-              />
-            </div>
-          )}
 
           {/* Day columns */}
           {days.map((day, dayIdx) => {
