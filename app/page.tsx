@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { differenceInDays } from "date-fns"
-import { Plus, MapPin, Calendar, Hotel, Plane, Bus, Ticket, Utensils, ArrowRight, Star } from "lucide-react"
+import { Plus, MapPin, Calendar, Hotel, Plane, Bus, Ticket, Utensils, ArrowRight, Star, Users, LayoutGrid } from "lucide-react"
 import { AppHeader } from "@/components/app-header"
 import { Button } from "@/components/ui/button"
 import { TripCard } from "@/components/trips/trip-card"
@@ -445,22 +445,27 @@ function HeroSection() {
 
 // ── How It Works ───────────────────────────────────────────────────────────
 
-const HOW_IT_WORKS_STEPS = [
+const HOW_IT_WORKS_STEPS: Array<{
+  step: string
+  Icon: React.ElementType
+  title: string
+  desc: string
+}> = [
   {
-    emoji: "🗺️",
     step: "1",
+    Icon: Users,
     title: "Create your trip",
     desc: "Add your destination, dates, and invite your group in seconds. Everyone's in — no app downloads required.",
   },
   {
-    emoji: "📋",
     step: "2",
+    Icon: LayoutGrid,
     title: "Plan together",
     desc: "Build your day-by-day itinerary on a shared board. The AI suggests activities, spots scheduling conflicts, and shows drive times between stops.",
   },
   {
-    emoji: "✈️",
     step: "3",
+    Icon: Plane,
     title: "Travel without chaos",
     desc: "Everyone sees the same plan, in real time. Bookings, costs, and even who owes who — all in one place.",
   },
@@ -470,25 +475,35 @@ function HowItWorksSection() {
   return (
     <section id="how-it-works" className="bg-secondary/40 py-24">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="mb-12 text-center">
-          <h2 className="font-serif text-4xl tracking-tight">How It Works</h2>
-          <p className="mt-3 text-muted-foreground">Three steps to your best trip yet.</p>
+        <div className="mb-12 text-center sm:text-left">
+          <h2 className="font-serif text-4xl tracking-tight">How it works</h2>
+          <p className="mt-3 text-muted-foreground">From idea to itinerary in minutes.</p>
         </div>
-        <div className="grid gap-8 sm:grid-cols-3">
-          {HOW_IT_WORKS_STEPS.map(({ emoji, step, title, desc }) => (
-            <div key={step} className="flex flex-col items-center gap-4 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card text-3xl shadow-sm">
-                {emoji}
+        <div className="flex flex-col gap-6 sm:grid sm:grid-cols-[1fr_2.5rem_1fr_2.5rem_1fr] sm:items-stretch">
+          {HOW_IT_WORKS_STEPS.flatMap(({ step, Icon, title, desc }, i) => [
+            <div
+              key={step}
+              className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  {step}
+                </span>
+                <Icon className="h-7 w-7" style={{ color: "#A9D6C5" }} />
               </div>
               <div>
-                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
-                  Step {step}
-                </div>
-                <h3 className="font-serif text-xl">{title}</h3>
+                <h3 className="font-serif text-lg text-foreground">{title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
               </div>
-            </div>
-          ))}
+            </div>,
+            ...(i < HOW_IT_WORKS_STEPS.length - 1
+              ? [
+                  <div key={`connector-${i}`} className="hidden sm:flex items-center justify-center">
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/40" />
+                  </div>,
+                ]
+              : []),
+          ])}
         </div>
       </div>
     </section>
