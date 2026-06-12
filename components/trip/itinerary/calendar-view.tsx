@@ -18,11 +18,11 @@ const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  dining:        { bg: "#FEF3E8", border: "rgba(249,115,22,0.18)",  text: "#2C4A45", badge: "#F97316" },
-  experiences:   { bg: "#EFF6FF", border: "rgba(96,165,250,0.18)",  text: "#2C4A45", badge: "#60A5FA" },
-  transport:     { bg: "#F0F4F8", border: "rgba(148,163,184,0.18)", text: "#2C4A45", badge: "#94A3B8" },
-  accommodation: { bg: "#F5F3FF", border: "rgba(167,139,250,0.18)", text: "#2C4A45", badge: "#A78BFA" },
-  other:         { bg: "#F8F7F5", border: "rgba(203,213,225,0.18)", text: "#2C4A45", badge: "#CBD5E1" },
+  dining:        { bg: "#8FD6C8", border: "rgba(249,115,22,0.18)",  text: "#2C4A45", badge: "#F97316" },
+  experiences:   { bg: "#8FD6C8", border: "rgba(96,165,250,0.18)",  text: "#2C4A45", badge: "#60A5FA" },
+  transport:     { bg: "#8FD6C8", border: "rgba(148,163,184,0.18)", text: "#2C4A45", badge: "#94A3B8" },
+  accommodation: { bg: "#8FD6C8", border: "rgba(167,139,250,0.18)", text: "#2C4A45", badge: "#A78BFA" },
+  other:         { bg: "#8FD6C8", border: "rgba(203,213,225,0.18)", text: "#2C4A45", badge: "#CBD5E1" },
 }
 
 // ── Accommodation band colors — all purple pill per spec ───────────────────
