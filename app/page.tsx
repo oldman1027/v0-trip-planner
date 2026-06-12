@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { differenceInDays } from "date-fns"
-import { Plus, MapPin, Calendar, Hotel, Plane, Bus, Ticket, Utensils, ArrowRight, Star, Users, LayoutGrid } from "lucide-react"
+import { Plus, MapPin, Calendar, Hotel, Plane, Bus, Ticket, Utensils, ArrowRight, Star, Users, LayoutGrid, Sparkles, BookOpen, Receipt, CalendarDays } from "lucide-react"
 import { AppHeader } from "@/components/app-header"
 import { Button } from "@/components/ui/button"
 import { TripCard } from "@/components/trips/trip-card"
@@ -377,7 +377,7 @@ function HeroSection() {
           For families and friend groups
         </div>
         <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight md:text-6xl">
-          Stop managing your group trip in a WhatsApp thread.
+          Stop planning your group trip in WhatsApp and Excel.
         </h1>
         <p className="max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
           Tripletto brings your whole group onto one shared itinerary — with an AI planner, real-time collaboration, and everything from bookings to costs in one place.
@@ -421,8 +421,8 @@ function HeroSection() {
           <div className="border-t border-border bg-card p-5">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-serif text-lg">Tokyo Family Trip</div>
-                <div className="text-sm text-muted-foreground">7 days · 4 travelers</div>
+                <div className="font-serif text-lg">Perth Family Trip</div>
+                <div className="text-sm text-muted-foreground">10 days · 19 travelers</div>
               </div>
               <div className="flex -space-x-2">
                 {["A", "M", "K", "S"].map((c, i) => (
@@ -512,63 +512,103 @@ function HowItWorksSection() {
 
 // ── Features ───────────────────────────────────────────────────────────────
 
-const MARKETING_FEATURES = [
+const FEATURE_CARDS: Array<{
+  Icon: React.ElementType
+  iconColor: string
+  title: string
+  desc: string
+  featured?: boolean
+}> = [
   {
-    emoji: "🤖",
+    Icon: Sparkles,
+    iconColor: "#6D8F87",
     title: "AI trip planner",
-    desc: "Describe your vibe and it builds your day. Ask 'what to do in Chiang Mai on a rainy afternoon' and get real suggestions added straight to your itinerary.",
+    desc: "Describe your vibe and it builds your day. Ask 'what to do in Chiang Mai on a rainy afternoon' and get real activity suggestions added straight to your itinerary.",
     featured: true,
   },
   {
-    emoji: "👥",
+    Icon: Users,
+    iconColor: "#A9D6C5",
     title: "Real-time group board",
     desc: "Your whole group sees every change the moment it happens. No more 'wait which version is the latest?' in the group chat.",
   },
   {
-    emoji: "🏨",
+    Icon: BookOpen,
+    iconColor: "#A9D6C5",
     title: "Bookings tracker",
-    desc: "Hotels, flights, restaurants — attach confirmation numbers, files, and links. Get a single timeline view of everything confirmed vs still pending.",
+    desc: "Hotels, flights, restaurants — attach confirmation numbers, files, and links. One timeline view of everything confirmed vs still pending.",
   },
   {
-    emoji: "💰",
+    Icon: Receipt,
+    iconColor: "#A9D6C5",
     title: "Costs & splitting",
     desc: "Log expenses in THB or MYR. See exactly who paid what and who owes who — settled per currency, no spreadsheet needed.",
   },
   {
-    emoji: "📅",
+    Icon: CalendarDays,
+    iconColor: "#A9D6C5",
     title: "Smart calendar view",
     desc: "See your whole day as a timeline. Drive times shown between stops so you know if that 30-minute gap is actually enough.",
   },
 ]
 
 function FeaturesSection() {
-  const [featured, ...rest] = MARKETING_FEATURES
+  const [featured, ...rest] = FEATURE_CARDS
   return (
     <section id="features" className="py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-12 text-center">
-          <h2 className="font-serif text-4xl tracking-tight">Everything in one place</h2>
+          <h2 className="font-serif text-4xl tracking-tight" style={{ color: "#2C4A45" }}>Everything your group needs</h2>
           <p className="mt-3 text-muted-foreground">
-            No more juggling WhatsApp messages, spreadsheets, and voice notes.
+            Built for the chaos of group travel — not solo itineraries.
           </p>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Featured card — spans 2 columns */}
-          <div className="flex flex-col gap-3 rounded-2xl border-2 border-primary bg-card p-6 sm:col-span-2 lg:col-span-2">
-            <span className="text-3xl" aria-hidden>{featured.emoji}</span>
-            <h3 className="font-serif text-xl">{featured.title}</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">{featured.desc}</p>
-          </div>
-          {rest.map(({ emoji, title, desc }) => (
-            <div
-              key={title}
-              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-6"
-            >
-              <span className="text-3xl" aria-hidden>{emoji}</span>
-              <h3 className="font-serif text-lg">{title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{desc}</p>
+        <div className="flex flex-col gap-6">
+          {/* Card 1 — full-width featured */}
+          <div
+            className="flex flex-col gap-4 rounded-2xl border p-6"
+            style={{ background: "#EDF5F2", borderColor: "#D4C9BC" }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                style={{ background: "#E8DDD0" }}
+              >
+                <featured.Icon className="h-[22px] w-[22px]" style={{ color: featured.iconColor }} />
+              </div>
+              <span
+                className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                style={{ background: "#6D8F87" }}
+              >
+                New
+              </span>
             </div>
-          ))}
+            <div>
+              <h3 className="text-base font-medium" style={{ color: "#2C4A45" }}>{featured.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{featured.desc}</p>
+            </div>
+          </div>
+          {/* Cards 2–5 — 2×2 grid */}
+          <div className="grid gap-6 sm:grid-cols-2">
+            {rest.map(({ Icon, iconColor, title, desc }) => (
+              <div
+                key={title}
+                className="flex flex-col gap-4 rounded-2xl border p-6"
+                style={{ background: "#FDFAF6", borderColor: "#D4C9BC" }}
+              >
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  style={{ background: "#E8DDD0" }}
+                >
+                  <Icon className="h-[22px] w-[22px]" style={{ color: iconColor }} />
+                </div>
+                <div>
+                  <h3 className="text-base font-medium" style={{ color: "#2C4A45" }}>{title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
