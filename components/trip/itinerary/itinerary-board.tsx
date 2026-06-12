@@ -18,14 +18,13 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Calendar, LayoutGrid, Map as MapIcon, MapPin, Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { DaySidebar } from "./day-sidebar"
+import { TimeBlockColumn } from "./time-block-column"
 import { ActivityCard } from "./activity-card"
-
 import { ActivityDrawer } from "./activity-drawer"
 import { CalendarView } from "./calendar-view"
 import { HotelBanner } from "./hotel-banner"
-import { DayStrip } from "./day-strip"
-import { DayHero } from "./day-hero"
-import { TripAssistantPanel } from "./trip-assistant-panel"
 import { BookingDrawer } from "@/components/trip/bookings/booking-drawer"
 import { TransportDrawer } from "@/components/trip/bookings/transport-drawer"
 import { TripMap, PIN_PALETTE } from "@/components/trip/overview/trip-map"
@@ -33,11 +32,12 @@ import { TriplettoAI } from "@/components/trip/TriplettoAI"
 import { useRealtimeActivities } from "@/hooks/use-realtime-activities"
 import { usePresence } from "@/hooks/use-presence"
 import { useUndoDelete } from "@/hooks/use-undo-delete"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { createClient } from "@/lib/supabase/client"
 import { moveActivity, reorderActivities, sendActivityToKIV, scheduleKIVActivity } from "@/app/actions/move-activity"
 import { recordHistory } from "@/lib/trip-history"
-import { KIVTray } from "./kiv-tray"
+import { KIVTray, KIVPanel } from "./kiv-tray"
 import { daysBetween, formatDayLabel, getBlockFromTime } from "@/lib/dates"
 import { detectConflicts } from "@/lib/time-conflicts"
 import { useTripWeather } from "@/hooks/use-trip-weather"
@@ -108,12 +108,6 @@ const BLOCK_START_TIMES: Record<TimeBlock, string> = {
   night: "19:00",
 }
 
-const BLOCK_EMOJI: Record<TimeBlock, string> = {
-  morning: "🌅",
-  afternoon: "☀️",
-  night: "🌙",
-}
-
 export function ItineraryBoard({
   trip,
   initialActivities,
@@ -124,6 +118,7 @@ export function ItineraryBoard({
   initialBookings: Booking[]
 }) {
   const days = useMemo(() => daysBetween(trip.start_date, trip.end_date), [trip.start_date, trip.end_date])
+  const isMobile = useIsMobile()
 
   const [activities, setActivities] = useState<Activity[]>(initialActivities)
   const activitiesRef = useRef(activities)
@@ -325,14 +320,6 @@ export function ItineraryBoard({
     }
     return m
   }, [activities, activityBookingMap])
-
-  const dayActivities = useMemo(
-    () =>
-      activities
-        .filter((a) => a.day_date === selectedDay && !a.is_wishlist && !a.is_kiv)
-        .sort((a, b) => (a.start_time ?? "99:99").localeCompare(b.start_time ?? "99:99")),
-    [activities, selectedDay],
-  )
 
   const anyDrawerOpen =
     drawerState !== null ||
@@ -1113,134 +1100,101 @@ export function ItineraryBoard({
           onDragOver={onDragOver}
           onDragEnd={onDragEnd}
         >
-          {/* Day strip — horizontal photo cards */}
-          <div className="-mx-4 sm:-mx-6 lg:-mx-8 border-b border-border bg-[#FFFBF4] px-4 py-3 sm:px-6 lg:px-8">
-            <DayStrip
-              days={days}
-              selected={selectedDay}
-              onSelect={setSelectedDay}
-              activeDragId={activeId}
-              activities={activities}
-              tripCoverUrl={trip.cover_image_url}
-            />
-          </div>
+          {/* 3-column layout: day list | activity content | KIV panel */}
+          <div className="flex items-start">
 
-          {/* Day hero + timeline | right panel */}
-          <div className="-mx-4 sm:-mx-6 lg:-mx-8 flex items-start">
+            {/* Day list — left column */}
+            <aside className="sticky top-[51px] w-[280px] flex-shrink-0 h-[calc(100vh-51px)] overflow-y-auto border-r border-border bg-card/50">
+              <div className="p-3">
+                <DaySidebar
+                  days={days}
+                  counts={dayCounts}
+                  selected={selectedDay}
+                  onSelect={setSelectedDay}
+                  activeDragId={activeId}
+                  weatherByDay={weatherByDay}
+                  firstTitleByDay={firstTitleByDay}
+                />
+              </div>
+            </aside>
 
-            {/* Left: day hero + activity timeline */}
-            <div className="flex-1 min-w-0">
-              <DayHero
-                dayIndex={days.indexOf(selectedDay) + 1}
-                day={selectedDay}
-                activities={dayActivities}
-                trip={trip}
-                weather={weatherByDay.get(selectedDay)}
-              />
+            {/* Activity content — center column */}
+            <div className="flex-1 min-w-0 flex flex-col gap-4 px-4 py-3">
+              {hotelByDay.has(selectedDay) && (
+                <HotelBanner
+                  activity={hotelByDay.get(selectedDay)!.activity}
+                  booking={hotelByDay.get(selectedDay)!.booking}
+                />
+              )}
+              {TIME_BLOCKS.map((block) => {
+                const key = `${selectedDay}::${block}` as BlockKey
+                const items = buckets.get(key) ?? []
+                const sortedItems = [...items].sort((a, b) => {
+                  if (!a.start_time && !b.start_time) return 0
+                  if (!a.start_time) return 1
+                  if (!b.start_time) return -1
+                  return a.start_time.localeCompare(b.start_time)
+                })
+                return (
+                  <TimeBlockColumn
+                    key={key}
+                    id={key}
+                    block={block}
+                    items={sortedItems}
+                    onAdd={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: block })}
+                  >
+                    <SortableContext items={sortedItems.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                      {sortedItems.map((a) => {
+                        const linkedBooking = activityBookingMap.get(a.id)
+                        const bookingStatus = !a.booking_id
+                          ? "not-required" as const
+                          : linkedBooking?.confirmation_number
+                            || linkedBooking?.reservation_status === "confirmed"
+                            || (!linkedBooking?.reservation_status && linkedBooking?.payment_status === "confirmed")
+                            ? "booked" as const
+                            : "pending" as const
+                        return (
+                          <div
+                            key={a.id}
+                            className={cn(
+                              "rounded-xl transition-[box-shadow]",
+                              focusedActivityId === a.id && drawerState === null && "ring-2 ring-primary/30",
+                            )}
+                          >
+                            <ActivityCard
+                              activity={a}
+                              conflicts={conflicts.get(a.id)}
+                              bookingStatus={bookingStatus}
+                              onClick={() => {
+                                setFocusedActivityId(a.id)
+                                setDrawerState({ mode: "edit", activity: a })
+                              }}
+                              onBookingClick={linkedBooking ? () => setBookingOpen(linkedBooking) : undefined}
+                            />
+                          </div>
+                        )
+                      })}
+                    </SortableContext>
+                  </TimeBlockColumn>
+                )
+              })}
 
-              <div className="px-4 py-4 sm:px-6 lg:px-8">
-                {hotelByDay.has(selectedDay) && (
-                  <div className="mb-4">
-                    <HotelBanner
-                      activity={hotelByDay.get(selectedDay)!.activity}
-                      booking={hotelByDay.get(selectedDay)!.booking}
-                    />
-                  </div>
-                )}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  className="rounded-xl bg-transparent"
+                  onClick={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: "morning" })}
+                >
+                  <Plus className="mr-2 h-4 w-4" aria-hidden />
+                  Add activity
+                </Button>
+              </div>
+            </div>
 
-                {TIME_BLOCKS.map((block) => {
-                  const key = `${selectedDay}::${block}` as BlockKey
-                  const items = buckets.get(key) ?? []
-                  const sortedItems = [...items].sort((a, b) => {
-                    if (!a.start_time && !b.start_time) return 0
-                    if (!a.start_time) return 1
-                    if (!b.start_time) return -1
-                    return a.start_time.localeCompare(b.start_time)
-                  })
-
-                  return (
-                    <div key={key} className="mb-6">
-                      {/* Section header */}
-                      <div className="mb-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base leading-none">{BLOCK_EMOJI[block]}</span>
-                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            {block}
-                          </span>
-                          {sortedItems.length > 0 && (
-                            <span className="text-xs text-muted-foreground/60">({sortedItems.length})</span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: block })}
-                          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        >
-                          <Plus className="h-3 w-3" />
-                          Add
-                        </button>
-                      </div>
-
-                      {/* Timeline activities */}
-                      <SortableContext items={sortedItems.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-                        {sortedItems.map((a, idx) => {
-                          const linkedBooking = activityBookingMap.get(a.id)
-                          const bookingStatus = !a.booking_id
-                            ? "not-required" as const
-                            : linkedBooking?.confirmation_number
-                              || linkedBooking?.reservation_status === "confirmed"
-                              || (!linkedBooking?.reservation_status && linkedBooking?.payment_status === "confirmed")
-                              ? "booked" as const
-                              : "pending" as const
-                          return (
-                            <div key={a.id} className="flex gap-3">
-                              {/* Timeline dot + connector */}
-                              <div className="flex flex-col items-center" style={{ width: 16, flexShrink: 0 }}>
-                                <div className="mt-5 h-2 w-2 shrink-0 rounded-full bg-[#6D8F87] z-10" />
-                                {idx < sortedItems.length - 1 && (
-                                  <div className="mt-1 flex-1 w-[1px] bg-[#D4C9BC]" style={{ minHeight: 8 }} />
-                                )}
-                              </div>
-                              {/* Card */}
-                              <div
-                                className={cn(
-                                  "mb-3 flex-1 min-w-0",
-                                  focusedActivityId === a.id && drawerState === null && "ring-2 ring-primary/30 rounded-2xl",
-                                )}
-                              >
-                                <ActivityCard
-                                  activity={a}
-                                  variant="timeline"
-                                  conflicts={conflicts.get(a.id)}
-                                  bookingStatus={bookingStatus}
-                                  onClick={() => {
-                                    setFocusedActivityId(a.id)
-                                    setDrawerState({ mode: "edit", activity: a })
-                                  }}
-                                  onBookingClick={linkedBooking ? () => setBookingOpen(linkedBooking) : undefined}
-                                />
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </SortableContext>
-
-                      {/* Empty state */}
-                      {sortedItems.length === 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setDrawerState({ mode: "create", day_date: selectedDay, time_block: block })}
-                          className="w-full rounded-xl border border-dashed border-border/60 py-4 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-                        >
-                          + Add {block} activity
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
-
-                {/* KIV tray */}
-                <KIVTray
+            {/* KIV right panel — desktop only (conditionally mounted to avoid duplicate droppable id) */}
+            {!isMobile && (
+              <aside className="sticky top-[51px] flex w-[220px] flex-shrink-0 h-[calc(100vh-51px)] flex-col overflow-hidden border-l border-border bg-muted/10 pt-3">
+                <KIVPanel
                   tripId={trip.id}
                   activities={kivActivities}
                   days={days}
@@ -1248,24 +1202,21 @@ export function ItineraryBoard({
                   onDelete={handleDelete}
                   onAdd={handleKIVAdd}
                 />
-              </div>
-            </div>
-
-            {/* Right panel — xl screens only */}
-            <aside
-              className="hidden xl:flex w-80 flex-shrink-0 flex-col overflow-y-auto border-l bg-[#F7F3EE] sticky top-0"
-              style={{ borderColor: "#D4C9BC", height: "calc(100vh - 51px)" }}
-            >
-              <TripAssistantPanel
-                trip={trip}
-                selectedDay={selectedDay}
-                activities={dayActivities}
-                bookings={bookings}
-                activityBookingMap={activityBookingMap}
-                weather={weatherByDay.get(selectedDay)}
-              />
-            </aside>
+              </aside>
+            )}
           </div>
+
+          {/* KIV bottom tray — mobile only */}
+          {isMobile && (
+            <KIVTray
+              tripId={trip.id}
+              activities={kivActivities}
+              days={days}
+              onAssignDay={handleKIVAssignDay}
+              onDelete={handleDelete}
+              onAdd={handleKIVAdd}
+            />
+          )}
 
           <DragOverlay>{dragging ? <ActivityCard activity={dragging} dragging /> : null}</DragOverlay>
         </DndContext>

@@ -50,7 +50,6 @@ export function ActivityCard({
   conflicts,
   bookingStatus,
   onBookingClick,
-  variant = "board",
 }: {
   activity: Activity
   dragging?: boolean
@@ -58,7 +57,6 @@ export function ActivityCard({
   conflicts?: ConflictInfo[]
   bookingStatus?: BookingStatus
   onBookingClick?: () => void
-  variant?: "board" | "timeline"
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
@@ -77,9 +75,6 @@ export function ActivityCard({
   const PlaceholderIcon = placeholder.icon
   const shortLocation = activity.location ? activity.location.split(",")[0].trim() : null
 
-  const isTimeline = variant === "timeline"
-  const photoSize = isTimeline ? "h-[72px] w-[72px]" : "h-16 w-16"
-
   return (
     <div
       ref={dragging ? undefined : setNodeRef}
@@ -95,18 +90,16 @@ export function ActivityCard({
         dragging && "shadow-md ring-1 ring-primary/30",
       )}
     >
-      {/* Left category accent bar — board only */}
-      {!isTimeline && (
-        <div className={cn(
-          "absolute left-0 top-0 bottom-0 w-[3px]",
-          CATEGORY_ACCENT[activity.category] ?? CATEGORY_ACCENT.other,
-        )} />
-      )}
+      {/* Left category accent bar */}
+      <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-[3px]",
+        CATEGORY_ACCENT[activity.category] ?? CATEGORY_ACCENT.other,
+      )} />
 
-      {/* Card content */}
-      <div className={cn("flex flex-1 min-w-0 items-stretch gap-3 p-3", !isTimeline && "pl-[14px]")}>
+      {/* Card content — pl-[14px] clears the 3px accent bar */}
+      <div className="flex flex-1 min-w-0 items-stretch gap-3 p-3 pl-[14px]">
       {validPhoto ? (
-        <div className={cn("shrink-0 overflow-hidden rounded-lg", photoSize)}>
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={activity.photo_url!}
@@ -116,7 +109,7 @@ export function ActivityCard({
           />
         </div>
       ) : (
-        <div className={cn("shrink-0 rounded-lg flex items-center justify-center", photoSize, placeholder.bg)} aria-hidden>
+        <div className={cn("h-16 w-16 shrink-0 rounded-lg flex items-center justify-center", placeholder.bg)} aria-hidden>
           <PlaceholderIcon className={cn("w-8 h-8", placeholder.iconCls)} />
         </div>
       )}
@@ -156,16 +149,10 @@ export function ActivityCard({
           </div>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {activity.category && (isTimeline || activity.category !== "other") && CATEGORY_META[activity.category] && (
-            <span className={cn(
-              "inline-flex items-center gap-1.5",
-              isTimeline && "rounded-full border px-1.5 py-0.5 text-[10px]",
-              isTimeline && CATEGORY_META[activity.category]!.cls,
-            )}>
-              {!isTimeline && <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", CATEGORY_DOT[activity.category])} />}
-              <span className={isTimeline ? "font-medium" : "text-[10px] text-muted-foreground"}>
-                {CATEGORY_META[activity.category]!.label}
-              </span>
+          {activity.category && activity.category !== "other" && CATEGORY_META[activity.category] && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", CATEGORY_DOT[activity.category])} />
+              <span className="text-[10px] text-muted-foreground">{CATEGORY_META[activity.category]!.label}</span>
             </span>
           )}
           {conflicts && conflicts.length > 0 && (

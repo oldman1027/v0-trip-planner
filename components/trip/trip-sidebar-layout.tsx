@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
-  LayoutGrid, LayoutList, CalendarCheck, DollarSign,
+  MapPin, Calendar, DollarSign, LayoutGrid, LayoutList, CalendarCheck,
   Share2, FileDown, History, ChevronLeft,
   Link as LinkIcon, MessageCircle, Send, Mail, Trash2,
 } from "lucide-react"
@@ -14,10 +14,13 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { formatRange, tripDuration } from "@/lib/dates"
 import { ShareTripDialog } from "./share-trip-dialog"
 import { HistoryPanel } from "./history-panel"
 import { UserMenu } from "@/components/user-menu"
 import { NotificationsPopover } from "@/components/notifications-popover"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import type { Trip } from "@/lib/types"
 
@@ -47,6 +50,7 @@ export function TripSidebarLayout({
 }) {
   const pathname = usePathname()
   const base = `/trips/${trip.id}`
+  const duration = tripDuration(trip.start_date, trip.end_date)
 
   const [shareOpen, setShareOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -54,6 +58,26 @@ export function TripSidebarLayout({
     isTokenValid(trip) ? trip.share_token : null,
   )
   const [shareLoading, setShareLoading] = useState(false)
+  const [members, setMembers] = useState<Array<{ id: string; name: string; avatarUrl: string | null }>>([])
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from("trip_members")
+      .select("user_id, profiles(full_name, avatar_url)")
+      .eq("trip_id", trip.id)
+      .then(({ data }) => {
+        if (!data) return
+        setMembers(
+          (data as unknown as Array<{ user_id: string; profiles: { full_name: string | null; avatar_url: string | null } | null }>)
+            .map((m) => ({
+              id: m.user_id,
+              name: m.profiles?.full_name ?? "?",
+              avatarUrl: m.profiles?.avatar_url ?? null,
+            }))
+        )
+      })
+  }, [trip.id])
 
   const cover =
     trip.cover_image_url ??
@@ -117,24 +141,69 @@ export function TripSidebarLayout({
   return (
     <div className="flex h-svh overflow-hidden">
 
-      {/* ── LEFT SIDEBAR — icon-only, desktop only ────────────────────── */}
-      <aside
-        className="hidden md:flex flex-col w-16 flex-shrink-0 bg-[#F7F3EE]"
-        style={{ borderRight: "0.5px solid #D4C9BC" }}
-      >
-        {/* Back to trips */}
-        <div className="flex justify-center py-4">
-          <Link
-            href="/trips"
-            title="All trips"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#2C4A45] hover:bg-[#EDE8E0] transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Link>
+      {/* ── LEFT SIDEBAR — desktop only ──────────────────────────────── */}
+      <aside className="hidden md:flex flex-col w-[30%] max-w-xs overflow-y-auto flex-shrink-0 bg-[#F7F3EE]" style={{ borderRight: "0.5px solid #D4C9BC" }}>
+
+        {/* Hero image */}
+        <div className="relative h-36 flex-shrink-0 overflow-hidden">
+          <Image src={cover} fill className="object-cover" alt={trip.name} sizes="320px" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          <div className="absolute top-3 left-3">
+            <Link
+              href="/trips"
+              className="inline-flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              All trips
+            </Link>
+          </div>
+          <div className="absolute bottom-3 left-3 right-3">
+            <p className="text-white font-bold text-base leading-tight truncate">{trip.name}</p>
+          </div>
+        </div>
+
+        {/* Trip meta */}
+        <div className="px-4 py-3 space-y-2" style={{ borderBottom: "0.5px solid #D4C9BC" }}>
+          {trip.destination && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="truncate">{trip.destination}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{formatRange(trip.start_date, trip.end_date)} · {duration} {duration === 1 ? "day" : "days"}</span>
+          </div>
+          {totalBudget > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <DollarSign className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>{fmtBudget(totalBudget, trip.default_currency)}</span>
+            </div>
+          )}
+          {members.length > 0 && (
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex -space-x-1.5">
+                {members.slice(0, 4).map((m) => (
+                  <Avatar key={m.id} className="h-7 w-7 border-2 border-[#F7F3EE]" title={m.name}>
+                    {m.avatarUrl && <AvatarImage src={m.avatarUrl} alt={m.name} />}
+                    <AvatarFallback className="text-[9px] font-bold bg-primary/20 text-primary">
+                      {m.name[0]?.toUpperCase() ?? "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {members.length === 1
+                  ? "1 member"
+                  : `${members.length} members`}
+                {members.length > 4 && ` (+${members.length - 4})`}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 px-2 py-2 flex flex-col items-center gap-1">
+        <nav className="flex-1 px-3 py-3 space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const href = item.slug ? `${base}/${item.slug}` : base
             const active = item.slug
@@ -144,33 +213,30 @@ export function TripSidebarLayout({
               <Link
                 key={item.label}
                 href={href}
-                title={item.label}
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium transition-colors",
                   active
                     ? "bg-[#6D8F87] text-white"
                     : "text-[#2C4A45] hover:bg-[#EDE8E0]",
                 )}
               >
-                <item.icon className="w-4 h-4" />
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                {item.label}
               </Link>
             )
           })}
         </nav>
 
         {/* Bottom actions */}
-        <div
-          className="px-2 py-3 flex flex-col items-center gap-1"
-          style={{ borderTop: "0.5px solid #D4C9BC" }}
-        >
+        <div className="px-3 py-3 space-y-0.5" style={{ borderTop: "0.5px solid #D4C9BC" }}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                title="Share"
                 disabled={shareLoading}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-4 h-4 flex-shrink-0" />
+                Share
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="end" className="w-52">
@@ -208,19 +274,20 @@ export function TripSidebarLayout({
           </DropdownMenu>
 
           <button
-            title="Export (coming soon)"
             disabled
-            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/50 cursor-not-allowed"
+            title="Coming soon"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground/50 cursor-not-allowed"
           >
-            <FileDown className="w-4 h-4" />
+            <FileDown className="w-4 h-4 flex-shrink-0" />
+            Export
           </button>
 
           <button
-            title="History"
             onClick={() => setHistoryOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <History className="w-4 h-4" />
+            <History className="w-4 h-4 flex-shrink-0" />
+            History
           </button>
         </div>
       </aside>
@@ -294,4 +361,16 @@ export function TripSidebarLayout({
       />
     </div>
   )
+}
+
+function fmtBudget(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${currency} ${amount}`
+  }
 }
