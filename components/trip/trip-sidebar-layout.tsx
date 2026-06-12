@@ -69,7 +69,7 @@ export function TripSidebarLayout({
       .then(({ data }) => {
         if (!data) return
         setMembers(
-          (data as Array<{ user_id: string; profiles: { full_name: string | null; avatar_url: string | null } | null }>)
+          (data as unknown as Array<{ user_id: string; profiles: { full_name: string | null; avatar_url: string | null } | null }>)
             .map((m) => ({
               id: m.user_id,
               name: m.profiles?.full_name ?? "?",
@@ -142,7 +142,7 @@ export function TripSidebarLayout({
     <div className="flex h-svh overflow-hidden">
 
       {/* ── LEFT SIDEBAR — desktop only ──────────────────────────────── */}
-      <aside className="hidden md:flex flex-col w-[30%] max-w-xs border-r border-border bg-background overflow-y-auto flex-shrink-0">
+      <aside className="hidden md:flex flex-col w-[30%] max-w-xs overflow-y-auto flex-shrink-0 bg-[#F7F3EE]" style={{ borderRight: "0.5px solid #D4C9BC" }}>
 
         {/* Hero image */}
         <div className="relative h-36 flex-shrink-0 overflow-hidden">
@@ -163,7 +163,7 @@ export function TripSidebarLayout({
         </div>
 
         {/* Trip meta */}
-        <div className="px-4 py-3 border-b border-border space-y-2">
+        <div className="px-4 py-3 space-y-2" style={{ borderBottom: "0.5px solid #D4C9BC" }}>
           {trip.destination && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
@@ -184,7 +184,7 @@ export function TripSidebarLayout({
             <div className="flex items-center justify-between pt-1">
               <div className="flex -space-x-1.5">
                 {members.slice(0, 4).map((m) => (
-                  <Avatar key={m.id} className="h-6 w-6 border-2 border-background" title={m.name}>
+                  <Avatar key={m.id} className="h-7 w-7 border-2 border-[#F7F3EE]" title={m.name}>
                     {m.avatarUrl && <AvatarImage src={m.avatarUrl} alt={m.name} />}
                     <AvatarFallback className="text-[9px] font-bold bg-primary/20 text-primary">
                       {m.name[0]?.toUpperCase() ?? "?"}
@@ -214,15 +214,12 @@ export function TripSidebarLayout({
                 key={item.label}
                 href={href}
                 className={cn(
-                  "relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium transition-colors",
                   active
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    ? "bg-[#6D8F87] text-white"
+                    : "text-[#2C4A45] hover:bg-[#EDE8E0]",
                 )}
               >
-                {active && (
-                  <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-primary rounded-full" />
-                )}
                 <item.icon className="w-4 h-4 flex-shrink-0" />
                 {item.label}
               </Link>
@@ -231,7 +228,7 @@ export function TripSidebarLayout({
         </nav>
 
         {/* Bottom actions */}
-        <div className="px-3 py-3 border-t border-border space-y-0.5">
+        <div className="px-3 py-3 space-y-0.5" style={{ borderTop: "0.5px solid #D4C9BC" }}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -342,7 +339,7 @@ export function TripSidebarLayout({
         </div>
 
         {/* Tab content */}
-        <main className="flex-1 overflow-auto bg-[#F9F9F8] dark:bg-transparent">
+        <main className="flex-1 overflow-auto bg-[#FFFBF4]">
           <div className="px-4 py-4 pb-16 sm:px-6 lg:px-8">
             {children}
           </div>

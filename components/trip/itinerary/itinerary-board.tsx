@@ -987,20 +987,21 @@ export function ItineraryBoard({
       />
 
       {/* Toolbar: [filter chips | online users | view switcher] — sticky */}
-      <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-background/95 backdrop-blur-sm">
+      <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-[#FFFBF4]/95 backdrop-blur-sm">
         <div className="flex items-center border-b border-border px-4 sm:px-6 lg:px-8">
 
             {/* Filter chips — px-3 matches day-list p-3 so chips left-align with the Day 1 box */}
-            <div className="flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto px-3 py-2">
+            <div className="flex flex-1 min-w-0 items-center gap-2 overflow-x-auto px-3 py-2">
               <button
                 type="button"
                 onClick={() => setActiveCategories(new Set())}
                 className={cn(
                   "flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
                   activeCategories.size === 0
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    ? "bg-[#6D8F87] text-white"
+                    : "bg-white text-[#6D8F87] hover:bg-[#F7F3EE]",
                 )}
+                style={activeCategories.size !== 0 ? { border: "0.5px solid #A9D6C5" } : undefined}
               >
                 All
               </button>
@@ -1019,9 +1020,10 @@ export function ItineraryBoard({
                   className={cn(
                     "flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
                     activeCategories.has(f.value)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80",
+                      ? "bg-[#6D8F87] text-white"
+                      : "bg-white text-[#6D8F87] hover:bg-[#F7F3EE]",
                   )}
+                  style={!activeCategories.has(f.value) ? { border: "0.5px solid #A9D6C5" } : undefined}
                 >
                   {f.label}
                 </button>

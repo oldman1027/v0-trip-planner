@@ -18,19 +18,19 @@ const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }
 }
 
 const CATEGORY_ACCENT: Record<Activity["category"], string> = {
-  dining:        "bg-orange-400",
-  experiences:   "bg-blue-400",
-  transport:     "bg-slate-400",
-  accommodation: "bg-purple-400",
-  other:         "bg-gray-400",
+  dining:        "bg-[#F97316]",
+  experiences:   "bg-[#60A5FA]",
+  transport:     "bg-[#94A3B8]",
+  accommodation: "bg-[#A78BFA]",
+  other:         "bg-[#CBD5E1]",
 }
 
 const CATEGORY_DOT: Record<Activity["category"], string> = {
-  dining:        "bg-orange-400",
-  experiences:   "bg-blue-400",
-  transport:     "bg-slate-400",
-  accommodation: "bg-purple-400",
-  other:         "bg-gray-400",
+  dining:        "bg-[#F97316]",
+  experiences:   "bg-[#60A5FA]",
+  transport:     "bg-[#94A3B8]",
+  accommodation: "bg-[#A78BFA]",
+  other:         "bg-[#CBD5E1]",
 }
 
 const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
@@ -78,11 +78,14 @@ export function ActivityCard({
   return (
     <div
       ref={dragging ? undefined : setNodeRef}
-      style={dragging ? undefined : style}
+      style={{
+        ...(dragging ? {} : style),
+        border: conflicts && conflicts.length > 0 ? "0.5px solid rgba(234,179,8,0.4)" : "0.5px solid #D4C9BC",
+      }}
       className={cn(
-        "group/card relative flex overflow-hidden rounded-xl border border-border bg-card transition-all duration-150",
-        "hover:shadow-md hover:-translate-y-0.5",
-        conflicts && conflicts.length > 0 && "border-yellow-500/50 bg-yellow-50/20 dark:bg-yellow-900/10",
+        "group/card relative flex overflow-hidden rounded-2xl bg-[#FDFAF6] transition-shadow duration-150",
+        "hover:shadow-md",
+        conflicts && conflicts.length > 0 && "bg-yellow-50/20",
         isDragging && !dragging && "opacity-40",
         dragging && "shadow-md ring-1 ring-primary/30",
       )}

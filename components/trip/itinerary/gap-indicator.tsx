@@ -33,12 +33,25 @@ export function GapIndicator({
     label = fmt(gapMinutes)
   }
 
+  const freeBuffer = driveMinutes !== null ? gapMinutes - driveMinutes : gapMinutes
+  const textColor = freeBuffer < 15 ? "#F97316" : "#A9D6C5"
+
   return (
     <div
       style={{ height: gapHeightPx }}
-      className="flex items-center justify-center w-full pointer-events-none overflow-hidden"
+      className="relative flex items-center justify-center w-full pointer-events-none overflow-hidden"
     >
-      <span className="text-[10px] text-gray-400">{label}</span>
+      {/* Thin dotted connector line */}
+      <div
+        className="absolute top-0 bottom-0"
+        style={{ left: "50%", width: 1, borderLeft: "1px dotted #A9D6C5", transform: "translateX(-50%)" }}
+      />
+      <span
+        className="relative z-10 text-[9px] px-0.5"
+        style={{ color: textColor, background: "transparent" }}
+      >
+        {label}
+      </span>
     </div>
   )
 }

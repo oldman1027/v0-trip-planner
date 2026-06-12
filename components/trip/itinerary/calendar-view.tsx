@@ -13,24 +13,24 @@ import { wmoToDisplay } from "@/lib/weather-utils"
 import type { DailyWeather } from "@/app/api/weather/route"
 
 
-// ── Sage green / warm teal palette ────────────────────────────────────────
+// ── Category accent colors (spec) ──────────────────────────────────────────
 const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  dining:        { bg: "#E8F5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  experiences:   { bg: "#EAF5F2", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  transport:     { bg: "#EDF5F3", border: "#8EC4B2", text: "#2C4A45", badge: "#5A7870" },
-  accommodation: { bg: "#F0F7F5", border: "#A9D6C5", text: "#2C4A45", badge: "#6D8F87" },
-  other:         { bg: "#F3F8F7", border: "#C0D8D2", text: "#2C4A45", badge: "#8EC4B2" },
+  dining:        { bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.18)",  text: "#2C4A45", badge: "#F97316" },
+  experiences:   { bg: "rgba(96,165,250,0.08)",  border: "rgba(96,165,250,0.18)",  text: "#2C4A45", badge: "#60A5FA" },
+  transport:     { bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.18)", text: "#2C4A45", badge: "#94A3B8" },
+  accommodation: { bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.18)", text: "#2C4A45", badge: "#A78BFA" },
+  other:         { bg: "rgba(203,213,225,0.08)", border: "rgba(203,213,225,0.18)", text: "#2C4A45", badge: "#CBD5E1" },
 }
 
-// ── Accommodation band colors ───────────────────────────────────────────────
+// ── Accommodation band colors — all purple pill per spec ───────────────────
 const HOTEL_COLORS = [
-  { bg: "#EEF8F5", border: "#6D8F87", text: "#2C4A45" },
-  { bg: "#E3F4EF", border: "#A9D6C5", text: "#2C4A45" },
-  { bg: "#D8F0EA", border: "#8EC4B2", text: "#2C4A45" },
-  { bg: "#CEE8E0", border: "#6D8F87", text: "#2C4A45" },
+  { bg: "#F5F3FF", border: "#C4B5FD", text: "#2C4A45" },
+  { bg: "#F5F3FF", border: "#C4B5FD", text: "#2C4A45" },
+  { bg: "#F5F3FF", border: "#C4B5FD", text: "#2C4A45" },
+  { bg: "#F5F3FF", border: "#C4B5FD", text: "#2C4A45" },
 ] as const
 
 interface AccommodationBand {
@@ -374,6 +374,19 @@ export function CalendarView({
   useEffect(() => { onClickRef.current = onActivityClick }, [onActivityClick])
   useEffect(() => { onActivityUpdatedRef.current = onActivityUpdated }, [onActivityUpdated])
 
+  // Current time line
+  const [nowMins, setNowMins] = useState(() => {
+    const n = new Date()
+    return n.getHours() * 60 + n.getMinutes()
+  })
+  useEffect(() => {
+    const id = setInterval(() => {
+      const n = new Date()
+      setNowMins(n.getHours() * 60 + n.getMinutes())
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   const kivActivities = useMemo(
     () => initialActivities.filter((a) => a.is_kiv),
     [initialActivities],
@@ -553,8 +566,12 @@ export function CalendarView({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const todayStr = format(new Date(), "yyyy-MM-dd")
+  const nowTop =
+    nowMins >= HOUR_START * 60 && nowMins <= HOUR_END * 60
+      ? minsToTop(nowMins)
+      : null
   const calendarGrid = (
-    <div className="flex overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="flex overflow-hidden rounded-2xl bg-[#FDFAF6]" style={{ border: "0.5px solid #D4C9BC" }}>
     <div className="flex-1 overflow-x-auto min-w-0">
       <div className="min-w-max">
 
@@ -570,8 +587,8 @@ export function CalendarView({
             if (numRows === 0) return null
             return (
               <div
-                className="border-b border-border"
                 style={{
+                  borderBottom: "0.5px solid #D4C9BC",
                   display: "grid",
                   gridTemplateColumns: `${TIME_COL_W}px repeat(${days.length}, ${DAY_COL_MIN_W}px)`,
                   gridTemplateRows: `repeat(${numRows}, ${BAND_ROW_H}px)`,
@@ -610,8 +627,8 @@ export function CalendarView({
                           width: "100%",
                           height: BAND_ROW_H - 4,
                           background: color.bg,
-                          border: `1px solid ${color.border}`,
-                          borderRadius: 14,
+                          border: `0.5px solid ${color.border}`,
+                          borderRadius: 999,
                           padding: "0 10px 0 8px",
                           fontSize: 11,
                           fontWeight: 500,
@@ -655,7 +672,7 @@ export function CalendarView({
           })()}
 
           {/* Day column headers */}
-          <div className="flex border-b border-border">
+          <div className="flex" style={{ borderBottom: "0.5px solid #D4C9BC" }}>
             <div className="shrink-0" style={{ width: TIME_COL_W }} />
             {days.map((day) => {
               const isToday = day === todayStr
@@ -663,28 +680,28 @@ export function CalendarView({
               return (
                 <div
                   key={day}
-                  className={cn("shrink-0 border-l border-border px-2 py-2 text-center", isToday && "bg-[#A9D6C5]/10")}
-                  style={{ width: DAY_COL_MIN_W }}
+                  className={cn("shrink-0 px-2 py-2 text-center", isToday && "bg-[#6D8F87]/5")}
+                  style={{ width: DAY_COL_MIN_W, borderLeft: "0.5px solid #EDE8E0" }}
                 >
-                  <div className="relative inline-flex flex-col items-center gap-0.5">
-                    <div className={cn("text-sm font-semibold leading-none", isToday ? "text-[#6D8F87]" : "text-foreground")}>
+                  <div className="inline-flex flex-col items-center gap-0.5">
+                    <div className="text-[9px] leading-none uppercase tracking-wide" style={{ color: "#9BA8A6" }}>
                       {format(parsed, "EEE")}
                     </div>
-                    <div className={cn("text-xs leading-none", isToday ? "text-[#6D8F87] font-medium" : "text-muted-foreground")}>
-                      {format(parsed, "MMM d")}
+                    <div
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-medium"
+                      style={isToday ? { backgroundColor: "#6D8F87", color: "white" } : { color: "#2C4A45" }}
+                    >
+                      {format(parsed, "d")}
                     </div>
-                    {isToday && (
-                      <div className="absolute -bottom-1.5 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-[#6D8F87]" />
-                    )}
+                    <div className="text-[9px] leading-none" style={{ color: "#9BA8A6" }}>
+                      {format(parsed, "MMM")}
+                    </div>
                     {weatherLoading ? (
-                      <div className="mt-1 h-3 w-14 animate-pulse rounded bg-muted" />
+                      <div className="mt-0.5 h-3 w-10 animate-pulse rounded bg-muted" />
                     ) : weatherByDate?.[day] ? (
-                      <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <div className="mt-0.5 flex items-center gap-0.5 text-[9px]" style={{ color: "#EF9F27" }}>
                         <span>{wmoToDisplay(weatherByDate[day].code).icon}</span>
                         <span>{weatherByDate[day].max}°/{weatherByDate[day].min}°</span>
-                        {weatherByDate[day].rainChance >= 30 && (
-                          <span>🌧 {weatherByDate[day].rainChance}%</span>
-                        )}
                       </div>
                     ) : null}
                   </div>
@@ -695,15 +712,41 @@ export function CalendarView({
         </div>
 
         {/* Body */}
-        <div ref={bodyRef} className="flex">
+        <div ref={bodyRef} className="flex" style={{ position: "relative" }}>
           {/* Sticky time-label column */}
-          <div className="sticky left-0 z-10 shrink-0 border-r border-border bg-card" style={{ width: TIME_COL_W }}>
+          <div className="sticky left-0 z-10 shrink-0 bg-[#FDFAF6]" style={{ width: TIME_COL_W, borderRight: "0.5px solid #EDE8E0" }}>
             {HOURS.map((hour) => (
               <div key={hour} style={{ height: SLOT_H }} className="flex items-start justify-end pr-2 pt-0.5">
-                <span className="text-[10px] tabular-nums text-muted-foreground">{fmtHour(hour)}</span>
+                <span className="text-[10px] tabular-nums" style={{ color: "#C8C0B4" }}>{fmtHour(hour)}</span>
               </div>
             ))}
           </div>
+
+          {/* Current time line */}
+          {nowTop !== null && (
+            <div
+              className="pointer-events-none absolute z-20"
+              style={{
+                top: nowTop,
+                left: TIME_COL_W,
+                right: 0,
+                height: 0,
+                borderTop: "1.5px solid #F2686C",
+              }}
+            >
+              <div
+                className="absolute"
+                style={{
+                  left: 0,
+                  top: -3,
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  backgroundColor: "#F2686C",
+                }}
+              />
+            </div>
+          )}
 
           {/* Day columns */}
           {days.map((day, dayIdx) => {
@@ -716,13 +759,25 @@ export function CalendarView({
             return (
               <div
                 key={day}
-                className="relative shrink-0 border-l border-border cursor-pointer"
-                style={{ width: DAY_COL_MIN_W, height: totalH }}
+                className="relative shrink-0 cursor-pointer"
+                style={{ width: DAY_COL_MIN_W, height: totalH, borderLeft: "0.5px solid #EDE8E0" }}
                 onClick={(e) => handleColumnClick(e, day)}
               >
+                {/* Alternating 2-hour row tints */}
+                {HOURS.map((_, i) => (
+                  <div
+                    key={`bg-${i}`}
+                    className="absolute inset-x-0"
+                    style={{
+                      top: i * SLOT_H,
+                      height: SLOT_H,
+                      backgroundColor: Math.floor(i / 2) % 2 === 0 ? "rgba(253,250,246,0.7)" : "rgba(255,251,244,0.7)",
+                    }}
+                  />
+                ))}
                 {/* Hour grid lines */}
                 {HOURS.map((_, i) => (
-                  <div key={i} className="absolute inset-x-0 border-t border-border/30" style={{ top: i * SLOT_H }} />
+                  <div key={i} className="absolute inset-x-0" style={{ top: i * SLOT_H, borderTop: "0.5px solid #EDE8E0" }} />
                 ))}
 
                 {/* Gap indicators — free time + driving time between activities */}
@@ -791,7 +846,7 @@ export function CalendarView({
                     <div
                       key={a.id}
                       className={cn(
-                        "absolute rounded-lg border text-xs select-none group/block",
+                        "absolute text-xs select-none group/block",
                         isGhost && "opacity-25",
                         isLive  && "z-30 shadow-lg",
                       )}
@@ -802,14 +857,18 @@ export function CalendarView({
                         left:  `calc(${leftPct}%  + 2px)`,
                         width: `calc(${widthPct}% - 4px)`,
                         backgroundColor: cat.bg,
-                        borderColor: cat.border,
+                        borderTop: "0.5px solid rgba(212,201,188,0.35)",
+                        borderRight: "0.5px solid rgba(212,201,188,0.35)",
+                        borderBottom: "0.5px solid rgba(212,201,188,0.35)",
+                        borderLeft: `3px solid ${cat.badge}`,
+                        borderRadius: "0 8px 8px 0",
                         overflow: "visible",
                       }}
                     >
                       {/* Move handle — whole block except the resize strip */}
                       <div
-                        className="relative cursor-grab overflow-hidden rounded-lg px-1.5 py-1 active:cursor-grabbing"
-                        style={{ height: "100%", paddingBottom: 10, touchAction: "none" }}
+                        className="relative cursor-grab overflow-hidden px-1.5 py-1 active:cursor-grabbing"
+                        style={{ height: "100%", paddingBottom: 10, touchAction: "none", borderRadius: "0 8px 8px 0" }}
                         onPointerDown={(e) => startDrag(e, a.id, "move")}
                       >
                         {/* Numbered pin badge — top-right */}
@@ -833,20 +892,20 @@ export function CalendarView({
                         )}
 
                         <div
-                          className={cn("text-[11px] font-semibold leading-snug", blockH >= 56 ? "line-clamp-2" : "truncate")}
+                          className={cn("text-[11px] font-medium leading-snug", blockH >= 56 ? "line-clamp-2" : "truncate")}
                           style={{
-                            color: cat.text,
+                            color: "#2C4A45",
                             marginRight: pinNum ? 17 : 0,
                           }}
                         >
                           {a.title}
                         </div>
                         {a.start_time && (
-                          <div className="mt-0.5 text-[10px] leading-none tabular-nums text-gray-400 whitespace-nowrap overflow-hidden">
+                          <div className="mt-0.5 text-[10px] leading-none tabular-nums whitespace-nowrap overflow-hidden" style={{ color: "#6D8F87" }}>
                             {a.start_time.slice(0, 5)}
                             {a.end_time ? ` – ${a.end_time.slice(0, 5)}` : ""}
                             {a.end_time && blockH >= 48 && (
-                              <span className="text-gray-300"> ({fmtDuration(actDurationMins(a))})</span>
+                              <span style={{ color: "#A9D6C5" }}> ({fmtDuration(actDurationMins(a))})</span>
                             )}
                           </div>
                         )}
