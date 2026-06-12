@@ -356,7 +356,10 @@ function MarketingNav() {
           Pricing
         </a>
         <Button asChild variant="ghost">
-          <Link href="/login">Sign in</Link>
+          <Link href="/login">Log in</Link>
+        </Button>
+        <Button asChild className="rounded-xl">
+          <Link href="/login">Start free</Link>
         </Button>
       </nav>
     </header>
@@ -374,25 +377,28 @@ function HeroSection() {
           For families and friend groups
         </div>
         <h1 className="text-balance font-serif text-5xl leading-[1.05] tracking-tight md:text-6xl">
-          Because Every Moment Matters.
+          Stop managing your group trip in a WhatsApp thread.
         </h1>
         <p className="max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
-          Plan your journey ahead, so your time is spent experiencing — not figuring things out.
+          Tripletto brings your whole group onto one shared itinerary — with an AI planner, real-time collaboration, and everything from bookings to costs in one place.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" className="rounded-xl">
             <Link href="/login">
-              Start for free
+              Start planning for free
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
             </Link>
           </Button>
-          <Button asChild size="lg" variant="outline" className="rounded-xl">
-            <a href="#how-it-works">See how it works</a>
+          <Button asChild size="lg" variant="ghost" className="rounded-xl">
+            <a href="#how-it-works">See how it works ↓</a>
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Join travelers planning smarter trips ✈️
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-muted-foreground">
+            Already used by travelers planning trips across Thailand, Malaysia &amp; Japan.
+          </p>
+          <p className="text-xs text-muted-foreground/70">No credit card required</p>
+        </div>
       </div>
 
       <div className="relative">
@@ -444,19 +450,19 @@ const HOW_IT_WORKS_STEPS = [
     emoji: "🗺️",
     step: "1",
     title: "Create your trip",
-    desc: "Add destination, dates, and invite your travel buddies.",
+    desc: "Add your destination, dates, and invite your group in seconds. Everyone's in — no app downloads required.",
   },
   {
     emoji: "📋",
     step: "2",
     title: "Plan together",
-    desc: "Add activities, bookings, and costs in real-time with your group.",
+    desc: "Build your day-by-day itinerary on a shared board. The AI suggests activities, spots scheduling conflicts, and shows drive times between stops.",
   },
   {
     emoji: "✈️",
     step: "3",
-    title: "Travel stress-free",
-    desc: "Everything in one place — itinerary, bookings, and maps.",
+    title: "Travel without chaos",
+    desc: "Everyone sees the same plan, in real time. Bookings, costs, and even who owes who — all in one place.",
   },
 ]
 
@@ -493,28 +499,35 @@ function HowItWorksSection() {
 
 const MARKETING_FEATURES = [
   {
-    emoji: "📅",
-    title: "Visual Itinerary",
-    desc: "Drag & drop board and calendar view. See your whole trip at a glance.",
+    emoji: "🤖",
+    title: "AI trip planner",
+    desc: "Describe your vibe and it builds your day. Ask 'what to do in Chiang Mai on a rainy afternoon' and get real suggestions added straight to your itinerary.",
+    featured: true,
+  },
+  {
+    emoji: "👥",
+    title: "Real-time group board",
+    desc: "Your whole group sees every change the moment it happens. No more 'wait which version is the latest?' in the group chat.",
   },
   {
     emoji: "🏨",
-    title: "Bookings Manager",
-    desc: "Hotels, flights, restaurants — all in one place with payment status tracking.",
+    title: "Bookings tracker",
+    desc: "Hotels, flights, restaurants — attach confirmation numbers, files, and links. Get a single timeline view of everything confirmed vs still pending.",
   },
   {
     emoji: "💰",
-    title: "Cost Splitting",
-    desc: "Track expenses and split fairly with your group. No awkward maths.",
+    title: "Costs & splitting",
+    desc: "Log expenses in THB or MYR. See exactly who paid what and who owes who — settled per currency, no spreadsheet needed.",
   },
   {
-    emoji: "🗺️",
-    title: "Live Maps",
-    desc: "See all your activities on an interactive map. Plan routes visually.",
+    emoji: "📅",
+    title: "Smart calendar view",
+    desc: "See your whole day as a timeline. Drive times shown between stops so you know if that 30-minute gap is actually enough.",
   },
 ]
 
 function FeaturesSection() {
+  const [featured, ...rest] = MARKETING_FEATURES
   return (
     <section id="features" className="py-24">
       <div className="mx-auto max-w-6xl px-6">
@@ -524,8 +537,14 @@ function FeaturesSection() {
             No more juggling WhatsApp messages, spreadsheets, and voice notes.
           </p>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {MARKETING_FEATURES.map(({ emoji, title, desc }) => (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Featured card — spans 2 columns */}
+          <div className="flex flex-col gap-3 rounded-2xl border-2 border-primary bg-card p-6 sm:col-span-2 lg:col-span-2">
+            <span className="text-3xl" aria-hidden>{featured.emoji}</span>
+            <h3 className="font-serif text-xl">{featured.title}</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">{featured.desc}</p>
+          </div>
+          {rest.map(({ emoji, title, desc }) => (
             <div
               key={title}
               className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-6"
@@ -545,12 +564,13 @@ function FeaturesSection() {
 
 type PricingTier = {
   name: string
-  price: string
-  priceAlt?: string
+  price?: string
   description: string
   features: string[]
   recommended?: boolean
   comingSoon?: boolean
+  ctaLabel?: string
+  ctaHref?: string
 }
 
 const PRICING_TIERS: PricingTier[] = [
@@ -568,8 +588,6 @@ const PRICING_TIERS: PricingTier[] = [
   },
   {
     name: "Pro",
-    price: "THB 199 / mo",
-    priceAlt: "MYR 25 / mo",
     description: "For frequent travelers who need more.",
     features: [
       "Unlimited trips",
@@ -580,11 +598,11 @@ const PRICING_TIERS: PricingTier[] = [
     ],
     recommended: true,
     comingSoon: true,
+    ctaLabel: "Notify me when Pro launches",
+    ctaHref: "mailto:hello.tripletto@gmail.com?subject=Tripletto%20Pro%20-%20Early%20Access",
   },
   {
     name: "Team",
-    price: "THB 499 / mo",
-    priceAlt: "MYR 65 / mo",
     description: "For agencies and large travel groups.",
     features: [
       "Everything in Pro",
@@ -594,6 +612,8 @@ const PRICING_TIERS: PricingTier[] = [
       "Early access to new features",
     ],
     comingSoon: true,
+    ctaLabel: "Contact us for early access",
+    ctaHref: "mailto:hello.tripletto@gmail.com?subject=Tripletto%20Team%20-%20Early%20Access",
   },
 ]
 
@@ -632,9 +652,8 @@ function PricingSection() {
 
               <div>
                 <h3 className="font-serif text-xl">{tier.name}</h3>
-                <div className="mt-2 font-serif text-2xl font-bold">{tier.price}</div>
-                {tier.priceAlt && (
-                  <div className="mt-0.5 text-xs text-muted-foreground">{tier.priceAlt}</div>
+                {tier.price && (
+                  <div className="mt-2 font-serif text-2xl font-bold">{tier.price}</div>
                 )}
                 <p className="mt-2 text-sm text-muted-foreground">{tier.description}</p>
               </div>
@@ -649,9 +668,9 @@ function PricingSection() {
               </ul>
 
               <div className="mt-auto">
-                {tier.comingSoon ? (
-                  <Button className="w-full rounded-xl" variant="outline" disabled>
-                    Coming soon
+                {tier.comingSoon && tier.ctaHref ? (
+                  <Button asChild className="w-full rounded-xl" variant="outline">
+                    <a href={tier.ctaHref}>{tier.ctaLabel}</a>
                   </Button>
                 ) : (
                   <Button asChild className="w-full rounded-xl">
@@ -681,7 +700,7 @@ function MarketingFooter() {
               </span>
               <span className="font-serif text-xl tracking-tight">Tripletto</span>
             </Link>
-            <p className="text-sm text-muted-foreground">Plan together. Travel better.</p>
+            <p className="text-sm text-muted-foreground">Plan together. Show up ready.</p>
             <p className="max-w-xs text-sm text-muted-foreground">
               Built by a traveler who got tired of managing trips across 10 WhatsApp messages, 3
               spreadsheets, and a voice note.
