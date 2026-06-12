@@ -15,7 +15,7 @@
   --primary-foreground: #2C4A45;
   --secondary: #6D8F87;
   --secondary-foreground: #ffffff;
-  --muted: #F5F0E8;
+  --muted: #E8DDD0;
   --muted-foreground: #8B9894;
   --accent: #A9D6C5;
   --accent-foreground: #2C4A45;
@@ -73,28 +73,30 @@
   --transport-text: #3D63A5;
 
   /* ── Category: Accommodation ────────────────────────────────────────────── */
-  --accommodation-bg: #E8F6F0;
-  --accommodation-border: #9ED6BE;
-  --accommodation-text: #2E6B59;
+  --accommodation-bg: #F3ECFF;
+  --accommodation-border: #D6C6F7;
+  --accommodation-text: #6A55A3;
 
   /* ── Category: Other ────────────────────────────────────────────────────── */
-  --other-bg: #F1EEF8;
-  --other-border: #C8B8E8;
-  --other-text: #6A5599;
+  --other-bg: #E6F4F2;
+  --other-border: #B7E2DE;
+  --other-text: #157F7A;
 
   /* ── Status ─────────────────────────────────────────────────────────────── */
-  --success-bg: #E8F6F0;
+  --success-bg: #E8F6EE;
   --success-text: #2E6B59;
   --warning-bg: #FFF7D6;
   --warning-text: #A06A00;
   --danger-bg: #FDE8E6;
   --danger-text: #E68475;
+  --info-bg: #E8F0FF;
+  --info-text: #3D63A5;
 
   /* ── Day load ───────────────────────────────────────────────────────────── */
-  --light-day: #D8EFD6;
-  --moderate-day: #F8D98B;
-  --busy-day: #F4A261;
-  --very-busy-day: #E76F51;
+  --light-day: #D8F0E0;
+  --moderate-day: #FBE6A6;
+  --busy-day: #FFD8B5;
+  --very-busy-day: #FAD2CE;
 
   /* ── Shadows ────────────────────────────────────────────────────────────── */
   --shadow-sm: 0 2px 8px rgba(44, 74, 69, 0.04);

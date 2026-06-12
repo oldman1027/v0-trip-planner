@@ -21,8 +21,8 @@ const CATEGORY_STYLE: Record<
   dining:        { bg: "#FFF1E4", border: "#F7C89A", text: "#A85B1A", badge: "#A85B1A" },
   experiences:   { bg: "#FFF8D6", border: "#F0D36B", text: "#8D7200", badge: "#8D7200" },
   transport:     { bg: "#E8F0FF", border: "#A8C4FF", text: "#3D63A5", badge: "#3D63A5" },
-  accommodation: { bg: "#E8F6F0", border: "#9ED6BE", text: "#2E6B59", badge: "#2E6B59" },
-  other:         { bg: "#F1EEF8", border: "#C8B8E8", text: "#6A5599", badge: "#6A5599" },
+  accommodation: { bg: "#F3ECFF", border: "#D6C6F7", text: "#6A55A3", badge: "#6A55A3" },
+  other:         { bg: "#E6F4F2", border: "#B7E2DE", text: "#157F7A", badge: "#157F7A" },
 }
 
 // ── Accommodation band colors — all purple pill per spec ───────────────────

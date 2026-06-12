@@ -13,32 +13,32 @@ const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }
   dining:        { label: "Dining",        cls: "border-[#F7C89A] bg-[#FFF1E4] text-[#A85B1A]" },
   experiences:   { label: "Experiences",   cls: "border-[#F0D36B] bg-[#FFF8D6] text-[#8D7200]" },
   transport:     { label: "Transport",     cls: "border-[#A8C4FF] bg-[#E8F0FF] text-[#3D63A5]" },
-  accommodation: { label: "Accommodation", cls: "border-[#9ED6BE] bg-[#E8F6F0] text-[#2E6B59]" },
-  other:         { label: "Other",         cls: "border-[#C8B8E8] bg-[#F1EEF8] text-[#6A5599]" },
+  accommodation: { label: "Accommodation", cls: "border-[#D6C6F7] bg-[#F3ECFF] text-[#6A55A3]" },
+  other:         { label: "Other",         cls: "border-[#B7E2DE] bg-[#E6F4F2] text-[#157F7A]" },
 }
 
 const CATEGORY_ACCENT: Record<Activity["category"], string> = {
   dining:        "bg-[#A85B1A]",
   experiences:   "bg-[#8D7200]",
   transport:     "bg-[#3D63A5]",
-  accommodation: "bg-[#2E6B59]",
-  other:         "bg-[#6A5599]",
+  accommodation: "bg-[#6A55A3]",
+  other:         "bg-[#157F7A]",
 }
 
 const CATEGORY_DOT: Record<Activity["category"], string> = {
   dining:        "bg-[#A85B1A]",
   experiences:   "bg-[#8D7200]",
   transport:     "bg-[#3D63A5]",
-  accommodation: "bg-[#2E6B59]",
-  other:         "bg-[#6A5599]",
+  accommodation: "bg-[#6A55A3]",
+  other:         "bg-[#157F7A]",
 }
 
 const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {
   dining:        { bg: "bg-orange-100",    icon: Utensils,       iconCls: "text-orange-300" },
   experiences:   { bg: "bg-[#A9D6C5]/30", icon: MapPin,          iconCls: "text-[#6D8F87]" },
   transport:     { bg: "bg-gray-100",      icon: Plane,           iconCls: "text-gray-300" },
-  accommodation: { bg: "bg-blue-100",      icon: BedDouble,       iconCls: "text-blue-300" },
-  other:         { bg: "bg-[#A9D6C5]/20",  icon: MoreHorizontal,  iconCls: "text-[#6D8F87]" },
+  accommodation: { bg: "bg-[#F3ECFF]",     icon: BedDouble,       iconCls: "text-[#D6C6F7]" },
+  other:         { bg: "bg-[#E6F4F2]",     icon: MoreHorizontal,  iconCls: "text-[#B7E2DE]" },
 }
 
 export type BookingStatus = "not-required" | "pending" | "booked"
