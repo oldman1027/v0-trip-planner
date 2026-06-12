@@ -405,8 +405,8 @@ function HeroSection() {
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
           <div className="relative aspect-[4/3] w-full">
             <Image
-              src="https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1400&q=80"
-              alt="Tokyo skyline at dusk"
+              src="https://images.unsplash.com/photo-1589685523979-6544ec36b055?w=900&q=80"
+              alt="Kangaroo on Lucky Bay beach, Western Australia"
               fill
               className="object-cover"
               priority
