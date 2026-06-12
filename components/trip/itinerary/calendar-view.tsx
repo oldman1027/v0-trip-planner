@@ -18,11 +18,11 @@ const CATEGORY_STYLE: Record<
   Activity["category"],
   { bg: string; border: string; text: string; badge: string }
 > = {
-  dining:        { bg: "#F9B288", border: "rgba(249,115,22,0.18)",  text: "#2C4A45", badge: "#F97316" },
-  experiences:   { bg: "#EFF6FF", border: "rgba(96,165,250,0.18)",  text: "#2C4A45", badge: "#60A5FA" },
-  transport:     { bg: "#F0F4F8", border: "rgba(148,163,184,0.18)", text: "#2C4A45", badge: "#94A3B8" },
-  accommodation: { bg: "#F5F3FF", border: "rgba(167,139,250,0.18)", text: "#2C4A45", badge: "#A78BFA" },
-  other:         { bg: "#F8F7F5", border: "rgba(203,213,225,0.18)", text: "#2C4A45", badge: "#CBD5E1" },
+  dining:        { bg: "#FFF1E4", border: "#F7C89A", text: "#A85B1A", badge: "#A85B1A" },
+  experiences:   { bg: "#FFF8D6", border: "#F0D36B", text: "#8D7200", badge: "#8D7200" },
+  transport:     { bg: "#E8F0FF", border: "#A8C4FF", text: "#3D63A5", badge: "#3D63A5" },
+  accommodation: { bg: "#E8F6F0", border: "#9ED6BE", text: "#2E6B59", badge: "#2E6B59" },
+  other:         { bg: "#F1EEF8", border: "#C8B8E8", text: "#6A5599", badge: "#6A5599" },
 }
 
 // ── Accommodation band colors — all purple pill per spec ───────────────────
@@ -852,7 +852,7 @@ export function CalendarView({
                         <div
                           className={cn("text-[11px] font-medium leading-snug", blockH >= 56 ? "line-clamp-2" : "truncate")}
                           style={{
-                            color: "#2C4A45",
+                            color: cat.text,
                             marginRight: pinNum ? 17 : 0,
                           }}
                         >

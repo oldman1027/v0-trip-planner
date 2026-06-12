@@ -10,27 +10,27 @@ import type { Activity } from "@/lib/types"
 import type { ConflictInfo } from "@/lib/time-conflicts"
 
 const CATEGORY_META: Record<Activity["category"], { label: string; cls: string }> = {
-  dining:        { label: "Dining",        cls: "bg-orange-100 text-orange-700 border-orange-200" },
-  experiences:   { label: "Experiences",   cls: "bg-blue-100 text-blue-700 border-blue-200" },
-  transport:     { label: "Transport",     cls: "bg-slate-100 text-slate-700 border-slate-200" },
-  accommodation: { label: "Accommodation", cls: "bg-purple-100 text-purple-700 border-purple-200" },
-  other:         { label: "Other",         cls: "bg-secondary text-muted-foreground border-border" },
+  dining:        { label: "Dining",        cls: "border-[#F7C89A] bg-[#FFF1E4] text-[#A85B1A]" },
+  experiences:   { label: "Experiences",   cls: "border-[#F0D36B] bg-[#FFF8D6] text-[#8D7200]" },
+  transport:     { label: "Transport",     cls: "border-[#A8C4FF] bg-[#E8F0FF] text-[#3D63A5]" },
+  accommodation: { label: "Accommodation", cls: "border-[#9ED6BE] bg-[#E8F6F0] text-[#2E6B59]" },
+  other:         { label: "Other",         cls: "border-[#C8B8E8] bg-[#F1EEF8] text-[#6A5599]" },
 }
 
 const CATEGORY_ACCENT: Record<Activity["category"], string> = {
-  dining:        "bg-[#F97316]",
-  experiences:   "bg-[#60A5FA]",
-  transport:     "bg-[#94A3B8]",
-  accommodation: "bg-[#A78BFA]",
-  other:         "bg-[#CBD5E1]",
+  dining:        "bg-[#A85B1A]",
+  experiences:   "bg-[#8D7200]",
+  transport:     "bg-[#3D63A5]",
+  accommodation: "bg-[#2E6B59]",
+  other:         "bg-[#6A5599]",
 }
 
 const CATEGORY_DOT: Record<Activity["category"], string> = {
-  dining:        "bg-[#F97316]",
-  experiences:   "bg-[#60A5FA]",
-  transport:     "bg-[#94A3B8]",
-  accommodation: "bg-[#A78BFA]",
-  other:         "bg-[#CBD5E1]",
+  dining:        "bg-[#A85B1A]",
+  experiences:   "bg-[#8D7200]",
+  transport:     "bg-[#3D63A5]",
+  accommodation: "bg-[#2E6B59]",
+  other:         "bg-[#6A5599]",
 }
 
 const CATEGORY_PLACEHOLDER: Record<Activity["category"], { bg: string; icon: React.ComponentType<{ className?: string }>; iconCls: string }> = {

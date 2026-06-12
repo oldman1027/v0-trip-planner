@@ -4,25 +4,25 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Sage green + butter + deep teal */
+  /* ── Tailwind / shadcn base tokens ──────────────────────────────────────── */
   --background: #FFFBF4;
   --foreground: #2C4A45;
-  --card: #FFFFFF;
+  --card: #FDFAF6;
   --card-foreground: #2C4A45;
-  --popover: #FFFFFF;
+  --popover: #FDFAF6;
   --popover-foreground: #2C4A45;
   --primary: #A9D6C5;
   --primary-foreground: #2C4A45;
   --secondary: #6D8F87;
   --secondary-foreground: #ffffff;
   --muted: #F5F0E8;
-  --muted-foreground: #6D8F87;
+  --muted-foreground: #8B9894;
   --accent: #A9D6C5;
   --accent-foreground: #2C4A45;
-  --destructive: #b3261e;
+  --destructive: #E68475;
   --destructive-foreground: #ffffff;
   --border: #D4C9BC;
-  --input: #D4C9BC;
+  --input: #E9E1D7;
   --ring: #A9D6C5;
   --chart-1: #A9D6C5;
   --chart-2: #6D8F87;
@@ -38,6 +38,72 @@
   --sidebar-accent-foreground: #6D8F87;
   --sidebar-border: #D4C9BC;
   --sidebar-ring: #A9D6C5;
+
+  /* ── Foundation ─────────────────────────────────────────────────────────── */
+  --card-hover: #F8F3EC;
+  --border-light: #E9E1D7;
+  --text-primary: #2C4A45;
+  --text-secondary: #6B7C77;
+  --text-muted: #8B9894;
+
+  /* ── Brand ──────────────────────────────────────────────────────────────── */
+  --sage: #A9D6C5;
+  --sage-hover: #8EC4B2;
+  --teal: #6D8F87;
+  --teal-hover: #5A7870;
+
+  /* ── AI / Modern accent ─────────────────────────────────────────────────── */
+  --ai-primary: #5B7FFF;
+  --ai-secondary: #8B5CF6;
+  --ai-gradient: linear-gradient(135deg, #5B7FFF 0%, #8B5CF6 100%);
+
+  /* ── Category: Dining ───────────────────────────────────────────────────── */
+  --dining-bg: #FFF1E4;
+  --dining-border: #F7C89A;
+  --dining-text: #A85B1A;
+
+  /* ── Category: Experiences ──────────────────────────────────────────────── */
+  --experience-bg: #FFF8D6;
+  --experience-border: #F0D36B;
+  --experience-text: #8D7200;
+
+  /* ── Category: Transport ────────────────────────────────────────────────── */
+  --transport-bg: #E8F0FF;
+  --transport-border: #A8C4FF;
+  --transport-text: #3D63A5;
+
+  /* ── Category: Accommodation ────────────────────────────────────────────── */
+  --accommodation-bg: #E8F6F0;
+  --accommodation-border: #9ED6BE;
+  --accommodation-text: #2E6B59;
+
+  /* ── Category: Other ────────────────────────────────────────────────────── */
+  --other-bg: #F1EEF8;
+  --other-border: #C8B8E8;
+  --other-text: #6A5599;
+
+  /* ── Status ─────────────────────────────────────────────────────────────── */
+  --success-bg: #E8F6F0;
+  --success-text: #2E6B59;
+  --warning-bg: #FFF7D6;
+  --warning-text: #A06A00;
+  --danger-bg: #FDE8E6;
+  --danger-text: #E68475;
+
+  /* ── Day load ───────────────────────────────────────────────────────────── */
+  --light-day: #D8EFD6;
+  --moderate-day: #F8D98B;
+  --busy-day: #F4A261;
+  --very-busy-day: #E76F51;
+
+  /* ── Shadows ────────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 2px 8px rgba(44, 74, 69, 0.04);
+  --shadow-md: 0 8px 24px rgba(44, 74, 69, 0.08);
+  --shadow-lg: 0 16px 40px rgba(44, 74, 69, 0.12);
+
+  /* ── Radius ─────────────────────────────────────────────────────────────── */
+  --radius-card: 20px;
+  --radius-large: 28px;
 }
 
 @theme inline {
