@@ -412,6 +412,11 @@ function HeroSection() {
               priority
               sizes="(min-width: 1024px) 50vw, 100vw"
             />
+            <div className="absolute bottom-4 left-4 hidden rounded-2xl border border-border bg-card p-4 shadow-md md:block">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Day 3 · Afternoon</div>
+              <div className="mt-1 font-medium">Esperance</div>
+              <div className="text-sm text-muted-foreground">11:00 – 18:00</div>
+            </div>
           </div>
           <div className="border-t border-border bg-card p-5">
             <div className="flex items-center justify-between">
@@ -432,11 +437,6 @@ function HeroSection() {
               </div>
             </div>
           </div>
-        </div>
-        <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-border bg-card p-4 shadow-md md:block">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Day 3 · Afternoon</div>
-          <div className="mt-1 font-medium">Esperance</div>
-          <div className="text-sm text-muted-foreground">11:00 – 18:00</div>
         </div>
       </div>
     </section>
