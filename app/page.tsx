@@ -395,7 +395,7 @@ function HeroSection() {
         </div>
         <div className="flex flex-col gap-1">
           <p className="text-sm text-muted-foreground">
-            Already used by travelers planning trips across Thailand, Malaysia &amp; Japan.
+            Already used by travelers planning trips across the world.
           </p>
           <p className="text-xs text-muted-foreground/70">No credit card required</p>
         </div>
@@ -435,8 +435,8 @@ function HeroSection() {
         </div>
         <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-border bg-card p-4 shadow-md md:block">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Day 3 · Afternoon</div>
-          <div className="mt-1 font-medium">Shibuya Sky observation deck</div>
-          <div className="text-sm text-muted-foreground">15:30 – 17:00</div>
+          <div className="mt-1 font-medium">Esperance</div>
+          <div className="text-sm text-muted-foreground">11:00 – 18:00</div>
         </div>
       </div>
     </section>
