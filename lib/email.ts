@@ -1,5 +1,14 @@
 import nodemailer from "nodemailer"
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
   port: 587,
@@ -24,6 +33,8 @@ export async function sendTripInvitationEmail({
   tripId: string
   isNewUser?: boolean
 }) {
+  const safeName = escapeHtml(inviterName)
+  const safeTrip = escapeHtml(tripName)
   const tripUrl = `${siteUrl}/trips/${tripId}`
   const ctaUrl = isNewUser ? `${siteUrl}/login?next=/trips/${tripId}` : tripUrl
   const ctaLabel = isNewUser ? "Sign up &amp; view trip" : "View trip"
@@ -39,10 +50,10 @@ export async function sendTripInvitationEmail({
       <div style="font-family:Arial,sans-serif;background:#f7f5f0;padding:32px;">
         <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:18px;padding:32px;border:1px solid #e8e0d6;">
           <h2 style="margin:0 0 12px;font-size:26px;color:#1f2933;">
-            You're invited to join ${tripName}!
+            You're invited to join ${safeTrip}!
           </h2>
           <p style="font-size:15px;color:#6b7280;line-height:1.6;">
-            <strong style="color:#1f2933;">${inviterName}</strong> has invited you to collaborate on their trip.
+            <strong style="color:#1f2933;">${safeName}</strong> has invited you to collaborate on their trip.
             ${subtitle}
           </p>
           <a href="${ctaUrl}"

@@ -11,6 +11,14 @@ export async function setTripPublic(tripId: string, isPublic: boolean) {
 
   if (!user) throw new Error("Not authenticated")
 
+  const { data: membership } = await supabase
+    .from("trip_members")
+    .select("role")
+    .eq("trip_id", tripId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (membership?.role !== "owner") throw new Error("Only the trip owner can share this trip")
+
   const serviceClient = await createServiceClient()
 
   const { data, error } = await serviceClient
@@ -36,6 +44,14 @@ export async function shareTrip(tripId: string): Promise<string> {
   } = await supabase.auth.getUser()
 
   if (!user) throw new Error("Not authenticated")
+
+  const { data: membership } = await supabase
+    .from("trip_members")
+    .select("role")
+    .eq("trip_id", tripId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (membership?.role !== "owner") throw new Error("Only the trip owner can share this trip")
 
   const serviceClient = await createServiceClient()
 

@@ -20,6 +20,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
+  // Verify the caller actually owns this trip — prevents using this route as a
+  // free email cannon with arbitrary content sent from our domain.
+  const { data: membership } = await supabase
+    .from("trip_members")
+    .select("role")
+    .eq("trip_id", tripId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (membership?.role !== "owner") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   try {
     await sendTripInvitationEmail({ toEmail, inviterName, tripName, tripId, isNewUser })
     return NextResponse.json({ success: true })

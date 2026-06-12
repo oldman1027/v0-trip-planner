@@ -1,6 +1,8 @@
+import { notFound } from "next/navigation"
 import { getSiteUrl, getAuthCallbackUrl } from "@/lib/auth-url"
 
 export default function AuthConfigDebugPage() {
+  if (process.env.NODE_ENV === "production") notFound()
   const siteUrl = getSiteUrl()
   const callbackUrl = getAuthCallbackUrl()
 

@@ -18,6 +18,16 @@ export async function updateTrip(tripId: string, payload: {
 
   if (!user) throw new Error("Not authenticated")
 
+  const { data: membership } = await supabase
+    .from("trip_members")
+    .select("role")
+    .eq("trip_id", tripId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (!membership || !["owner", "editor"].includes(membership.role)) {
+    throw new Error("Not authorized to update this trip")
+  }
+
   // Use service role client to update
   const serviceClient = await createServiceClient()
 

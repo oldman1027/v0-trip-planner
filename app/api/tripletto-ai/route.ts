@@ -1,5 +1,21 @@
 import { NextRequest } from "next/server"
 import OpenAI, { APIError } from "openai"
+import { createClient } from "@/lib/supabase/server"
+
+// In-memory rate limit: 20 requests per user per minute.
+// Resets on cold start — not cross-instance, but adds meaningful friction.
+const rateLimitMap = new Map<string, number[]>()
+const RL_MAX = 20
+const RL_WINDOW_MS = 60_000
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const hits = (rateLimitMap.get(userId) ?? []).filter((t) => now - t < RL_WINDOW_MS)
+  if (hits.length >= RL_MAX) return false
+  hits.push(now)
+  rateLimitMap.set(userId, hits)
+  return true
+}
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -159,6 +175,15 @@ Schema rules:
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+  }
+  if (!checkRateLimit(user.id)) {
+    return new Response(JSON.stringify({ error: "Rate limit exceeded — try again shortly" }), { status: 429 })
+  }
+
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     console.error("[tripletto-ai] OPENAI_API_KEY missing")

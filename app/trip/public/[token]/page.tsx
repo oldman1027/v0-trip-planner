@@ -30,7 +30,10 @@ export default async function PublicTripPage({
       .select("*")
       .eq("trip_id", trip.id)
       .order("position", { ascending: true }),
-    serviceClient.from("bookings").select("*").eq("trip_id", trip.id),
+    serviceClient
+      .from("bookings")
+      .select("id, trip_id, type, title, details, booking_date, check_in_time, check_out_time, check_out_date, departure_time, arrival_time, created_at")
+      .eq("trip_id", trip.id),
   ])
 
   const acts = (activities ?? []) as Activity[]
