@@ -64,6 +64,7 @@ export type Activity = {
   is_wishlist: boolean
   is_kiv: boolean
   created_at: string
+  created_by?: string | null
 }
 
 export type KIVNote = {

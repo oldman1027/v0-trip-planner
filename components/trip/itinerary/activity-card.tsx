@@ -50,6 +50,9 @@ export function ActivityCard({
   conflicts,
   bookingStatus,
   onBookingClick,
+  creatorColor,
+  creatorName,
+  dimmed,
 }: {
   activity: Activity
   dragging?: boolean
@@ -57,6 +60,9 @@ export function ActivityCard({
   conflicts?: ConflictInfo[]
   bookingStatus?: BookingStatus
   onBookingClick?: () => void
+  creatorColor?: string | null
+  creatorName?: string | null
+  dimmed?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
@@ -83,11 +89,12 @@ export function ActivityCard({
         border: conflicts && conflicts.length > 0 ? "0.5px solid rgba(234,179,8,0.4)" : "0.5px solid #D4C9BC",
       }}
       className={cn(
-        "group/card relative flex overflow-hidden rounded-2xl bg-[#FDFAF6] transition-shadow duration-150",
+        "group/card relative flex overflow-hidden rounded-2xl bg-[#FDFAF6] transition-all duration-150",
         "hover:shadow-md",
         conflicts && conflicts.length > 0 && "bg-yellow-50/20",
         isDragging && !dragging && "opacity-40",
         dragging && "shadow-md ring-1 ring-primary/30",
+        dimmed && "opacity-30",
       )}
     >
       {/* Left category accent bar */}
@@ -210,6 +217,24 @@ export function ActivityCard({
         <GripVertical className="h-4 w-4" aria-hidden />
       </button>
       </div>
+
+      {/* Creator attribution dot */}
+      {creatorColor && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="absolute bottom-1.5 right-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white ring-[1.5px] ring-[#FDFAF6]"
+              style={{ backgroundColor: creatorColor }}
+              aria-hidden
+            >
+              {creatorName?.[0]?.toUpperCase() ?? "?"}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Added by {creatorName ?? "member"}
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 }

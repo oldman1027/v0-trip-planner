@@ -16,7 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { Calendar, LayoutGrid, Map as MapIcon, MapPin, Plus } from "lucide-react"
+import { Calendar, LayoutGrid, Map as MapIcon, MapPin, Plus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DaySidebar } from "./day-sidebar"
@@ -45,6 +45,8 @@ import { wmoToDisplay } from "@/lib/weather-utils"
 import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { useMemberFilter } from "@/components/trip/member-filter-context"
+import { getMemberColor } from "@/lib/member-colors"
 
 type BlockKey = `${string}::${TimeBlock}`
 type ContainerKey = BlockKey | "kiv"
@@ -181,6 +183,31 @@ export function ItineraryBoard({
   })
 
   const { onlineUsers } = usePresence(trip.id)
+  const { filterCreatorId, setFilterCreatorId } = useMemberFilter()
+
+  // Member color/name maps for activity attribution
+  const [memberColorMap, setMemberColorMap] = useState(new Map<string, string>())
+  const [memberNameMap, setMemberNameMap] = useState(new Map<string, string>())
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from("trip_members")
+      .select("user_id, joined_at, profiles(full_name)")
+      .eq("trip_id", trip.id)
+      .order("joined_at", { ascending: true })
+      .then(({ data }) => {
+        const colorMap = new Map<string, string>()
+        const nameMap = new Map<string, string>()
+        ;(data ?? []).forEach((m: { user_id: string; profiles: unknown }, i: number) => {
+          const profile = Array.isArray((m as { profiles: unknown }).profiles) ? ((m as { profiles: unknown[] }).profiles[0] as { full_name?: string | null } | undefined) : (m.profiles as { full_name?: string | null } | null)
+          colorMap.set(m.user_id, getMemberColor(i))
+          nameMap.set(m.user_id, profile?.full_name ?? "?")
+        })
+        setMemberColorMap(colorMap)
+        setMemberNameMap(nameMap)
+      })
+  }, [trip.id])
 
   // Weather data for sidebar chips and calendar headers
   const { weatherByDate, loading: weatherLoading } = useTripWeather(trip)
@@ -604,6 +631,7 @@ export function ItineraryBoard({
         category: "other",
         is_kiv: true,
         is_wishlist: false,
+        created_by: currentUserRef.current?.id ?? null,
       })
       .select()
       .single()
@@ -785,6 +813,7 @@ export function ItineraryBoard({
           cost_currency: trip.default_currency ?? "USD",
           photo_url: input.photo_url,
           category: safeCategory,
+          created_by: currentUserRef.current?.id ?? null,
         })
         .select()
         .single()
@@ -986,6 +1015,21 @@ export function ItineraryBoard({
         onActivitiesAdded={handleActivitiesAdded}
       />
 
+      {/* Member filter banner */}
+      {filterCreatorId && (
+        <div className="flex items-center gap-2 rounded-xl border border-[#D6C6F7] bg-[#F3ECFF] px-4 py-2 text-sm text-[#6A55A3]">
+          <span>Showing activities added by <strong>{memberNameMap.get(filterCreatorId) ?? "member"}</strong></span>
+          <button
+            type="button"
+            onClick={() => setFilterCreatorId(null)}
+            className="ml-auto flex items-center gap-1 text-xs text-[#6A55A3]/70 hover:text-[#6A55A3]"
+          >
+            <X className="h-3 w-3" />
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Toolbar: [filter chips | online users | view switcher] — sticky */}
       <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-[#FFFBF4]/95 backdrop-blur-sm">
         <div className="flex items-center border-b border-border px-4 sm:px-6 lg:px-8">
@@ -1170,6 +1214,9 @@ export function ItineraryBoard({
                                 setDrawerState({ mode: "edit", activity: a })
                               }}
                               onBookingClick={linkedBooking ? () => setBookingOpen(linkedBooking) : undefined}
+                              creatorColor={a.created_by ? memberColorMap.get(a.created_by) : undefined}
+                              creatorName={a.created_by ? memberNameMap.get(a.created_by) : undefined}
+                              dimmed={filterCreatorId !== null && a.created_by !== filterCreatorId}
                             />
                           </div>
                         )
@@ -1249,6 +1296,9 @@ export function ItineraryBoard({
             onActivityUpdated={handleCalendarActivityUpdated}
             weatherByDate={weatherByDate}
             weatherLoading={weatherLoading}
+            memberColorMap={memberColorMap}
+            memberNameMap={memberNameMap}
+            filterCreatorId={filterCreatorId}
           />
       ) : (
         /* ── Map tab — full-screen two-column layout ─────────────────────── */

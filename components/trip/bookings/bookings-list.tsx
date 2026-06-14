@@ -385,9 +385,11 @@ export function BookingsList({
       if (addToItinerary) {
         const activityInsert = buildActivityInsert(bookingData, tripId, currency)
         if (activityInsert) {
+          const { data: { user: actUser } } = await supabase.auth.getUser()
           await supabase.from("activities").insert({
             ...activityInsert,
             linked_booking_id: (data as Booking).id,
+            created_by: actUser?.id ?? null,
           })
         }
       }

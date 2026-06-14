@@ -84,21 +84,32 @@ GitHub token expires: ~May 2027
 - Trip card collaborator avatars (stacked, up to 4 + overflow count)
 
 ### 2. Itinerary Planning — Board View
-- Board view (Morning/Afternoon/Night blocks)
+- Board view (Morning/Afternoon/Night blocks) with emoji headers (🌅☀️🌙)
 - BLOCK_START_TIMES: morning=08:00, afternoon=13:00, night=19:00
 - Drag and drop activities — sets start_time on drop
 - Auto-group activities into correct time block based on start_time:
   - Morning: 00:00–11:59, Afternoon: 12:00–17:59, Night: 18:00–23:59
-- Category filters: All | Accommodation | Transport | Dining | Activities | Other
-  (Shopping + Entertainment removed from filter tabs but still valid form categories,
-   shown under "Other" filter)
+- Activities sorted by start_time within each time block (localeCompare, no-time items last)
+- Category filters: All | Accommodation | Transport | Dining | Experiences | Other
+  ✅ STANDARDISED 2026-06: 5 categories everywhere (merged Sightseeing+Activities→Experiences)
+  DB values: accommodation | transport | dining | experiences | other
 - Real-time sync (LIVE indicator) ✅ fixed
 - Selected day card: deep teal bg (#6D8F87), ALL text white, badge = white bg + green number
+- Day list shows first-activity preview text under date
+- Board layout (desktop): [Day list ~260-280px] [Activity content flex-1] [KIV panel ~220px]
+- KIV (Keep in View) right side panel — see section 14
+- Activity cards: left color accent bar by category (3px):
+  dining=orange-400, transport=slate-400, accommodation=purple-400,
+  experiences=blue-400, other=gray-200
+  ⚠️ PENDING: accent bars only render on some cards; filter chips alignment with
+  Day 1 box still not fixed after 3 attempts (needs Code tab diagnosis)
 
 ### 3. Itinerary Planning — Calendar View
 - Time-based calendar grid (6am–11pm)
 - Accommodation bands spanning multiple day columns at top (fixed stacking/overlap)
 - Activity cards: title wraps to 2 lines (line-clamp-2), time range, duration
+- Duration inline with time: 09:00 – 10:30 (1h 30m)
+- Card height capped to time slot (no overflow past end time)
 - Gap indicators between consecutive activities:
   - Vertical line connecting blocks
   - 🚗 drive time · Xm left (Distance Matrix API via GOOGLE_MAPS_SERVER_KEY)
@@ -106,22 +117,43 @@ GitHub token expires: ~May 2027
   - ⚠️ shown if buffer is negative (tight timing)
   - Plain text only, no pill/box border
   - Always shown regardless of gap size
-- Map side panel: numbered pins, day filter, routes
+- ✅ Map side panel REMOVED from Calendar (2026-06) — Map is now standalone tab
+- KIV sticky right column (dashed border, 140px) — shares data with Board KIV
 - Sticky header: navbar + category tabs only (trip info bar scrolls away)
 - Removed noisy "~30m available" gap labels between blocks
 
+### 3b. Itinerary Planning — Map Tab ✅ NEW (2026-06)
+- Standalone 3rd view: Board | Calendar | Map
+- Layout: full map left + right sidebar (day filter tabs D1-D8/All + activity list by day)
+- Auto-zoom fitBounds when clicking day filter (padding right:320 for sidebar)
+- Single pin day: setCenter + zoom 14; multi-pin: fitBounds with zoom cap 15
+- Click pin → opens activity edit panel
+- Click sidebar activity → panTo pin + opens edit panel
+- Auto-fit all pins on initial Map tab load (300ms delay)
+
 ### 4. Map Integration (Google Maps)
-- Numbered pins matching calendar activities
-- Day filter (D1-D8, All)
+- Numbered pins matching activities, day color coding
+- Day filter (D1-D8, All) with auto-zoom to day's pins
 - Routes between locations
-- Show/Hide map toggle
+- Now lives in standalone Map tab (Show/Hide toggle removed from Calendar)
 
 ### 5. Bookings Management
-- Categories: Accommodation, Transport, Dining, Activities, Other
+- Categories: Accommodation, Transport, Dining, Experiences, Other (standardised with itinerary)
 - Fields: confirmation_number, booking_url, check_in/out dates+times,
   departure/arrival datetime, from/to locations, amount+currency toggle (THB/MYR),
   payment status, cancel_by, notes
-- Views: List view + Card view (toggle)
+- ✅ REDESIGNED (2026-06): timeline view grouped by date
+- reservation_status column: confirmed | pending | tbc | cancelled
+- Unified reservation logic across ALL booking types:
+  - Confirmation# present OR dropdown=confirmed → "Confirmed" badge
+  - Typing confirmation# auto-sets dropdown to confirmed
+- Plain-text status colors: Confirmed=green, Pending/TBC=amber, Cancelled=red
+- Quick-toggle circle button per row (click to confirm/unconfirm)
+- Auto-created booking from activity syncs name/date/time/location (one-way,
+  doesn't overwrite booking-specific fields); linked via linked_activity_id
+- Autosave on outside click + field blur (isDirty tracking)
+- PDF attachments open in new tab via window.open (lightbox removed — had scroll bugs)
+- Google Places Autocomplete on Transport From/To fields (PlacesAutocompleteInput)
 - File Attachments: Drag & drop in BOTH new and edit forms, any file type,
   stored in Supabase Storage 'booking-attachments' bucket
 - PendingAttachments component for new booking forms
@@ -234,12 +266,53 @@ GitHub token expires: ~May 2027
 - /about — About page with founder story ("Built by a traveler tired of 47-message threads")
 - All pages: consistent nav header + ← Back to home link
 
+### 14. KIV — Keep in View ✅ NEW (2026-06)
+- Unscheduled activities + freeform notes (no day/time)
+- DB: activities.is_kiv boolean + kiv_notes table (trip_id, content, created_by)
+- Board view: RIGHT side panel (~220px, always visible, no scrolling needed)
+  - Was bottom drawer originally — moved to right panel per user request
+- Calendar view: sticky right dashed column (140px)
+- Drag activity INTO KIV → is_kiv=true, day cleared
+- Drag OUT to a day OR click "Assign" → day picker popover
+- KIV cards: dashed border, opacity-70, "KIV" label; notes: amber tint
+- "Add idea..." + "Add note" buttons in panel
+- State lifted to parent itinerary page — shared between Board and Calendar
+
+### 15. Trip Version History ✅ NEW (2026-06)
+- trip_history table: jsonb snapshot of activities+bookings after every change
+- Records: action (added/edited/deleted/moved), entity_type, entity_name, changed_by_name
+- 30-day retention (auto-cleanup on insert)
+- History panel: right slide-in, grouped by date, hover → ↩ Restore button
+- Restore: confirm dialog → wipes current activities/bookings → re-inserts snapshot
+- History button in left sidebar (with Share + Export)
+- RLS policies applied (collaborators read, authenticated insert, owner delete)
+
+### 16. Share & Export ✅ NEW (2026-06)
+- Share dropdown: read-only link (share_token + 30-day expiry + revoke,
+  strips confirmation#/costs/notes, noindex), WhatsApp/Telegram share
+  (wa.me, max 3 days preview, no booking refs), invite collaborator
+- Export dropdown: client-side jsPDF itinerary (no sensitive data),
+  .ics with TZID=Asia/Bangkok, CSV with UTF-8 BOM + injection sanitisation
+- Red team safeguards applied; public trip page deferred (privacy risk)
+
+### 17. Trip Page Layout ✅ REDESIGNED (2026-06)
+- Desktop: left sidebar (~30%, max-w-xs) + right content (~70%)
+- Sidebar contains: hero image, trip meta (destination/dates/cost),
+  collaborator avatars ("3 members"), nav (Itinerary/Overview/Bookings/Costs),
+  bottom actions (Share/Export/History)
+- Mobile: sidebar hidden, horizontal pill tabs at top + compact hero
+- Old full-width hero + horizontal tab bar removed on desktop
+- Board/Calendar/Map sub-tabs stay inside Itinerary content area
+- Toolbar row: filter chips (left) + view switcher (right) on same row
+
 ## Database Schema (Supabase)
 
 ### Tables:
-- trips (id, name, destination, start_date, end_date, created_by, currency, cover_image_url, share_token, is_public)
-- activities (id, trip_id, user_id, title, category, day_date, start_time, end_time, location, photo_url, cost, notes, linked_booking_id, block)
-- bookings (id, trip_id, user_id, category, name, departure_date, arrival_date, check_in_date, check_out_date, booking_date, from_location, to_location, amount, currency, payment_status, confirmation_number, booking_url, cancel_by, notes, property_name, address, check_in_time, check_out_time)
+- trips (id, name, destination, start_date, end_date, created_by, currency, cover_image_url, share_token, share_token_expires_at, share_enabled, is_public)
+- activities (id, trip_id, user_id, title, category, day_date, start_time, end_time, location, photo_url, cost, notes, linked_booking_id, block, is_kiv)
+- bookings (id, trip_id, user_id, category, name, departure_date, arrival_date, check_in_date, check_out_date, booking_date, from_location, to_location, amount, currency, payment_status, reservation_status, confirmation_number, booking_url, cancel_by, notes, property_name, address, check_in_time, check_out_time, linked_activity_id)
+- kiv_notes (id, trip_id, content, created_at, created_by) ✅ NEW
+- trip_history (id, trip_id, changed_by, changed_by_name, action, entity_type, entity_name, snapshot jsonb, created_at) ✅ NEW
 - expenses (id, trip_id, user_id, amount, category, description, paid_by_participant_id, date)
 - expense_splits (id, expense_id, participant_id, amount, settled)
 - expense_participants (id, trip_id, name, email)
@@ -250,6 +323,16 @@ GitHub token expires: ~May 2027
 - notifications (id, user_id, type, title, message, link, read)
 - booking_attachments (id, booking_id, trip_id, user_id, file_name, file_type, file_size, storage_path, public_url)
 - profiles (id, full_name, email, avatar_url)
+
+### ⚠️ CRITICAL: Category handling (2026-06)
+- activities_category_check constraint was DROPPED — caused repeated save failures
+- Replaced with BEFORE INSERT/UPDATE trigger: normalise_activity_category()
+- Trigger maps ANY input to: accommodation | transport | dining | experiences | other
+  ('food'→dining, 'sightseeing'/'activity'→experiences, 'hotel'→accommodation, etc.)
+- Bad values can NEVER reach a constraint — bug is impossible at DB level
+- Form initial state must still default category to 'other' (not '' or undefined)
+- Root cause of original bug: form initial state defaulted to '' / UI labels like
+  'Food & Dining' which violated the old constraint
 
 ### Migrations Applied:
 - 012_costs_schema.sql ✅
@@ -262,6 +345,12 @@ GitHub token expires: ~May 2027
 - Link activities to user accounts ✅
 - trip_members_user_id_profiles_fkey → profiles(id) ✅ (fixes collaborators display)
 - expense_settlements currency column ✅
+- (2026-06) bookings.reservation_status + linked_activity_id ✅
+- (2026-06) trips.share_token_expires_at + share_enabled ✅
+- (2026-06) activities.is_kiv + kiv_notes table ✅
+- (2026-06) trip_history table + RLS policies ✅
+- (2026-06) DROP activities_category_check + normalise_activity_category() trigger ✅
+- (2026-06) Category migration: food→dining, sightseeing/activity→experiences, hotel→accommodation ✅
 
 ### Real-time:
 - activities table: supabase_realtime publication ✅
@@ -329,24 +418,47 @@ GitHub token expires: ~May 2027
 
 ## Known Issues / Pending
 
-### Bugs:
-1. Calendar gap indicator occasionally overlaps activity cards in tight spaces
-2. AI suggest mode sometimes returns wrong city (not always using day location correctly)
-3. AI mode detection occasionally mis-routes questions to suggest mode
+### Bugs (active):
+1. ⚠️ Filter chips (All/Accommodation/...) NOT left-aligned with Day 1 box —
+   3 fix attempts via Chat prompts failed; needs Code tab diagnosis
+   (check git log whether commits landed; check for duplicate filter components)
+2. ⚠️ Activity card left accent bars only render on some cards (Dining works,
+   others missing) — same diagnosis approach needed
+3. Calendar gap indicator occasionally overlaps activity cards in tight spaces
+4. AI suggest mode sometimes returns wrong city (not always using day location)
+5. AI mode detection occasionally mis-routes questions to suggest mode
 
 ### Pending Features:
-1. Stripe payments (Free/Pro/Team tiers) — pricing page shows "Coming soon"
-2. Custom domain (tripletto.app)
-3. Mobile full testing
-4. Server-side rate limiting on magic link endpoint
-5. CAPTCHA on login form
-6. Export trip as PDF
-7. Trip card collaborator avatars (who's going)
+1. Weather integration — FULL PROMPT READY (Open-Meteo, no API key,
+   app/api/weather/route.ts, lib/weather-utils.ts WMO mapper,
+   hooks/use-trip-weather.ts, daily on Board+Calendar headers, hourly on Overview)
+2. Stripe payments (Free/Pro/Team — proposed $6.99/mo Pro, $12.99/mo Team)
+3. Custom domain — BLOCKED by rebrand (see below)
+4. Mobile full testing
+5. Server-side rate limiting on magic link endpoint
+6. CAPTCHA on login form
+7. PWA support — intentionally deferred (iOS Add to Home Screen works natively)
 
-### Launch Tasks:
-1. Custom domain (tripletto.app)
-2. Stripe payments
-3. Mobile testing
+### 🚨 REBRAND REQUIRED (before launch):
+"Tripletto" name taken by identical product. Verified TAKEN:
+Tripora (tripora.io/.app), Trippio (trippio.net), Tripio, Voyaj, Wandra.
+Clean shortlist: **Vectura** (recommended, Latin "to travel"), **Rovana**, **Itinera**.
+NO FINAL NAME CHOSEN YET. Full rebrand checklist needed once picked:
+logo, domain, repo, Vercel project, support email, legal pages, OG tags.
+
+### Launch Tasks (in order):
+1. Fix 2 active UI bugs (Code tab)
+2. Pick rebrand name → execute rebrand
+3. Custom domain
+4. Weather feature
+5. Stripe payments
+6. Mobile testing
+
+### Workflow Notes:
+- Recurring failure: Claude Code edits files but forgets `git push` —
+  ALWAYS verify deploy with `git log origin/main -1`
+- For stubborn bugs: use Code tab (reads real files) instead of Chat prompts
+- Chat = brainstorm/strategy; Code = implementation/debugging
 
 ## Quick Commands
 
@@ -385,3 +497,10 @@ Google Cloud APIs: https://console.cloud.google.com/apis/library?project=trip-pl
 - OpenRouter ZDR policy blocks most specific free models — use openrouter/free as fallback
 - activities table: block field stores 'morning'|'afternoon'|'night'
 - expense_settlements: now has currency column for per-currency debt tracking
+- Category validation now owned by DB trigger normalise_activity_category() —
+  the old activities_category_check constraint is GONE
+- Categories everywhere: accommodation | transport | dining | experiences | other
+- Activity sort within time blocks: [...arr].sort by start_time localeCompare
+  (spread to avoid mutation; no-time items pushed last)
+- Layout column widths should use CSS vars (--day-list-width, --kiv-panel-width)
+  so toolbar/day-list/KIV stay in sync

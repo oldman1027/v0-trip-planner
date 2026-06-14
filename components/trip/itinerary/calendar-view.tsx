@@ -326,6 +326,9 @@ export function CalendarView({
   onKIVAssignDay,
   weatherByDate,
   weatherLoading,
+  memberColorMap,
+  memberNameMap,
+  filterCreatorId,
 }: {
   tripId?: string
   days: string[]
@@ -342,6 +345,9 @@ export function CalendarView({
   onKIVAssignDay?: (activityId: string, day: string) => void
   weatherByDate?: Record<string, DailyWeather>
   weatherLoading?: boolean
+  memberColorMap?: Map<string, string>
+  memberNameMap?: Map<string, string>
+  filterCreatorId?: string | null
 }) {
   // Local copy for drag-to-reschedule optimistic updates.
   // Kept in sync with the parent prop via the effect below so that realtime
@@ -804,9 +810,10 @@ export function CalendarView({
                     <div
                       key={a.id}
                       className={cn(
-                        "absolute text-xs select-none group/block",
+                        "absolute text-xs select-none group/block transition-opacity duration-150",
                         isGhost && "opacity-25",
                         isLive  && "z-30 shadow-lg",
+                        filterCreatorId && a.created_by !== filterCreatorId && "opacity-30",
                       )}
                       onClick={(e) => e.stopPropagation()}
                       style={{
@@ -884,6 +891,17 @@ export function CalendarView({
                           )}
                         </div>
                       </div>
+
+                      {/* Creator attribution dot */}
+                      {memberColorMap && a.created_by && memberColorMap.has(a.created_by) && blockH >= 32 && (
+                        <div
+                          className="absolute bottom-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[7px] font-bold text-white ring-[1px] ring-white/50"
+                          style={{ backgroundColor: memberColorMap.get(a.created_by) }}
+                          title={`Added by ${memberNameMap?.get(a.created_by) ?? "member"}`}
+                        >
+                          {(memberNameMap?.get(a.created_by) ?? "?")[0]?.toUpperCase()}
+                        </div>
+                      )}
 
                       {/* Resize handle */}
                       <div
