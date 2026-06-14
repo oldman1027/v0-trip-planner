@@ -72,7 +72,7 @@ export function TripSidebarLayout({
     const supabase = createClient()
     supabase
       .from("trip_members")
-      .select("user_id, role, joined_at, profiles(full_name, avatar_url)")
+      .select("user_id, role, joined_at, last_activity_at, profiles(full_name, avatar_url)")
       .eq("trip_id", trip.id)
       .order("joined_at", { ascending: true })
       .then(({ data }) => {
@@ -82,6 +82,7 @@ export function TripSidebarLayout({
             user_id: string
             role: "owner" | "editor" | "viewer"
             joined_at: string
+            last_activity_at: string | null
             profiles: { full_name: string | null; avatar_url: string | null } | null
           }>).map((m) => ({
             userId: m.user_id,
@@ -89,6 +90,7 @@ export function TripSidebarLayout({
             avatarUrl: m.profiles?.avatar_url ?? null,
             role: m.role,
             joinedAt: m.joined_at,
+            lastActivityAt: m.last_activity_at,
           }))
         )
       })

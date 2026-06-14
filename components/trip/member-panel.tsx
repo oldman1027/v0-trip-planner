@@ -1,6 +1,6 @@
 "use client"
 
-import { format } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import { X, MoreHorizontal, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -21,6 +21,7 @@ export type MemberEntry = {
   avatarUrl: string | null
   role: "owner" | "editor" | "viewer"
   joinedAt: string
+  lastActivityAt?: string | null
 }
 
 const ROLE_STYLE: Record<MemberEntry["role"], { label: string; cls: string }> = {
@@ -177,6 +178,8 @@ export function MemberPanel({
                   <div className="mt-0.5 text-[11px]">
                     {isOnline ? (
                       <span className="font-medium text-[#22C55E]">Online now</span>
+                    ) : m.lastActivityAt ? (
+                      <span className="text-[#6B7C77]">Last seen {formatDistanceToNow(new Date(m.lastActivityAt), { addSuffix: true })}</span>
                     ) : (
                       <span className="text-[#6B7C77]">Joined {format(new Date(m.joinedAt), "MMM d")}</span>
                     )}
