@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
-import { Sparkles, Send, X, Plus, Check, MessageCircle, MapPin, Clock } from "lucide-react"
+import { Sparkles, Send, X, Plus, Check, MessageCircle, MapPin, Clock, RotateCcw } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -13,6 +14,8 @@ import { daysBetween } from "@/lib/dates"
 import type { Activity, Trip } from "@/lib/types"
 import type { DailyWeather } from "@/app/api/weather/route"
 import { wmoToDisplay } from "@/lib/weather-utils"
+import { useWeatherSuggestions } from "@/hooks/use-weather-suggestions"
+import type { WeatherSuggestion } from "@/lib/weather-ai-prompt"
 
 type Suggestion = {
   title: string
@@ -172,6 +175,48 @@ function SuggestionCard({
   )
 }
 
+const SUGGESTION_STYLE: Record<
+  WeatherSuggestion["type"],
+  { border: string; bg: string }
+> = {
+  warning: { border: "#60A5FA", bg: "#EFF6FF" },
+  tip:     { border: "#22C55E", bg: "#F0FDF4" },
+  reorder: { border: "#EF9F27", bg: "#FAEEDA" },
+}
+
+function WeatherSuggestionCard({ suggestion: s }: { suggestion: WeatherSuggestion }) {
+  const style = SUGGESTION_STYLE[s.type]
+  const dayLabel = s.dayDate
+    ? new Date(s.dayDate + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "short", month: "short", day: "numeric",
+      })
+    : null
+  return (
+    <div
+      className="rounded-xl px-3 py-2.5"
+      style={{
+        background: style.bg,
+        borderLeft: `3px solid ${style.border}`,
+      }}
+    >
+      <p className="text-[12px] font-medium leading-snug" style={{ color: "#2C4A45" }}>
+        {s.icon} {s.title}
+      </p>
+      <p className="mt-0.5 text-[11px] leading-snug" style={{ color: "#6D8F87" }}>
+        {s.body}
+      </p>
+      {dayLabel && (
+        <span
+          className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px]"
+          style={{ background: "#E8DDD0", color: "#6B7C77" }}
+        >
+          {dayLabel}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function TriplettoAI({
   trip,
   activities,
@@ -193,6 +238,9 @@ export function TriplettoAI({
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isEmpty = activities.length === 0
+
+  const { suggestions: weatherSuggestions, isLoading: suggestionsLoading, generatedAt, refresh: refreshSuggestions } =
+    useWeatherSuggestions(trip, activities, weatherByDate)
 
   // Find the highest-rain day (≥ 60%) for the weather alert
   const rainAlertDay = Object.entries(weatherByDate)
@@ -434,6 +482,55 @@ export function TriplettoAI({
                       {s}
                     </button>
                   ))}
+                </div>
+
+                {/* Weather Insights */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="text-[11px] font-medium uppercase tracking-wide"
+                      style={{ color: "#A9D6C5" }}
+                    >
+                      Weather Insights
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {generatedAt && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={refreshSuggestions}
+                        disabled={suggestionsLoading}
+                        className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-40"
+                        title="Refresh suggestions"
+                      >
+                        <RotateCcw className={cn("h-3.5 w-3.5", suggestionsLoading && "animate-spin")} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {suggestionsLoading ? (
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          className="h-[60px] animate-pulse rounded-xl bg-muted"
+                        />
+                      ))}
+                    </div>
+                  ) : weatherSuggestions.length === 0 ? (
+                    <p className="py-1 text-center text-[12px] text-green-600">
+                      ✨ No weather concerns for this trip
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {weatherSuggestions.map((s, i) => (
+                        <WeatherSuggestionCard key={i} suggestion={s} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
