@@ -1,5 +1,19 @@
 export type WmoDisplay = { icon: string; label: string }
 
+export function getWeatherStrategy(
+  tripStartDate: string,
+  tripEndDate: string,
+): "forecast" | "historical" | "blend" {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const cutoff = new Date(today)
+  cutoff.setDate(cutoff.getDate() + 16)
+  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  if (tripEndDate <= cutoffStr) return "forecast"
+  if (tripStartDate > cutoffStr) return "historical"
+  return "blend"
+}
+
 export function wmoToDisplay(code: number): WmoDisplay {
   if (code === 0) return { icon: "☀️", label: "Clear" }
   if (code === 1 || code === 2) return { icon: "⛅", label: "Partly cloudy" }

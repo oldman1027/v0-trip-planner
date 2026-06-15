@@ -33,6 +33,14 @@ export function TodayWeatherCard({ weatherByDate, weatherLoading, days, destinat
   const { icon, label: conditionLabel } = wmoToDisplay(weather.code)
   const cityName = destination?.split(",")[0]?.trim() ?? ""
 
+  const histRefLabel = weather.source === "historical"
+    ? (() => {
+        const ref = new Date(displayDate + "T00:00:00")
+        ref.setDate(ref.getDate() - 365)
+        return ref.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      })()
+    : null
+
   return (
     <div
       className="mx-2 mb-2 shrink-0"
@@ -93,6 +101,12 @@ export function TodayWeatherCard({ weatherByDate, weatherLoading, days, destinat
           </span>
         </div>
       </div>
+
+      {histRefLabel && (
+        <div className="mt-2 text-[10px] italic" style={{ color: "#A9D6C5" }}>
+          ⓘ Estimated from {histRefLabel} data
+        </div>
+      )}
     </div>
   )
 }

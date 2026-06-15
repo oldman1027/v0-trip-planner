@@ -105,9 +105,12 @@ export function useTripWeather(trip: TripLike, activities?: Activity[]): Weather
           city: dateCityMap.get(d) ?? trip.destination ?? null,
         }))
 
-        // Geocode unique cities in parallel
+        // Always include trip.destination so it's available as a coord fallback
         const uniqueCities = [
-          ...new Set(dayCityList.map((d) => d.city).filter(Boolean) as string[]),
+          ...new Set([
+            ...dayCityList.map((d) => d.city).filter(Boolean) as string[],
+            ...(trip.destination ? [trip.destination] : []),
+          ]),
         ]
         const coordMap = new Map<string, { lat: number; lon: number }>()
         await Promise.all(
@@ -119,11 +122,14 @@ export function useTripWeather(trip: TripLike, activities?: Activity[]): Weather
 
         if (cancelledRef.current) return
 
+        // Coords for trip.destination — used when activity city geocoding fails
+        const destCoords = trip.destination ? coordMap.get(trip.destination) : undefined
+
         // Group dates by unique lat/lon to batch API calls
         const coordGroups = new Map<string, { lat: number; lon: number; dates: string[] }>()
         for (const { date, city } of dayCityList) {
-          if (!city) continue
-          const coords = coordMap.get(city)
+          // Primary: activity-derived city coords; fallback: trip.destination
+          const coords = (city ? coordMap.get(city) : undefined) ?? destCoords
           if (!coords) continue
           const key = `${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`
           if (!coordGroups.has(key)) coordGroups.set(key, { ...coords, dates: [] })
