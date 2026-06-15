@@ -5,6 +5,7 @@ export type DailyWeather = {
   min: number
   rainChance: number
   code: number
+  windspeedMax: number
 }
 
 export type HourlySlot = {
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   const url =
     `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${lat}&longitude=${lng}&timezone=auto` +
-    `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max,weathercode` +
     `&hourly=temperature_2m,precipitation_probability,weathercode` +
     `&temperature_unit=celsius&forecast_days=16`
 
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
         temperature_2m_max: number[]
         temperature_2m_min: number[]
         precipitation_probability_max: number[]
+        windspeed_10m_max: number[]
         weathercode: number[]
       }
       hourly: {
@@ -66,6 +68,7 @@ export async function GET(req: NextRequest) {
         max: Math.round(data.daily.temperature_2m_max[i]),
         min: Math.round(data.daily.temperature_2m_min[i]),
         rainChance: data.daily.precipitation_probability_max[i] ?? 0,
+        windspeedMax: Math.round(data.daily.windspeed_10m_max[i] ?? 0),
         code: data.daily.weathercode[i],
       }
     }

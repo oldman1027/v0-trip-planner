@@ -11,6 +11,8 @@ import { addAIActivities } from "@/app/actions/add-ai-activities"
 import { toast } from "sonner"
 import { daysBetween } from "@/lib/dates"
 import type { Activity, Trip } from "@/lib/types"
+import type { DailyWeather } from "@/app/api/weather/route"
+import { wmoToDisplay } from "@/lib/weather-utils"
 
 type Suggestion = {
   title: string
@@ -174,10 +176,12 @@ export function TriplettoAI({
   trip,
   activities,
   onActivitiesAdded,
+  weatherByDate = {},
 }: {
   trip: Trip
   activities: Activity[]
   onActivitiesAdded: (added: Activity[]) => void
+  weatherByDate?: Record<string, DailyWeather>
 }) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -189,6 +193,11 @@ export function TriplettoAI({
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isEmpty = activities.length === 0
+
+  // Find the highest-rain day (≥ 60%) for the weather alert
+  const rainAlertDay = Object.entries(weatherByDate)
+    .filter(([, w]) => w.rainChance >= 60)
+    .sort((a, b) => b[1].rainChance - a[1].rainChance)[0]
 
   useEffect(() => {
     if (open) {
@@ -386,6 +395,29 @@ export function TriplettoAI({
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
             {messages.length === 0 && (
               <div className="space-y-3">
+                {/* Rain alert — only shown when a trip day has ≥ 60% rain chance */}
+                {rainAlertDay && (() => {
+                  const [date, w] = rainAlertDay
+                  const dayLabel = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+                    weekday: "short", month: "short", day: "numeric",
+                  })
+                  return (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-3 py-2.5">
+                      <span className="text-base leading-none" style={{ color: "#60A5FA" }}>
+                        {wmoToDisplay(w.code).icon}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[#1D4ED8]">
+                          Rain expected — {dayLabel}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[#3B82F6]">
+                          {w.rainChance}% chance · consider indoor alternatives
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 <p className="text-sm text-muted-foreground">
                   Ask me anything about your trip to{" "}
                   <span className="font-medium text-foreground">{trip.destination ?? trip.name}</span>.

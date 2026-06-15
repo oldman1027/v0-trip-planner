@@ -42,6 +42,7 @@ import { daysBetween, formatDayLabel, getBlockFromTime } from "@/lib/dates"
 import { detectConflicts } from "@/lib/time-conflicts"
 import { useTripWeather } from "@/hooks/use-trip-weather"
 import { wmoToDisplay } from "@/lib/weather-utils"
+import { TodayWeatherCard } from "./today-weather-card"
 import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -1013,6 +1014,7 @@ export function ItineraryBoard({
         trip={trip}
         activities={activities}
         onActivitiesAdded={handleActivitiesAdded}
+        weatherByDate={weatherByDate}
       />
 
       {/* Member filter banner */}
@@ -1240,14 +1242,22 @@ export function ItineraryBoard({
 
             {/* KIV right panel — desktop only (conditionally mounted to avoid duplicate droppable id) */}
             {!isMobile && (
-              <aside className="sticky top-[51px] flex w-[220px] flex-shrink-0 h-[calc(100vh-51px)] flex-col overflow-hidden border-l border-border bg-muted/10 pt-3">
-                <KIVPanel
-                  tripId={trip.id}
-                  activities={kivActivities}
+              <aside className="sticky top-[51px] flex w-[220px] flex-shrink-0 h-[calc(100vh-51px)] flex-col overflow-hidden border-l border-border bg-muted/10">
+                <div className="min-h-0 flex-1 overflow-hidden pt-3">
+                  <KIVPanel
+                    tripId={trip.id}
+                    activities={kivActivities}
+                    days={days}
+                    onAssignDay={handleKIVAssignDay}
+                    onDelete={handleDelete}
+                    onAdd={handleKIVAdd}
+                  />
+                </div>
+                <TodayWeatherCard
+                  weatherByDate={weatherByDate}
+                  weatherLoading={weatherLoading}
                   days={days}
-                  onAssignDay={handleKIVAssignDay}
-                  onDelete={handleDelete}
-                  onAdd={handleKIVAdd}
+                  destination={trip.destination ?? null}
                 />
               </aside>
             )}

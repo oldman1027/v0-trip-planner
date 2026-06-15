@@ -689,9 +689,17 @@ export function CalendarView({
                     {weatherLoading ? (
                       <div className="mt-0.5 h-3 w-10 animate-pulse rounded bg-muted" />
                     ) : weatherByDate?.[day] ? (
-                      <div className="mt-0.5 flex items-center gap-0.5 text-[11px]" style={{ color: wmoColor(weatherByDate[day].code) }}>
-                        <span>{wmoToDisplay(weatherByDate[day].code).icon}</span>
-                        <span>{weatherByDate[day].max}°C</span>
+                      <div className="mt-0.5 flex flex-col items-center gap-0.5">
+                        <div className="flex items-center gap-0.5 text-[11px]" style={{ color: wmoColor(weatherByDate[day].code) }}>
+                          <span>{wmoToDisplay(weatherByDate[day].code).icon}</span>
+                          <span>{weatherByDate[day].max}°C</span>
+                        </div>
+                        {(weatherByDate[day].rainChance ?? 0) >= 30 && (
+                          <div className="flex items-center gap-0.5 text-[10px]" style={{ color: "#60A5FA" }}>
+                            <span>💧</span>
+                            <span>{weatherByDate[day].rainChance}%</span>
+                          </div>
+                        )}
                       </div>
                     ) : null}
                   </div>
