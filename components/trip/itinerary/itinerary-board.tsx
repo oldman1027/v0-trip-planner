@@ -210,7 +210,7 @@ export function ItineraryBoard({
   }, [trip.id])
 
   // Weather data for sidebar chips and calendar headers
-  const { weatherByDate, loading: weatherLoading } = useTripWeather(trip)
+  const { weatherByDate, loading: weatherLoading } = useTripWeather(trip, activities)
 
   const weatherByDay = useMemo(() => {
     const map = new Map<string, { icon: string; high: number; rainChance: number }>()

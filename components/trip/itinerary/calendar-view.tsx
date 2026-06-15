@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client"
 import type { Activity, Booking, KIVNote, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 import { GapIndicator } from "./gap-indicator"
-import { wmoToDisplay } from "@/lib/weather-utils"
+import { wmoToDisplay, wmoColor } from "@/lib/weather-utils"
 import type { DailyWeather } from "@/app/api/weather/route"
 
 
@@ -689,9 +689,9 @@ export function CalendarView({
                     {weatherLoading ? (
                       <div className="mt-0.5 h-3 w-10 animate-pulse rounded bg-muted" />
                     ) : weatherByDate?.[day] ? (
-                      <div className="mt-0.5 flex items-center gap-0.5 text-[9px]" style={{ color: "#EF9F27" }}>
+                      <div className="mt-0.5 flex items-center gap-0.5 text-[11px]" style={{ color: wmoColor(weatherByDate[day].code) }}>
                         <span>{wmoToDisplay(weatherByDate[day].code).icon}</span>
-                        <span>{weatherByDate[day].max}°/{weatherByDate[day].min}°</span>
+                        <span>{weatherByDate[day].max}°C</span>
                       </div>
                     ) : null}
                   </div>
