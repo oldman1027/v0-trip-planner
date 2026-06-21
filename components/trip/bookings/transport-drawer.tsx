@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { format } from "date-fns"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Spinner } from "@/components/ui/spinner"
-import { Trash2, Pencil, Paperclip } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { Trash2, Pencil, Paperclip, CalendarIcon, X } from "lucide-react"
 import { BookingAttachments, PendingAttachments } from "./booking-attachments"
 import { LocationAutocomplete } from "@/components/trip/itinerary/location-autocomplete"
 import { uploadBookingAttachment } from "@/lib/supabase/booking-attachments"
@@ -116,6 +119,7 @@ export function TransportDrawer({
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [addToItinerary, setAddToItinerary] = useState(true)
   const [editingField, setEditingField] = useState<EditingField>(null)
+  const [calOpen, setCalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
@@ -616,12 +620,46 @@ export function TransportDrawer({
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Cancel by (optional)
               </p>
-              <Input
-                type="date"
-                value={cancellationDeadline}
-                onChange={(e) => setCancellationDeadline(e.target.value)}
-                className="rounded-xl"
-              />
+              <Popover open={calOpen} onOpenChange={setCalOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex h-9 w-full items-center gap-2 rounded-xl border border-input bg-background px-3 text-sm transition-colors hover:bg-accent",
+                      !cancellationDeadline && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                    <span className="flex-1 text-left">
+                      {cancellationDeadline
+                        ? format(new Date(cancellationDeadline + "T00:00:00"), "dd MMM yyyy")
+                        : "Pick a date"}
+                    </span>
+                    {cancellationDeadline && (
+                      <X
+                        className="h-3.5 w-3.5 shrink-0 opacity-40 hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCancellationDeadline("")
+                          setIsDirty(true)
+                        }}
+                      />
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={cancellationDeadline ? new Date(cancellationDeadline + "T00:00:00") : undefined}
+                    onSelect={(date) => {
+                      setCancellationDeadline(date ? format(date, "yyyy-MM-dd") : "")
+                      setIsDirty(true)
+                      setCalOpen(false)
+                    }}
+                    autoFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* ── Confirmation # + Booking URL ── */}

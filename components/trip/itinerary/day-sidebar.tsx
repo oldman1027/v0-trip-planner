@@ -83,13 +83,9 @@ function DayItem({
             selected ? "text-white/80" : "text-muted-foreground",
           )}
         >
-          Day {dayIndex}
+          Day {dayIndex} · {format(date, "MMM d")}
         </span>
         <div className={cn("font-serif text-base", selected ? "text-white" : "")}>{format(date, "EEE")}</div>
-        <div className={cn("text-sm", selected ? "text-white/70" : "text-muted-foreground")}>{format(date, "MMM d")}</div>
-        {!selected && firstTitle && (
-          <p className="mt-0.5 max-w-[120px] truncate text-[11px] text-muted-foreground/70">{firstTitle}</p>
-        )}
         {weather && (
           <div className={cn("mt-1 flex items-center gap-1 text-xs", selected ? "text-white/60" : "text-muted-foreground")}>
             <span>{weather.icon}</span>
