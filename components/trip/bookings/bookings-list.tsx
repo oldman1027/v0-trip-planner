@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Plus, Pencil, Trash2, Ticket, Check } from "lucide-react"
+import { Plus, Trash2, Ticket, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { BookingDrawer, type BookingSaveInput } from "./booking-drawer"
@@ -618,7 +618,13 @@ function BookingRow({
   const rs = getReservationStatus(b)
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-accent/30">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => e.key === "Enter" && onEdit()}
+      className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-accent/30"
+    >
       {/* Type label */}
       <span className="w-[108px] shrink-0 text-xs font-medium text-muted-foreground">
         {typeLabel}
@@ -632,7 +638,7 @@ function BookingRow({
         )}
       </div>
 
-      {/* Amount · status text · toggle · edit · delete */}
+      {/* Amount · status text · toggle · delete */}
       <div className="flex shrink-0 items-center gap-2">
         <span className="min-w-[72px] text-right text-sm font-medium tabular-nums text-foreground">
           {amountStr}
@@ -646,15 +652,7 @@ function BookingRow({
         )}
         <button
           type="button"
-          onClick={onEdit}
-          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          aria-label="Edit booking"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           aria-label="Delete booking"
         >
