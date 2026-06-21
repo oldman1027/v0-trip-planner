@@ -347,28 +347,71 @@ export function BookingsList({
       if (error) throw error
 
       const editDetails = (bookingData.details ?? {}) as Record<string, unknown>
-      const editActivityId = editDetails.activity_id as string | undefined
+
+      // Resolve linked activity: prefer linked_booking_id lookup, fall back to legacy details.activity_id
+      let editActivityId = editDetails.activity_id as string | undefined
+      if (!editActivityId && bookingData.id) {
+        const { data: linked } = await supabase
+          .from("activities")
+          .select("id")
+          .eq("linked_booking_id", bookingData.id)
+          .maybeSingle()
+        editActivityId = linked?.id
+      }
+
       if (editActivityId) {
-        if (bookingData.type === "dining") {
+        if (bookingData.type === "transport") {
+          const deptFull = (editDetails.departure_time as string | null) ?? null
+          const arrFull = (editDetails.arrival_time as string | null) ?? null
+          const dayDate = deptFull ? deptFull.slice(0, 10) : null
+          const startTime = deptFull ? deptFull.slice(11, 16) : null
+          const endTime = arrFull ? arrFull.slice(11, 16) : null
+          const timeBlock = startTime ? getTimeBlock(startTime) : "morning"
+          await supabase.from("activities").update({
+            title: bookingData.title,
+            day_date: dayDate,
+            start_time: startTime,
+            end_time: endTime,
+            time_block: timeBlock,
+            location: (editDetails.from_city as string | null) ?? (editDetails.from_code as string | null) ?? null,
+            cost_amount: bookingData.amount ?? null,
+          }).eq("id", editActivityId)
+        } else if (bookingData.type === "dining") {
           const datetime = (editDetails.datetime as string) ?? ""
           const dayDate = datetime ? datetime.slice(0, 10) : null
           const startTime = datetime ? datetime.slice(11, 16) : null
           const timeBlock = startTime ? getTimeBlock(startTime) : "morning"
-          await supabase
-            .from("activities")
-            .update({
-              title: bookingData.title,
-              location: (editDetails.location as string | null) ?? null,
-              day_date: dayDate,
-              time_block: timeBlock,
-              start_time: startTime,
-            })
-            .eq("id", editActivityId)
+          await supabase.from("activities").update({
+            title: bookingData.title,
+            location: (editDetails.location as string | null) ?? null,
+            day_date: dayDate,
+            time_block: timeBlock,
+            start_time: startTime,
+          }).eq("id", editActivityId)
+        } else if (bookingData.type === "accommodation") {
+          await supabase.from("activities").update({
+            title: bookingData.title,
+            day_date: bookingData.booking_date ?? null,
+            start_time: bookingData.check_in_time ?? null,
+            end_time: bookingData.check_out_time ?? null,
+            time_block: bookingData.check_in_time ? getTimeBlock(bookingData.check_in_time) : "morning",
+            location: (editDetails.address as string | null) ?? null,
+            cost_amount: bookingData.amount ?? null,
+          }).eq("id", editActivityId)
+        } else if (bookingData.type === "activities") {
+          await supabase.from("activities").update({
+            title: bookingData.title,
+            day_date: bookingData.booking_date ?? null,
+            start_time: bookingData.departure_time ?? null,
+            time_block: bookingData.departure_time ? getTimeBlock(bookingData.departure_time) : "morning",
+            location: (editDetails.location as string | null) ?? null,
+            cost_amount: bookingData.amount ?? null,
+          }).eq("id", editActivityId)
         } else {
-          await supabase
-            .from("activities")
-            .update({ title: bookingData.title, cost_amount: bookingData.amount })
-            .eq("id", editActivityId)
+          await supabase.from("activities").update({
+            title: bookingData.title,
+            cost_amount: bookingData.amount ?? null,
+          }).eq("id", editActivityId)
         }
       }
 
