@@ -154,7 +154,12 @@ function getSubtitle(b: Booking): string {
 
   if (b.type === "transport") {
     const deptFull = d.departure_time as string | undefined
+    const arrFull = d.arrival_time as string | undefined
     const deptTime = deptFull?.includes("T") ? deptFull.slice(11, 16) : null
+    const arrTime = arrFull?.includes("T") ? arrFull.slice(11, 16) : null
+    const timeRange = deptTime && arrTime
+      ? `${deptTime} → ${arrTime}`
+      : deptTime ?? null
     const fromCode = (d.from_code as string | undefined)?.toUpperCase()
     const toCode = (d.to_code as string | undefined)?.toUpperCase()
     const fromCity = d.from_city as string | undefined
@@ -162,7 +167,7 @@ function getSubtitle(b: Booking): string {
     const from = fromCode || fromCity
     const to = toCode || toCity
     const route = from && to ? `${from} → ${to}` : (from ?? to ?? null)
-    return [deptTime, route].filter(Boolean).join(" · ")
+    return [timeRange, route].filter(Boolean).join(" · ")
   }
 
   if (b.type === "accommodation") {
