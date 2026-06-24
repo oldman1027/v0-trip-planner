@@ -124,6 +124,8 @@ export type Expense = {
   id: string
   trip_id: string
   booking_id: string | null
+  activity_id: string | null
+  source_type: "manual" | "booking" | "activity"
   amount: number
   currency: string
   category: ExpenseCategory

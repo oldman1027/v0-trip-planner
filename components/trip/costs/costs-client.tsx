@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Plus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BudgetCards } from "./budget-cards"
+import { CashPlanningCard } from "./cash-planning-card"
 import { ExpenseList } from "./expense-list"
 import { AddExpenseDialog } from "./add-expense-dialog"
 import { ManageParticipantsDialog } from "./manage-participants-dialog"
@@ -21,6 +22,7 @@ import type {
   TripBudget,
   MemberWithProfile,
   ExpenseParticipant,
+  Activity,
 } from "@/lib/types"
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -32,6 +34,14 @@ const BOOKING_TO_CATEGORY: Record<string, ExpenseCategory> = {
   restaurant: "food",
   experience: "activities",
   other:      "other",
+}
+
+const ACTIVITY_CATEGORY_TO_EXPENSE_CATEGORY: Record<string, ExpenseCategory> = {
+  accommodation: "accommodation",
+  transport:     "transport",
+  dining:        "food",
+  experiences:   "activities",
+  other:         "other",
 }
 
 const ALL_CATEGORIES: Array<"all" | ExpenseCategory> = [
@@ -157,6 +167,7 @@ export function CostsClient({
   initialBookings,
   currentUserId,
   initialParticipants,
+  activities,
 }: {
   trip: Trip
   initialExpenses: Expense[]
@@ -165,6 +176,7 @@ export function CostsClient({
   initialBookings: Booking[]
   currentUserId: string
   initialParticipants: ExpenseParticipant[]
+  activities: Activity[]
 }) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<TripBudget[]>(initialBudgets)
@@ -173,6 +185,7 @@ export function CostsClient({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [manageMembersOpen, setManageMembersOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [summaryView, setSummaryView] = useState<"category" | "cash">("category")
 
   const currency = trip.default_currency ?? "USD"
   const usingParticipants = participants.length > 0
@@ -204,6 +217,7 @@ export function CostsClient({
       const rows = toCreate.map((b) => ({
         trip_id:         trip.id,
         booking_id:      b.id,
+        source_type:     "booking",
         amount:          b.amount!,
         currency:        b.currency ?? currency,
         category:        BOOKING_TO_CATEGORY[b.type] ?? "other",
@@ -218,6 +232,44 @@ export function CostsClient({
       if (data?.length) {
         setExpenses((prev) => [...prev, ...(data as Expense[])])
         toast.success(`${data.length} booking${data.length > 1 ? "s" : ""} added as expenses`)
+      }
+    })()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-populate from activity costs on first mount ─────────────────────
+  useEffect(() => {
+    const existingActivityIds = new Set(
+      initialExpenses.filter((e) => e.activity_id).map((e) => e.activity_id!),
+    )
+    const toCreate = activities.filter(
+      (a) =>
+        a.cost_amount &&
+        a.cost_amount > 0 &&
+        !a.booking_id &&
+        !a.linked_booking_id &&
+        !existingActivityIds.has(a.id),
+    )
+    if (!toCreate.length) return
+    ;(async () => {
+      const supabase = createClient()
+      const rows = toCreate.map((a) => ({
+        trip_id:         trip.id,
+        activity_id:     a.id,
+        source_type:     "activity",
+        amount:          a.cost_amount!,
+        currency:        a.cost_currency ?? currency,
+        category:        ACTIVITY_CATEGORY_TO_EXPENSE_CATEGORY[a.category] ?? "other",
+        date:            a.day_date ?? trip.start_date,
+        description:     a.title,
+        paid_by_user_id: currentUserId,
+      }))
+      const { data } = await supabase
+        .from("expenses")
+        .insert(rows)
+        .select("*, splits:expense_splits(*)")
+      if (data?.length) {
+        setExpenses((prev) => [...prev, ...(data as Expense[])])
+        toast.success(`${data.length} itinerary cost${data.length > 1 ? "s" : ""} added as expenses`)
       }
     })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -391,13 +443,36 @@ export function CostsClient({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Budget cards */}
-      <BudgetCards
-        expenses={expenses}
-        budgets={budgets}
-        currency={currency}
-        onSetBudget={handleSetBudget}
-      />
+      {/* Summary toggle */}
+      <div className="flex gap-2">
+        {(["category", "cash"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setSummaryView(v)}
+            className={cn(
+              "rounded-full border px-4 py-1.5 text-xs font-medium transition-colors",
+              summaryView === v
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {v === "category" ? "By Category" : "Cash Needed"}
+          </button>
+        ))}
+      </div>
+
+      {/* Budget cards / cash planning */}
+      {summaryView === "category" ? (
+        <BudgetCards
+          expenses={expenses}
+          budgets={budgets}
+          currency={currency}
+          onSetBudget={handleSetBudget}
+        />
+      ) : (
+        <CashPlanningCard trip={trip} expenses={expenses} activities={activities} />
+      )}
 
       {/* Filter bar + action buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3">

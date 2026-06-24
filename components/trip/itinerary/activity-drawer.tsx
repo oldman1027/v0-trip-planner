@@ -146,7 +146,7 @@ export function ActivityDrawer({
         cost: a.cost_amount != null ? String(a.cost_amount) : "",
         photo: a.photo_url ?? "",
         category: safeCategory(a.category),
-        needsBooking: !!a.booking_id,
+        needsBooking: !!a.booking_id || !!a.linked_booking_id,
       }
     }
     originalRef.current = snap

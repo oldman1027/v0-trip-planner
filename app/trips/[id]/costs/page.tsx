@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { CostsClient } from "@/components/trip/costs/costs-client"
 import { normalizeMembers } from "@/lib/types"
-import type { Trip, Booking, Expense, TripBudget, ExpenseParticipant } from "@/lib/types"
+import type { Trip, Booking, Expense, TripBudget, ExpenseParticipant, Activity } from "@/lib/types"
 
 export default async function CostsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,6 +17,7 @@ export default async function CostsPage({ params }: { params: Promise<{ id: stri
     { data: membersRaw },
     { data: bookings },
     { data: participantsRaw },
+    { data: activitiesRaw },
   ] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle<Trip>(),
     supabase
@@ -35,6 +36,7 @@ export default async function CostsPage({ params }: { params: Promise<{ id: stri
       .select("*")
       .eq("trip_id", id)
       .order("created_at", { ascending: true }),
+    supabase.from("activities").select("*").eq("trip_id", id),
   ])
 
   if (!trip) return null
@@ -48,6 +50,7 @@ export default async function CostsPage({ params }: { params: Promise<{ id: stri
       initialBookings={(bookings ?? []) as Booking[]}
       currentUserId={user?.id ?? ""}
       initialParticipants={(participantsRaw ?? []) as ExpenseParticipant[]}
+      activities={(activitiesRaw ?? []) as Activity[]}
     />
   )
 }

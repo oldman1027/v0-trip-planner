@@ -43,7 +43,7 @@ import { detectConflicts } from "@/lib/time-conflicts"
 import { useTripWeather } from "@/hooks/use-trip-weather"
 import { wmoToDisplay } from "@/lib/weather-utils"
 import { TodayWeatherCard } from "./today-weather-card"
-import type { Activity, Booking, TimeBlock, Trip } from "@/lib/types"
+import type { Activity, Booking, ExpenseCategory, TimeBlock, Trip } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useMemberFilter } from "@/components/trip/member-filter-context"
@@ -67,6 +67,54 @@ function categoryToBookingType(cat: Activity["category"]): Booking["type"] {
   if (cat === "transport") return "transport"
   if (cat === "experiences") return "activities"
   return "other"
+}
+
+function categoryToExpenseCategory(cat: Activity["category"]): ExpenseCategory {
+  if (cat === "dining") return "food"
+  if (cat === "experiences") return "activities"
+  if (cat === "accommodation") return "accommodation"
+  if (cat === "transport") return "transport"
+  return "other"
+}
+
+/**
+ * Keep the Costs tab's expense list in sync with an activity card's cost field.
+ * Skipped (and cleared) when the activity has a linked booking — that booking's
+ * `amount` carries the same cost and gets its own expense row, so syncing both
+ * would double-count the spend.
+ */
+async function syncActivityExpense(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    tripId: string
+    activityId: string
+    dayDate: string
+    title: string
+    costAmount: number | null
+    currency: string
+    category: Activity["category"]
+    paidByUserId: string | null
+    hasLinkedBooking: boolean
+  },
+) {
+  if (!args.hasLinkedBooking && args.costAmount && args.costAmount > 0) {
+    await supabase.from("expenses").upsert(
+      {
+        trip_id: args.tripId,
+        activity_id: args.activityId,
+        source_type: "activity",
+        amount: args.costAmount,
+        currency: args.currency,
+        category: categoryToExpenseCategory(args.category),
+        date: args.dayDate,
+        description: args.title,
+        paid_by_user_id: args.paidByUserId,
+      },
+      { onConflict: "activity_id" },
+    )
+  } else {
+    await supabase.from("expenses").delete().eq("activity_id", args.activityId)
+  }
 }
 
 /** Build the booking fields to pre-fill when auto-creating or syncing a linked booking. */
@@ -711,6 +759,19 @@ export function ItineraryBoard({
       // Sync linked booking if it exists
       const existingBooking = activityBookingMap.get(resolvedInput.id!)
       let resolvedBookingId: string | null = existingBooking?.id ?? null
+
+      await syncActivityExpense(supabase, {
+        tripId: trip.id,
+        activityId: resolvedInput.id,
+        dayDate: resolvedInput.day_date || trip.start_date,
+        title: resolvedInput.title,
+        costAmount: resolvedInput.cost_amount,
+        currency: trip.default_currency ?? "USD",
+        category: safeCategory,
+        paidByUserId: currentUserRef.current?.id ?? null,
+        hasLinkedBooking: resolvedInput.needs_booking,
+      })
+
       if (resolvedInput.needs_booking) {
         if (existingBooking) {
           if (existingBooking.type === "dining") {
@@ -821,6 +882,18 @@ export function ItineraryBoard({
       if (error || !data) throw error ?? new Error("Insert failed")
       const newActivity = data as Activity
       setActivities((prev) => [...prev, newActivity])
+
+      await syncActivityExpense(supabase, {
+        tripId: trip.id,
+        activityId: newActivity.id,
+        dayDate: newActivity.day_date || trip.start_date,
+        title: newActivity.title,
+        costAmount: newActivity.cost_amount,
+        currency: trip.default_currency ?? "USD",
+        category: safeCategory,
+        paidByUserId: currentUserRef.current?.id ?? null,
+        hasLinkedBooking: input.needs_booking,
+      })
 
       // Auto-create booking if requested
       if (input.needs_booking) {

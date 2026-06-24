@@ -54,6 +54,8 @@ function ExpenseItem({
   const splits = expense.splits ?? []
   const hasSplits = splits.length > 0
   const isFromBooking = !!expense.booking_id
+  const isFromActivity = !!expense.activity_id
+  const isSynced = isFromBooking || isFromActivity
   const meta = CATEGORY_META[expense.category] ?? CATEGORY_META.other
 
   const displayCurrency = expense.currency !== currency ? expense.currency : currency
@@ -73,6 +75,14 @@ function ExpenseItem({
             {isFromBooking && (
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                 From booking
+              </span>
+            )}
+            {isFromActivity && (
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                style={{ backgroundColor: "#A9D6C5", color: "#2C4A45" }}
+              >
+                From itinerary
               </span>
             )}
           </div>
@@ -120,7 +130,7 @@ function ExpenseItem({
             </button>
           )}
 
-          {!isFromBooking && (
+          {!isSynced && (
             <>
               <button
                 type="button"
