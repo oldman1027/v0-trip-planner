@@ -365,7 +365,7 @@ export function OverviewTab({
                                   {formatCost(a.cost_amount, a.cost_currency)}
                                 </span>
                               )}
-                              {a.booking_id && (
+                              {(a.booking_id || a.linked_booking_id) && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                                   <CalendarCheck className="h-2.5 w-2.5" aria-hidden />
                                   Booked

@@ -149,6 +149,7 @@ export function TransportDrawer({
       setDepartureTime(toDatetimeLocal(d.departure_time))
       setArrivalTime(toDatetimeLocal(d.arrival_time))
       setAmount(booking.amount != null ? String(booking.amount) : "")
+      setSelectedCurrency("THB")
       setPaymentStatus(booking.payment_status)
       setCancellationDeadline(
         booking.cancellation_deadline ? booking.cancellation_deadline.slice(0, 10) : ""

@@ -146,7 +146,7 @@ export function ActivityDrawer({
         cost: a.cost_amount != null ? String(a.cost_amount) : "",
         photo: a.photo_url ?? "",
         category: safeCategory(a.category),
-        needsBooking: !!a.booking_id || !!a.linked_booking_id,
+        needsBooking: !!a.booking_id || !!a.linked_booking_id || !!linkedBooking,
       }
     }
     originalRef.current = snap
@@ -161,7 +161,7 @@ export function ActivityDrawer({
     setPhoto(snap.photo)
     setCategory(snap.category)
     setNeedsBooking(snap.needsBooking)
-  }, [state])
+  }, [state, linkedBooking])
 
   function handleStartChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value

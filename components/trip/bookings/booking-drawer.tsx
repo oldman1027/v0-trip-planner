@@ -111,6 +111,7 @@ export function BookingDrawer({
       const t = booking.type as DrawerType
       setType(t)
       setAmount(booking.amount != null ? String(booking.amount) : "")
+      setSelectedCurrency("THB")
       setStatus(booking.payment_status)
       setReservationStatus((booking.reservation_status ?? "tbc") as "confirmed" | "pending" | "tbc" | "cancelled")
       setDeadline(booking.cancellation_deadline ? booking.cancellation_deadline.slice(0, 10) : "")

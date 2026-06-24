@@ -839,20 +839,20 @@ export function ItineraryBoard({
             .single()
           if (newBooking) {
             resolvedBookingId = (newBooking as Booking).id
-            await supabase.from("activities").update({ booking_id: resolvedBookingId }).eq("id", input.id!)
+            await supabase.from("activities").update({ linked_booking_id: resolvedBookingId }).eq("id", input.id!)
             setBookings((prev) => [newBooking as Booking, ...prev])
           }
         }
       } else if (existingBooking) {
-        // User unchecked "needs booking" — delete the linked booking and clear activity.booking_id
+        // User unchecked "needs booking" — delete the linked booking and clear activity.linked_booking_id
         resolvedBookingId = null
         await supabase.from("bookings").delete().eq("id", existingBooking.id)
-        await supabase.from("activities").update({ booking_id: null }).eq("id", input.id!)
+        await supabase.from("activities").update({ linked_booking_id: null }).eq("id", input.id!)
         setBookings((prev) => prev.filter((b) => b.id !== existingBooking.id))
       }
 
       setActivities((prev) =>
-        prev.map((a) => (a.id === resolvedInput.id ? { ...a, ...resolvedInput, booking_id: resolvedBookingId } : a)),
+        prev.map((a) => (a.id === resolvedInput.id ? { ...a, ...resolvedInput, linked_booking_id: resolvedBookingId } : a)),
       )
       toast.success("Activity updated")
       maybeRecord("edited", "activity", resolvedInput.title)
@@ -915,9 +915,9 @@ export function ItineraryBoard({
           .single()
         if (newBooking) {
           // Link the activity back to the booking
-          await supabase.from("activities").update({ booking_id: (newBooking as Booking).id }).eq("id", newActivity.id)
+          await supabase.from("activities").update({ linked_booking_id: (newBooking as Booking).id }).eq("id", newActivity.id)
           setActivities((prev) =>
-            prev.map((a) => (a.id === newActivity.id ? { ...a, booking_id: (newBooking as Booking).id } : a)),
+            prev.map((a) => (a.id === newActivity.id ? { ...a, linked_booking_id: (newBooking as Booking).id } : a)),
           )
           setBookings((prev) => [newBooking as Booking, ...prev])
         }
@@ -1001,7 +1001,7 @@ export function ItineraryBoard({
       | undefined
     setBookings((prev) => prev.filter((b) => b.id !== id))
     if (linkedActivityId) {
-      setActivities((prev) => prev.map((a) => (a.id === linkedActivityId ? { ...a, booking_id: null } : a)))
+      setActivities((prev) => prev.map((a) => (a.id === linkedActivityId ? { ...a, linked_booking_id: null } : a)))
     }
     softDeleteBooking(deletedBooking, {
       label: "Booking",
@@ -1009,14 +1009,14 @@ export function ItineraryBoard({
         const supabase = createClient()
         await supabase.from("bookings").delete().eq("id", b.id)
         if (linkedActivityId) {
-          await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
+          await supabase.from("activities").update({ linked_booking_id: null }).eq("id", linkedActivityId)
         }
       },
       onRestore: (b) => {
         setBookings((prev) => [...prev, b])
         if (linkedActivityId) {
           setActivities((prev) =>
-            prev.map((a) => (a.id === linkedActivityId ? { ...a, booking_id: b.id } : a)),
+            prev.map((a) => (a.id === linkedActivityId ? { ...a, linked_booking_id: b.id } : a)),
           )
         }
       },
@@ -1265,7 +1265,7 @@ export function ItineraryBoard({
                     <SortableContext items={sortedItems.map((a) => a.id)} strategy={verticalListSortingStrategy}>
                       {sortedItems.map((a) => {
                         const linkedBooking = activityBookingMap.get(a.id)
-                        const bookingStatus = !a.booking_id
+                        const bookingStatus = !linkedBooking
                           ? "not-required" as const
                           : linkedBooking?.confirmation_number
                             || linkedBooking?.reservation_status === "confirmed"
