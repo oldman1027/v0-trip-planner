@@ -14,6 +14,14 @@ const CATEGORY_META: Record<string, { icon: string; label: string }> = {
   other:         { icon: "📦", label: "Other" },
 }
 
+function formatDateLabel(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number)
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1)
+  const month = date.toLocaleString("en-US", { month: "short" })
+  const weekday = date.toLocaleString("en-US", { weekday: "long" })
+  return `${month} ${d}, ${y} · ${weekday}`
+}
+
 function fmt(amount: number, currency: string) {
   try {
     return new Intl.NumberFormat("en-US", {
@@ -236,6 +244,17 @@ export function ExpenseList({
   }, {} as Record<string, number>)
   const totalEntries = Object.entries(totalsByCurrency).filter(([, v]) => v > 0)
 
+  const dateGroups = Array.from(
+    expenses.reduce((acc, e) => {
+      const arr = acc.get(e.date) ?? []
+      arr.push(e)
+      acc.set(e.date, arr)
+      return acc
+    }, new Map<string, Expense[]>()),
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, items]) => ({ date, expenses: items }))
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between px-0.5">
@@ -252,21 +271,30 @@ export function ExpenseList({
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <ul className="divide-y divide-border">
-          {expenses.map((e) => (
-            <ExpenseItem
-              key={e.id}
-              expense={e}
-              members={members}
-              participants={participants}
-              currency={currency}
-              onEdit={() => onEdit(e)}
-              onDelete={() => onDelete(e.id)}
-              onMarkSplitPaid={onMarkSplitPaid}
-            />
-          ))}
-        </ul>
+      <div className="flex flex-col gap-6">
+        {dateGroups.map((group) => (
+          <section key={group.date}>
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
+              {formatDateLabel(group.date)}
+            </h3>
+            <div className="overflow-hidden rounded-2xl border border-border bg-card">
+              <ul className="divide-y divide-border">
+                {group.expenses.map((e) => (
+                  <ExpenseItem
+                    key={e.id}
+                    expense={e}
+                    members={members}
+                    participants={participants}
+                    currency={currency}
+                    onEdit={() => onEdit(e)}
+                    onDelete={() => onDelete(e.id)}
+                    onMarkSplitPaid={onMarkSplitPaid}
+                  />
+                ))}
+              </ul>
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   )
