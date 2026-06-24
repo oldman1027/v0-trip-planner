@@ -1007,10 +1007,11 @@ export function ItineraryBoard({
       label: "Booking",
       onConfirm: async (b) => {
         const supabase = createClient()
-        await supabase.from("bookings").delete().eq("id", b.id)
+        // Clear the activity link before deleting the booking — the FK has no cascade
         if (linkedActivityId) {
           await supabase.from("activities").update({ linked_booking_id: null }).eq("id", linkedActivityId)
         }
+        await supabase.from("bookings").delete().eq("id", b.id)
       },
       onRestore: (b) => {
         setBookings((prev) => [...prev, b])

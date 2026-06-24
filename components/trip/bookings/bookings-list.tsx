@@ -489,20 +489,30 @@ export function BookingsList({
     const deletedBooking = bookings.find((b) => b.id === id)
     if (!deletedBooking) return
     setBookings((p) => p.filter((b) => b.id !== id))
-    const linkedActivityId = (deletedBooking.details as Record<string, unknown> | null)?.activity_id as string | undefined
     softDeleteBooking(deletedBooking, {
       label: "Booking",
       onConfirm: async (b) => {
         const supabase = createClient()
-        const { error } = await supabase.from("bookings").delete().eq("id", b.id)
-        if (error) throw error
+        // Resolve linked activity: prefer linked_booking_id lookup, fall back to legacy details.activity_id
+        let linkedActivityId = (b.details as Record<string, unknown> | null)?.activity_id as string | undefined
+        if (!linkedActivityId) {
+          const { data: linked } = await supabase
+            .from("activities")
+            .select("id")
+            .eq("linked_booking_id", b.id)
+            .maybeSingle()
+          linkedActivityId = linked?.id
+        }
+        // Clear/remove the activity link before deleting the booking — the FK has no cascade
         if (linkedActivityId) {
           if (b.type === "dining") {
             await supabase.from("activities").delete().eq("id", linkedActivityId)
           } else {
-            await supabase.from("activities").update({ booking_id: null }).eq("id", linkedActivityId)
+            await supabase.from("activities").update({ linked_booking_id: null }).eq("id", linkedActivityId)
           }
         }
+        const { error } = await supabase.from("bookings").delete().eq("id", b.id)
+        if (error) throw error
         maybeRecord("deleted", "booking", b.title)
       },
       onRestore: (b) => {
