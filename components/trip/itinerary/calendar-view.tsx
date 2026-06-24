@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { format } from "date-fns"
-import { BedDouble, CalendarPlus, Ticket, Bus } from "lucide-react"
+import { BedDouble, CalendarPlus, Ticket, Bus, Trash2, Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseDateOnly } from "@/lib/dates"
 import { createClient } from "@/lib/supabase/client"
+import { Textarea } from "@/components/ui/textarea"
 import type { Activity, Booking, KIVNote, TimeBlock } from "@/lib/types"
 import { toast } from "sonner"
 import { GapIndicator } from "./gap-indicator"
@@ -219,6 +220,8 @@ function KIVCalendarColumn({
 }) {
   const [notes, setNotes] = useState<KIVNote[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [draft, setDraft] = useState("")
 
   useEffect(() => {
     if (!tripId) return
@@ -230,6 +233,20 @@ function KIVCalendarColumn({
       .order("created_at", { ascending: true })
       .then(({ data }) => setNotes((data ?? []) as KIVNote[]))
   }, [tripId])
+
+  async function handleEditNote(id: string, content: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from("kiv_notes").update({ content }).eq("id", id)
+    if (error) { toast.error("Could not update note"); return }
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, content } : n)))
+  }
+
+  async function handleDeleteNote(id: string) {
+    setNotes((prev) => prev.filter((n) => n.id !== id))
+    const supabase = createClient()
+    const { error } = await supabase.from("kiv_notes").delete().eq("id", id)
+    if (error) toast.error("Could not delete note")
+  }
 
   const total = kivActivities.length + notes.length
 
@@ -290,12 +307,67 @@ function KIVCalendarColumn({
           </div>
         ))}
 
-        {notes.map((note) => (
-          <div key={note.id} className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 p-1.5">
-            <p className="text-[9px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">Note</p>
-            <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground line-clamp-5">{note.content}</p>
-          </div>
-        ))}
+        {notes.map((note) =>
+          editingNoteId === note.id ? (
+            <div key={note.id} className="rounded-lg border border-primary/30 bg-card p-1.5 space-y-1">
+              <Textarea
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                className="min-h-[52px] resize-none rounded-md text-[10px]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    const trimmed = draft.trim()
+                    if (trimmed) handleEditNote(note.id, trimmed)
+                    setEditingNoteId(null)
+                  }
+                  if (e.key === "Escape") setEditingNoteId(null)
+                }}
+              />
+              <div className="flex justify-end gap-1">
+                <button
+                  type="button"
+                  onClick={() => setEditingNoteId(null)}
+                  className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const trimmed = draft.trim()
+                    if (trimmed) handleEditNote(note.id, trimmed)
+                    setEditingNoteId(null)
+                  }}
+                  className="flex h-5 w-5 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Check className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              key={note.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => { setEditingNoteId(note.id); setDraft(note.content) }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { setEditingNoteId(note.id); setDraft(note.content) }
+              }}
+              className="group relative cursor-pointer rounded-lg border border-amber-200 bg-amber-50 p-1.5 transition-colors hover:border-amber-400 dark:bg-amber-950/20 dark:border-amber-900/40"
+            >
+              <p className="text-[9px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">Note</p>
+              <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground line-clamp-5">{note.content}</p>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id) }}
+                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+              >
+                <Trash2 className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ),
+        )}
 
         {total === 0 && (
           <div className="flex items-center justify-center py-8">
