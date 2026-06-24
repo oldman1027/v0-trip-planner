@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   GripVertical,
-  Pencil,
   Plus,
   StickyNote,
   Trash2,
@@ -201,20 +200,24 @@ function KIVNoteCard({
   }
 
   return (
-    <div className={cn("group/note relative flex shrink-0 w-[200px] flex-col gap-1 rounded-xl border border-border bg-amber-50/60 px-3 py-2.5 shadow-sm dark:bg-amber-950/20", className)}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => setEditing(true)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") setEditing(true)
+      }}
+      className={cn(
+        "group/note relative flex shrink-0 w-[200px] cursor-pointer flex-col gap-1 rounded-xl border border-border bg-amber-50/60 px-3 py-2.5 shadow-sm transition-colors hover:border-primary/30 dark:bg-amber-950/20",
+        className,
+      )}
+    >
       <StickyNote className="h-3 w-3 text-amber-500/70" />
       <p className="text-xs leading-snug text-foreground">{note.content}</p>
       <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/note:opacity-100">
         <button
           type="button"
-          onClick={() => setEditing(true)}
-          className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(note.id)}
+          onClick={(e) => { e.stopPropagation(); onDelete(note.id) }}
           className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 className="h-3 w-3" />

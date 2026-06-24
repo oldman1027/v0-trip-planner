@@ -79,6 +79,7 @@ export function ActivityDrawer({
   const [end, setEnd] = useState("")
   const [notes, setNotes] = useState("")
   const [cost, setCost] = useState("")
+  const [selectedCurrency, setSelectedCurrency] = useState<"THB" | "MYR">("THB")
   const [photo, setPhoto] = useState("")
   const [category, setCategory] = useState<Activity["category"]>("other")
   const [needsBooking, setNeedsBooking] = useState(false)
@@ -158,10 +159,18 @@ export function ActivityDrawer({
     setEnd(snap.end)
     setNotes(snap.notes)
     setCost(snap.cost)
+    setSelectedCurrency("THB")
     setPhoto(snap.photo)
     setCategory(snap.category)
     setNeedsBooking(snap.needsBooking)
   }, [state, linkedBooking])
+
+  function convertToTHB(value: string): number | null {
+    if (!value) return null
+    const num = Number(value)
+    if (Number.isNaN(num)) return null
+    return selectedCurrency === "MYR" ? num * 7.69 : num
+  }
 
   function handleStartChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value
@@ -225,7 +234,7 @@ export function ActivityDrawer({
       start_time: start || null,
       end_time: end || null,
       notes: notes.trim() || null,
-      cost_amount: cost ? Number(cost) : null,
+      cost_amount: convertToTHB(cost),
       photo_url: resolvedPhoto,
       category: safeCategory(category),
       needs_booking: needsBooking,
@@ -402,17 +411,52 @@ export function ActivityDrawer({
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="cost">Cost ({currency})</FieldLabel>
-                <Input
-                  id="cost"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  value={cost}
-                  onChange={(e) => setCost(e.target.value)}
-                  className="rounded-xl"
-                  placeholder="0.00"
-                />
+                <FieldLabel htmlFor="cost">Cost ({selectedCurrency})</FieldLabel>
+                <div className="relative">
+                  <Input
+                    id="cost"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={cost}
+                    onChange={(e) => setCost(e.target.value)}
+                    className="rounded-xl pr-24"
+                    placeholder="0.00"
+                  />
+                  <div className="absolute right-1 top-1/2 flex -translate-y-1/2 overflow-hidden rounded-lg border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCurrency("THB")}
+                      className={cn(
+                        "px-2 py-1 text-xs font-medium transition-colors",
+                        selectedCurrency === "THB"
+                          ? "bg-[#6D8F87] text-white"
+                          : "bg-card text-muted-foreground hover:bg-secondary",
+                      )}
+                    >
+                      THB
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCurrency("MYR")}
+                      className={cn(
+                        "px-2 py-1 text-xs font-medium transition-colors",
+                        selectedCurrency === "MYR"
+                          ? "bg-[#6D8F87] text-white"
+                          : "bg-card text-muted-foreground hover:bg-secondary",
+                      )}
+                    >
+                      MYR
+                    </button>
+                  </div>
+                </div>
+                {cost && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {selectedCurrency === "THB"
+                      ? `≈ MYR ${(Number(cost) * 0.13).toFixed(2)}`
+                      : `≈ THB ${(Number(cost) * 7.69).toFixed(0)}`}
+                  </p>
+                )}
               </Field>
 
               <Field>
