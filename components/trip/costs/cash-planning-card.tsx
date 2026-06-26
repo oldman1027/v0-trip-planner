@@ -2,6 +2,7 @@
 
 import { daysBetween, parseDateOnly } from "@/lib/dates"
 import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 import type { Activity, Expense, Trip } from "@/lib/types"
 
 function fmt(amount: number, currency: string) {
@@ -75,10 +76,12 @@ export function CashPlanningCard({
   trip,
   expenses,
   activities,
+  onSelectDays,
 }: {
   trip: Trip
   expenses: Expense[]
   activities: Activity[]
+  onSelectDays?: (days: string[]) => void
 }) {
   const currency = trip.default_currency ?? "USD"
   const days = daysBetween(trip.start_date, trip.end_date)
@@ -97,11 +100,12 @@ export function CashPlanningCard({
   const sections = cityRanges
     .map((range) => {
       const rangeExpenses = range.days.flatMap((d) => cashByDate.get(d) ?? [])
-      return { label: range.label, entries: sumByCurrency(rangeExpenses, currency) }
+      return { label: range.label, entries: sumByCurrency(rangeExpenses, currency), days: range.days }
     })
     .filter((s) => s.entries.length > 0)
 
   const preTripEntries = sumByCurrency(preTrip, currency)
+  const preTripDays = Array.from(new Set(preTrip.map((e) => e.date))).sort()
 
   const grandTotal = sumByCurrency(expenses, currency)
 
@@ -137,7 +141,15 @@ export function CashPlanningCard({
 
       <div className="flex flex-col gap-3">
         {preTripEntries.length > 0 && (
-          <div className="flex items-center justify-between">
+          <div
+            role={onSelectDays ? "button" : undefined}
+            tabIndex={onSelectDays ? 0 : undefined}
+            onClick={() => onSelectDays?.(preTripDays)}
+            className={cn(
+              "flex items-center justify-between",
+              onSelectDays && "-mx-2 cursor-pointer rounded-xl px-2 py-1 transition-colors hover:bg-black/[0.03]",
+            )}
+          >
             <div>
               <div className="text-[11px]" style={{ color: "#6D8F87" }}>
                 Before {format(parseDateOnly(trip.start_date), "MMM d")} (pre-trip)
@@ -161,7 +173,16 @@ export function CashPlanningCard({
         )}
 
         {sections.map((s) => (
-          <div key={s.label} className="flex items-center justify-between">
+          <div
+            key={s.label}
+            role={onSelectDays ? "button" : undefined}
+            tabIndex={onSelectDays ? 0 : undefined}
+            onClick={() => onSelectDays?.(s.days)}
+            className={cn(
+              "flex items-center justify-between",
+              onSelectDays && "-mx-2 cursor-pointer rounded-xl px-2 py-1 transition-colors hover:bg-black/[0.03]",
+            )}
+          >
             <div>
               <div className="text-[11px]" style={{ color: "#6D8F87" }}>
                 {s.label}

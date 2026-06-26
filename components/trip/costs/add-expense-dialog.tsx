@@ -71,6 +71,9 @@ export function AddExpenseDialog({
 }) {
   const currency = trip.default_currency ?? "USD"
   const usingParticipants = participants.length > 0
+  // Synced expenses (from a booking or itinerary activity) keep their description/date/
+  // payer locked to the source record — only amount & category can be overridden here.
+  const isSynced = !!expense && (!!expense.booking_id || !!expense.activity_id)
 
   // Deduplicate members by user_id — protects against duplicate rows in trip_members
   const uniqueMembers = members.filter(
@@ -308,6 +311,13 @@ export function AddExpenseDialog({
         </SheetHeader>
 
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 pb-8 pt-6">
+          {isSynced && (
+            <p className="rounded-xl bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">
+              Synced from {expense?.booking_id ? "a booking" : "the itinerary"} — only amount
+              and category can be overridden here.
+            </p>
+          )}
+
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Description</label>
@@ -315,6 +325,7 @@ export function AddExpenseDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Dinner at Somtum Der"
+              disabled={isSynced}
             />
           </div>
 
@@ -362,6 +373,7 @@ export function AddExpenseDialog({
               min={trip.start_date}
               max={trip.end_date}
               onChange={(e) => setDate(e.target.value)}
+              disabled={isSynced}
             />
           </div>
 
@@ -374,9 +386,10 @@ export function AddExpenseDialog({
                     <button
                       key={p.id}
                       type="button"
+                      disabled={isSynced}
                       onClick={() => setPaidByParticipantId(p.id)}
                       className={cn(
-                        "rounded-xl border px-3 py-1.5 text-sm transition-colors",
+                        "rounded-xl border px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                         paidByParticipantId === p.id
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -391,9 +404,10 @@ export function AddExpenseDialog({
                       <button
                         key={m.user_id}
                         type="button"
+                        disabled={isSynced}
                         onClick={() => setPaidBy(m.user_id)}
                         className={cn(
-                          "rounded-xl border px-3 py-1.5 text-sm transition-colors",
+                          "rounded-xl border px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                           paidBy === m.user_id
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -405,7 +419,7 @@ export function AddExpenseDialog({
                   })}
             </div>
             {/* Empty-state prompt when no custom split members have been added */}
-            {!usingParticipants && (
+            {!isSynced && !usingParticipants && (
               <p className="text-[11px] text-muted-foreground">
                 Splitting with specific people?{" "}
                 {onOpenMembers ? (
@@ -425,6 +439,7 @@ export function AddExpenseDialog({
           </div>
 
           {/* Split mode */}
+          {!isSynced && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Split type</label>
             <div className="flex gap-1.5">
@@ -451,9 +466,10 @@ export function AddExpenseDialog({
               ))}
             </div>
           </div>
+          )}
 
           {/* Split members */}
-          {splitMode !== "none" && (
+          {!isSynced && splitMode !== "none" && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">
                 {splitMode === "equal"

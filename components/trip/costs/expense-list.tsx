@@ -70,7 +70,18 @@ function ExpenseItem({
 
   return (
     <li className="overflow-hidden">
-      <div className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onEdit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onEdit()
+          }
+        }}
+        className="flex cursor-pointer items-center gap-4 px-5 py-4 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+      >
         {/* Category icon */}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-xl">
           {meta.icon}
@@ -126,7 +137,10 @@ function ExpenseItem({
           {hasSplits && (
             <button
               type="button"
-              onClick={() => setExpanded((v) => !v)}
+              onClick={(e) => {
+                e.stopPropagation()
+                setExpanded((v) => !v)
+              }}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               aria-label={expanded ? "Collapse splits" : "Show splits"}
             >
@@ -138,32 +152,39 @@ function ExpenseItem({
             </button>
           )}
 
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit()
+            }}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            aria-label={isSynced ? "Edit amount or category" : "Edit expense"}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
           {!isSynced && (
-            <>
-              <button
-                type="button"
-                onClick={onEdit}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                aria-label="Edit expense"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
-                aria-label="Delete expense"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+              aria-label="Delete expense"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
       </div>
 
       {/* Expanded split details */}
       {expanded && hasSplits && (
-        <div className="border-t border-border/50 bg-secondary/30 px-5 py-3">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="border-t border-border/50 bg-secondary/30 px-5 py-3"
+        >
           <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Split Details
           </p>
@@ -273,7 +294,11 @@ export function ExpenseList({
 
       <div className="flex flex-col gap-6">
         {dateGroups.map((group) => (
-          <section key={group.date}>
+          <section
+            key={group.date}
+            id={`expense-group-${group.date}`}
+            className="rounded-2xl transition-shadow"
+          >
             <h3 className="mb-2 text-sm font-semibold text-foreground">
               {formatDateLabel(group.date)}
             </h3>

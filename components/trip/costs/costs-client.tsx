@@ -439,6 +439,22 @@ export function CostsClient({
   const filtered =
     catFilter === "all" ? expenses : expenses.filter((e) => e.category === catFilter)
 
+  // Jump from a Cash Needed date-range row down to its matching expenses below.
+  function handleSelectDays(days: string[]) {
+    setCatFilter("all")
+    requestAnimationFrame(() => {
+      for (const d of days) {
+        const el = document.getElementById(`expense-group-${d}`)
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" })
+          el.classList.add("ring-2", "ring-primary", "ring-offset-2")
+          setTimeout(() => el.classList.remove("ring-2", "ring-primary", "ring-offset-2"), 1500)
+          return
+        }
+      }
+    })
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -471,7 +487,12 @@ export function CostsClient({
           onSetBudget={handleSetBudget}
         />
       ) : (
-        <CashPlanningCard trip={trip} expenses={expenses} activities={activities} />
+        <CashPlanningCard
+          trip={trip}
+          expenses={expenses}
+          activities={activities}
+          onSelectDays={handleSelectDays}
+        />
       )}
 
       {/* Filter bar + action buttons */}
