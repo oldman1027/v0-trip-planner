@@ -700,7 +700,7 @@ export function TransportDrawer({
                   Booking URL
                 </p>
                 <Input
-                  type="url"
+                  type="text"
                   value={bookingUrl}
                   onChange={(e) => setBookingUrl(e.target.value)}
                   placeholder="https://..."

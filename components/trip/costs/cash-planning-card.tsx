@@ -107,7 +107,7 @@ export function CashPlanningCard({
   const preTripEntries = sumByCurrency(preTrip, currency)
   const preTripDays = Array.from(new Set(preTrip.map((e) => e.date))).sort()
 
-  const grandTotal = sumByCurrency(expenses, currency)
+  const grandTotal = sumByCurrency(cashExpenses, currency)
 
   if (preTripEntries.length === 0 && sections.length === 0) {
     return (

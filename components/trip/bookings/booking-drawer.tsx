@@ -832,7 +832,7 @@ export function BookingDrawer({
                   </FieldLabel>
                   <Input
                     id="booking-url"
-                    type="url"
+                    type="text"
                     value={bookingUrl}
                     onChange={(e) => setBookingUrl(e.target.value)}
                     placeholder="https://..."
