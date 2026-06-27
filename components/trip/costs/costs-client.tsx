@@ -491,6 +491,7 @@ export function CostsClient({
           trip={trip}
           expenses={expenses}
           activities={activities}
+          bookings={initialBookings}
           onSelectDays={handleSelectDays}
         />
       )}

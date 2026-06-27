@@ -3,7 +3,7 @@
 import { daysBetween, parseDateOnly } from "@/lib/dates"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import type { Activity, Expense, Trip } from "@/lib/types"
+import type { Activity, Booking, Expense, Trip } from "@/lib/types"
 
 function fmt(amount: number, currency: string) {
   try {
@@ -76,18 +76,27 @@ export function CashPlanningCard({
   trip,
   expenses,
   activities,
+  bookings,
   onSelectDays,
 }: {
   trip: Trip
   expenses: Expense[]
   activities: Activity[]
+  bookings: Booking[]
   onSelectDays?: (days: string[]) => void
 }) {
   const currency = trip.default_currency ?? "USD"
   const days = daysBetween(trip.start_date, trip.end_date)
 
-  const preTrip = expenses.filter(isPrepaid)
-  const cashExpenses = expenses.filter((e) => !isPrepaid(e))
+  // Already-paid bookings need no further cash or online payment — drop their expenses entirely.
+  const paidBookingIds = new Set(
+    bookings.filter((b) => b.payment_status === "paid").map((b) => b.id),
+  )
+  const isPaid = (e: Expense) => !!e.booking_id && paidBookingIds.has(e.booking_id)
+  const unpaidExpenses = expenses.filter((e) => !isPaid(e))
+
+  const preTrip = unpaidExpenses.filter(isPrepaid)
+  const cashExpenses = unpaidExpenses.filter((e) => !isPrepaid(e))
 
   const cityRanges = buildCityRanges(days, activities)
   const cashByDate = new Map<string, Expense[]>()
