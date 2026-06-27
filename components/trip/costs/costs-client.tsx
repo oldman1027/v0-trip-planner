@@ -9,10 +9,12 @@ import { ExpenseList } from "./expense-list"
 import { AddExpenseDialog } from "./add-expense-dialog"
 import { ManageParticipantsDialog } from "./manage-participants-dialog"
 import { SettlementSummary } from "./settlement-summary"
+import { DuplicateMergeDialog } from "./duplicate-merge-dialog"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { findDuplicatePairs, type DuplicatePair } from "@/lib/booking-match"
 import type {
   Trip,
   Booking,
@@ -181,11 +183,19 @@ export function CostsClient({
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [budgets, setBudgets] = useState<TripBudget[]>(initialBudgets)
   const [participants, setParticipants] = useState<ExpenseParticipant[]>(initialParticipants)
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings)
+  const [localActivities, setLocalActivities] = useState<Activity[]>(activities)
   const [catFilter, setCatFilter] = useState<"all" | ExpenseCategory>("all")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [manageMembersOpen, setManageMembersOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [summaryView, setSummaryView] = useState<"category" | "cash">("category")
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false)
+  const [dismissedPairKeys, setDismissedPairKeys] = useState<Set<string>>(new Set())
+
+  const duplicatePairs = findDuplicatePairs(localActivities, bookings).filter(
+    (p) => !dismissedPairKeys.has(`${p.activity.id}:${p.booking.id}`),
+  )
 
   const currency = trip.default_currency ?? "USD"
   const usingParticipants = participants.length > 0
@@ -408,6 +418,65 @@ export function CostsClient({
     )
   }
 
+  // ── Duplicate activity/booking merge ─────────────────────────────────────
+
+  async function handleMergeDuplicate(pair: DuplicatePair) {
+    const { activity, booking } = pair
+    const supabase = createClient()
+    const mergedCurrency = booking.currency ?? activity.cost_currency ?? currency
+
+    await supabase
+      .from("activities")
+      .update({ linked_booking_id: booking.id, cost_amount: booking.amount, cost_currency: mergedCurrency })
+      .eq("id", activity.id)
+
+    const existingDetails = (booking.details ?? {}) as Record<string, unknown>
+    const newDetails = { ...existingDetails, activity_id: activity.id }
+    await supabase.from("bookings").update({ details: newDetails }).eq("id", booking.id)
+
+    // Drop the activity-sourced expense — the booking's expense now represents this cost.
+    await supabase.from("expenses").delete().eq("activity_id", activity.id).is("booking_id", null)
+
+    const hasBookingExpense = expenses.some((e) => e.booking_id === booking.id)
+    let newBookingExpense: Expense | null = null
+    if (!hasBookingExpense) {
+      const { data } = await supabase
+        .from("expenses")
+        .insert({
+          trip_id: trip.id,
+          booking_id: booking.id,
+          source_type: "booking",
+          amount: booking.amount,
+          currency: mergedCurrency,
+          category: BOOKING_TO_CATEGORY[booking.type] ?? "other",
+          date: booking.booking_date ?? trip.start_date,
+          description: booking.title,
+          paid_by_user_id: currentUserId,
+        })
+        .select("*, splits:expense_splits(*)")
+        .single()
+      newBookingExpense = (data as Expense | null) ?? null
+    }
+
+    setLocalActivities((prev) =>
+      prev.map((a) =>
+        a.id === activity.id
+          ? { ...a, linked_booking_id: booking.id, cost_amount: booking.amount, cost_currency: mergedCurrency }
+          : a,
+      ),
+    )
+    setBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, details: newDetails } : b)))
+    setExpenses((prev) => {
+      const withoutDuplicate = prev.filter((e) => !(e.activity_id === activity.id && !e.booking_id))
+      return newBookingExpense ? [newBookingExpense, ...withoutDuplicate] : withoutDuplicate
+    })
+    toast.success("Merged duplicate cost")
+  }
+
+  function handleDismissDuplicatePair(pair: DuplicatePair) {
+    setDismissedPairKeys((prev) => new Set(prev).add(`${pair.activity.id}:${pair.booking.id}`))
+  }
+
   // ── Budget CRUD ───────────────────────────────────────────────────────────
 
   async function handleSetBudget(category: ExpenseCategory, amount: number) {
@@ -459,6 +528,25 @@ export function CostsClient({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Possible duplicate costs */}
+      {duplicatePairs.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+          <span className="text-amber-800 dark:text-amber-300">
+            Found {duplicatePairs.length} possible duplicate cost{duplicatePairs.length !== 1 ? "s" : ""} —
+            an itinerary item and a booking that look like the same expense.
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="shrink-0 rounded-xl border-amber-300 bg-transparent text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300"
+            onClick={() => setDuplicatesOpen(true)}
+          >
+            Review
+          </Button>
+        </div>
+      )}
+
       {/* Summary toggle */}
       <div className="flex gap-2">
         {(["category", "cash"] as const).map((v) => (
@@ -490,8 +578,8 @@ export function CostsClient({
         <CashPlanningCard
           trip={trip}
           expenses={expenses}
-          activities={activities}
-          bookings={initialBookings}
+          activities={localActivities}
+          bookings={bookings}
           onSelectDays={handleSelectDays}
         />
       )}
@@ -590,6 +678,15 @@ export function CostsClient({
         participants={participants}
         onOpenChange={setManageMembersOpen}
         onParticipantsChange={setParticipants}
+      />
+
+      {/* Duplicate cost merge dialog */}
+      <DuplicateMergeDialog
+        open={duplicatesOpen}
+        onOpenChange={setDuplicatesOpen}
+        pairs={duplicatePairs}
+        onMerge={handleMergeDuplicate}
+        onDismissPair={handleDismissDuplicatePair}
       />
     </div>
   )

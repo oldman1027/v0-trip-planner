@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { formatDayLabel, getBlockFromTime } from "@/lib/dates"
 import type { Activity, Booking, TimeBlock } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { isLikelyMatch } from "@/lib/booking-match"
 import { toast } from "sonner"
 
 const CATEGORIES: { value: Activity["category"]; label: string }[] = [
@@ -30,6 +31,19 @@ function safeCategory(raw: string | null | undefined): Activity["category"] {
   return VALID_CATEGORIES.has(raw ?? "") ? (raw as Activity["category"]) : "other"
 }
 
+function fmtAmount(amount: number | null, currency: string | null) {
+  if (amount == null) return ""
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency ?? "USD",
+      maximumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${currency ?? ""} ${Math.round(amount)}`
+  }
+}
+
 type State =
   | { mode: "create"; day_date: string; time_block: TimeBlock; start_time?: string }
   | { mode: "edit"; activity: Activity }
@@ -42,6 +56,8 @@ export function ActivityDrawer({
   tripStart,
   tripEnd,
   linkedBooking,
+  availableBookings,
+  onLinkBooking,
   onClose,
   onSave,
   onDelete,
@@ -52,6 +68,8 @@ export function ActivityDrawer({
   tripStart: string
   tripEnd: string
   linkedBooking?: Booking | null
+  availableBookings?: Booking[]
+  onLinkBooking?: (bookingId: string) => Promise<void>
   onClose: () => void
   onSave: (input: {
     id?: string
@@ -85,6 +103,7 @@ export function ActivityDrawer({
   const [needsBooking, setNeedsBooking] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [linking, setLinking] = useState(false)
   const [fetchingPhoto, setFetchingPhoto] = useState(false)
 
   type Snapshot = {
@@ -298,6 +317,24 @@ export function ActivityDrawer({
     }
   }
 
+  async function handleLinkBooking(bookingId: string) {
+    if (!onLinkBooking) return
+    setLinking(true)
+    try {
+      await onLinkBooking(bookingId)
+    } catch {
+      toast.error("Could not link booking")
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  const sortedAvailableBookings = [...(availableBookings ?? [])].sort((a, b) => {
+    const aMatch = isLikelyMatch(title, day, a) ? 0 : 1
+    const bMatch = isLikelyMatch(title, day, b) ? 0 : 1
+    return aMatch - bMatch
+  })
+
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
@@ -510,6 +547,28 @@ export function ActivityDrawer({
                   </div>
                 )}
               </Field>
+
+              {!needsBooking && state?.mode === "edit" && sortedAvailableBookings.length > 0 && (
+                <Field>
+                  <FieldLabel htmlFor="link-booking">Already have a booking for this?</FieldLabel>
+                  <Select value="" onValueChange={handleLinkBooking} disabled={linking}>
+                    <SelectTrigger id="link-booking" className="rounded-xl">
+                      <SelectValue placeholder="Link an existing booking…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedAvailableBookings.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.title} — {fmtAmount(b.amount, b.currency)}
+                          {isLikelyMatch(title, day, b) ? " · Suggested match" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">
+                    Links this item to a booking created separately, instead of double-counting its cost.
+                  </span>
+                </Field>
+              )}
 
               <Field>
                 <FieldLabel htmlFor="notes">Notes</FieldLabel>

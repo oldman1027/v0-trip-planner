@@ -318,6 +318,15 @@ export function ItineraryBoard({
     return m
   }, [bookings])
 
+  // Bookings not yet linked to any activity — candidates for manually linking
+  // an itinerary item that already has its own independently-created booking.
+  const unlinkedBookings = useMemo(() => {
+    const linkedIds = new Set(
+      activities.map((a) => a.linked_booking_id).filter((id): id is string => !!id),
+    )
+    return bookings.filter((b) => !linkedIds.has(b.id))
+  }, [bookings, activities])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -928,6 +937,40 @@ export function ItineraryBoard({
     }
   }
 
+  // Retroactively link an itinerary item to a booking that was created independently
+  // (e.g. via the Bookings tab or AI import) instead of through this drawer. Without
+  // this, both would keep generating their own expense row in Costs.
+  async function handleLinkActivityToBooking(activityId: string, bookingId: string) {
+    const activity = activitiesRef.current.find((a) => a.id === activityId)
+    const booking = bookings.find((b) => b.id === bookingId)
+    if (!activity || !booking) return
+
+    const supabase = createClient()
+    const mergedCurrency = booking.currency ?? activity.cost_currency ?? trip.default_currency ?? "USD"
+
+    await supabase
+      .from("activities")
+      .update({ linked_booking_id: bookingId, cost_amount: booking.amount, cost_currency: mergedCurrency })
+      .eq("id", activityId)
+
+    const existingDetails = (booking.details ?? {}) as Record<string, unknown>
+    const newDetails = { ...existingDetails, activity_id: activityId }
+    await supabase.from("bookings").update({ details: newDetails }).eq("id", bookingId)
+
+    // The activity's own cost entry is now represented by the booking's expense row.
+    await supabase.from("expenses").delete().eq("activity_id", activityId).is("booking_id", null)
+
+    setActivities((prev) =>
+      prev.map((a) =>
+        a.id === activityId
+          ? { ...a, linked_booking_id: bookingId, cost_amount: booking.amount, cost_currency: mergedCurrency }
+          : a,
+      ),
+    )
+    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, details: newDetails } : b)))
+    toast.success("Linked to booking")
+  }
+
   async function handleDelete(id: string) {
     const activity = activities.find((a) => a.id === id)
     if (!activity) return
@@ -1508,6 +1551,12 @@ export function ItineraryBoard({
         tripStart={trip.start_date}
         tripEnd={trip.end_date}
         linkedBooking={drawerState?.mode === "edit" ? (activityBookingMap.get(drawerState.activity.id) ?? null) : null}
+        availableBookings={unlinkedBookings}
+        onLinkBooking={
+          drawerState?.mode === "edit"
+            ? (bookingId: string) => handleLinkActivityToBooking(drawerState.activity.id, bookingId)
+            : undefined
+        }
         onClose={() => setDrawerState(null)}
         onSave={handleSave}
         onDelete={handleDelete}
