@@ -95,7 +95,7 @@ export function CashPlanningCard({
   const isPaid = (e: Expense) => !!e.booking_id && paidBookingIds.has(e.booking_id)
   const unpaidExpenses = expenses.filter((e) => !isPaid(e))
 
-  const preTrip = unpaidExpenses.filter(isPrepaid)
+  // This page is for cash you carry — prepaid bookings (paid online/by card) never belong here.
   const cashExpenses = unpaidExpenses.filter((e) => !isPrepaid(e))
 
   const cityRanges = buildCityRanges(days, activities)
@@ -113,12 +113,9 @@ export function CashPlanningCard({
     })
     .filter((s) => s.entries.length > 0)
 
-  const preTripEntries = sumByCurrency(preTrip, currency)
-  const preTripDays = Array.from(new Set(preTrip.map((e) => e.date))).sort()
-
   const grandTotal = sumByCurrency(cashExpenses, currency)
 
-  if (preTripEntries.length === 0 && sections.length === 0) {
+  if (sections.length === 0) {
     return (
       <div
         className="text-center text-sm"
@@ -149,38 +146,6 @@ export function CashPlanningCard({
       </div>
 
       <div className="flex flex-col gap-3">
-        {preTripEntries.length > 0 && (
-          <div
-            role={onSelectDays ? "button" : undefined}
-            tabIndex={onSelectDays ? 0 : undefined}
-            onClick={() => onSelectDays?.(preTripDays)}
-            className={cn(
-              "flex items-center justify-between",
-              onSelectDays && "-mx-2 cursor-pointer rounded-xl px-2 py-1 transition-colors hover:bg-black/[0.03]",
-            )}
-          >
-            <div>
-              <div className="text-[11px]" style={{ color: "#6D8F87" }}>
-                Before {format(parseDateOnly(trip.start_date), "MMM d")} (pre-trip)
-              </div>
-              <div className="mt-0.5 text-base font-medium" style={{ color: "#2C4A45" }}>
-                {preTripEntries.map(([cur, amt], i) => (
-                  <span key={cur}>
-                    {i > 0 && <span className="mx-1.5 text-muted-foreground">·</span>}
-                    {fmt(amt, cur)}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <span
-              className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-              style={{ backgroundColor: "#EFE7DA", color: "#8A7A5E" }}
-            >
-              Pay in {currency}/online
-            </span>
-          </div>
-        )}
-
         {sections.map((s) => (
           <div
             key={s.label}
