@@ -365,6 +365,17 @@ export function TripSidebarLayout({
             <h1 className="absolute bottom-3 left-4 text-white text-xl font-bold">{trip.name}</h1>
           </div>
 
+          {/* Mobile view banner */}
+          <div className="md:hidden flex items-center justify-center px-4 py-2" style={{ background: "#EDF5F2", borderBottom: "0.5px solid #A9D6C5" }}>
+            <Link
+              href={`/m/${trip.id}`}
+              className="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-white"
+              style={{ background: "#6D8F87" }}
+            >
+              Viewing on mobile? Switch to mobile view →
+            </Link>
+          </div>
+
           {/* Mobile tabs — hidden on desktop */}
           <div className="md:hidden flex gap-1.5 px-3 py-2 border-b border-border overflow-x-auto bg-background sticky top-[53px] z-40">
             {NAV_ITEMS.map((item) => {
