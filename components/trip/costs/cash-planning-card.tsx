@@ -115,7 +115,8 @@ export function CashPlanningCard({
 
   const grandTotal = sumByCurrency(cashExpenses, currency)
 
-  if (sections.length === 0) {
+  if (cashExpenses.length === 0 && sections.length === 0) {
+    const allPrepaid = unpaidExpenses.length === 0 && expenses.length > 0
     return (
       <div
         className="text-center text-sm"
@@ -127,7 +128,15 @@ export function CashPlanningCard({
           color: "#6D8F87",
         }}
       >
-        No expenses yet — add some to see your cash plan.
+        {allPrepaid ? (
+          <>
+            <div className="mb-2 text-2xl">✓</div>
+            <p className="font-medium" style={{ color: "#2C4A45" }}>All set — no cash to exchange</p>
+            <p className="mt-1 text-xs">All your bookings are prepaid or already settled.</p>
+          </>
+        ) : (
+          <p>No cash expenses yet — add some to see your cash plan.</p>
+        )}
       </div>
     )
   }

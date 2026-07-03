@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Users } from "lucide-react"
+import { Plus, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BudgetCards } from "./budget-cards"
 import { CashPlanningCard } from "./cash-planning-card"
@@ -192,6 +192,7 @@ export function CostsClient({
   const [summaryView, setSummaryView] = useState<"category" | "cash">("category")
   const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   const [dismissedPairKeys, setDismissedPairKeys] = useState<Set<string>>(new Set())
+  const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const duplicatePairs = findDuplicatePairs(localActivities, bookings).filter(
     (p) => !dismissedPairKeys.has(`${p.activity.id}:${p.booking.id}`),
@@ -529,21 +530,31 @@ export function CostsClient({
   return (
     <div className="flex flex-col gap-6">
       {/* Possible duplicate costs */}
-      {duplicatePairs.length > 0 && (
+      {duplicatePairs.length > 0 && !bannerDismissed && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-900/20">
           <span className="text-amber-800 dark:text-amber-300">
             Found {duplicatePairs.length} possible duplicate cost{duplicatePairs.length !== 1 ? "s" : ""} —
             an itinerary item and a booking that look like the same expense.
           </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="shrink-0 rounded-xl border-amber-300 bg-transparent text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300"
-            onClick={() => setDuplicatesOpen(true)}
-          >
-            Review
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="rounded-xl border-amber-300 bg-transparent text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300"
+              onClick={() => setDuplicatesOpen(true)}
+            >
+              Review
+            </Button>
+            <button
+              type="button"
+              onClick={() => setBannerDismissed(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-amber-600 transition-colors hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40"
+              aria-label="Dismiss banner"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 

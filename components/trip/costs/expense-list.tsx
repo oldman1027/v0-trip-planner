@@ -1,17 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react"
+import React, { useState } from "react"
+import { Trash2, Pencil, ChevronDown, ChevronUp, Hotel, Plane, UtensilsCrossed, Target, Package } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import type { Expense, ExpenseParticipant, MemberWithProfile } from "@/lib/types"
 
-const CATEGORY_META: Record<string, { icon: string; label: string }> = {
-  accommodation: { icon: "🏨", label: "Accommodation" },
-  transport:     { icon: "✈️", label: "Transport" },
-  food:          { icon: "🍜", label: "Food" },
-  activities:    { icon: "🎯", label: "Activities" },
-  other:         { icon: "📦", label: "Other" },
+const CATEGORY_META: Record<string, { icon: React.ReactNode; label: string }> = {
+  accommodation: { icon: <Hotel className="h-5 w-5" />, label: "Accommodation" },
+  transport:     { icon: <Plane className="h-5 w-5" />, label: "Transport" },
+  food:          { icon: <UtensilsCrossed className="h-5 w-5" />, label: "Food" },
+  activities:    { icon: <Target className="h-5 w-5" />, label: "Activities" },
+  other:         { icon: <Package className="h-5 w-5" />, label: "Other" },
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -83,7 +83,7 @@ function ExpenseItem({
         className="flex cursor-pointer items-center gap-4 px-5 py-4 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
       >
         {/* Category icon */}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-xl">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
           {meta.icon}
         </div>
 
@@ -141,7 +141,7 @@ function ExpenseItem({
                 e.stopPropagation()
                 setExpanded((v) => !v)
               }}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               aria-label={expanded ? "Collapse splits" : "Show splits"}
             >
               {expanded ? (
@@ -158,7 +158,7 @@ function ExpenseItem({
               e.stopPropagation()
               onEdit()
             }}
-            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             aria-label={isSynced ? "Edit amount or category" : "Edit expense"}
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -170,7 +170,7 @@ function ExpenseItem({
                 e.stopPropagation()
                 onDelete()
               }}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
               aria-label="Delete expense"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -247,8 +247,8 @@ export function ExpenseList({
   if (expenses.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-2xl">
-          💸
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+          <Package className="h-6 w-6" />
         </div>
         <p className="font-serif text-xl">No expenses yet</p>
         <p className="mt-1 text-sm text-muted-foreground">

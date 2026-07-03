@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import type { DuplicatePair } from "@/lib/booking-match"
@@ -15,6 +16,77 @@ function fmt(amount: number | null, currency: string | null) {
   } catch {
     return `${currency ?? ""} ${Math.round(amount)}`
   }
+}
+
+function MergePairRow({
+  pair,
+  onMerge,
+  onDismissPair,
+}: {
+  pair: DuplicatePair
+  onMerge: (pair: DuplicatePair) => Promise<void>
+  onDismissPair: (pair: DuplicatePair) => void
+}) {
+  const [merging, setMerging] = useState(false)
+
+  async function handleMerge() {
+    setMerging(true)
+    try {
+      await onMerge(pair)
+    } finally {
+      setMerging(false)
+    }
+  }
+
+  return (
+    <div
+      key={`${pair.activity.id}:${pair.booking.id}`}
+      className="rounded-2xl border border-border p-4"
+    >
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            From itinerary
+          </p>
+          <p className="truncate font-medium">{pair.activity.title}</p>
+          <p className="tabular-nums text-muted-foreground">
+            {fmt(pair.activity.cost_amount, pair.activity.cost_currency)}
+          </p>
+        </div>
+        <span className="text-muted-foreground">↔</span>
+        <div className="min-w-0 flex-1 text-right">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            From booking
+          </p>
+          <p className="truncate font-medium">{pair.booking.title}</p>
+          <p className="tabular-nums text-muted-foreground">
+            {fmt(pair.booking.amount, pair.booking.currency)}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="rounded-xl"
+          disabled={merging}
+          onClick={() => onDismissPair(pair)}
+        >
+          Not a duplicate
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          className="rounded-xl"
+          disabled={merging}
+          onClick={handleMerge}
+        >
+          {merging ? "Merging…" : "Merge"}
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 export function DuplicateMergeDialog({
@@ -49,51 +121,12 @@ export function DuplicateMergeDialog({
             </p>
           ) : (
             pairs.map((pair) => (
-              <div
+              <MergePairRow
                 key={`${pair.activity.id}:${pair.booking.id}`}
-                className="rounded-2xl border border-border p-4"
-              >
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                      From itinerary
-                    </p>
-                    <p className="truncate font-medium">{pair.activity.title}</p>
-                    <p className="tabular-nums text-muted-foreground">
-                      {fmt(pair.activity.cost_amount, pair.activity.cost_currency)}
-                    </p>
-                  </div>
-                  <span className="text-muted-foreground">↔</span>
-                  <div className="min-w-0 flex-1 text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                      From booking
-                    </p>
-                    <p className="truncate font-medium">{pair.booking.title}</p>
-                    <p className="tabular-nums text-muted-foreground">
-                      {fmt(pair.booking.amount, pair.booking.currency)}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => onDismissPair(pair)}
-                  >
-                    Not a duplicate
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => onMerge(pair)}
-                  >
-                    Merge
-                  </Button>
-                </div>
-              </div>
+                pair={pair}
+                onMerge={onMerge}
+                onDismissPair={onDismissPair}
+              />
             ))
           )}
         </div>

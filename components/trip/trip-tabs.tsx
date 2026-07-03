@@ -26,6 +26,7 @@ export function TripTabs({ tripId }: { tripId: string }) {
             <Link
               key={t.label}
               href={href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors",
                 active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
