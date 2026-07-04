@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { WifiOff, X, Download } from "lucide-react"
+import { WifiOff, X, Download, MoreVertical, Smartphone } from "lucide-react"
 import { BottomTabBar, type MobileTab } from "./components/bottom-tab-bar"
 import { TodayTab } from "./components/today-tab"
 import { AllDaysTab } from "./components/all-days-tab"
@@ -36,6 +36,7 @@ export function MobileShell({
   const [bookings, setBookings] = useState<Booking[]>(serverBookings)
   const [expenses, setExpenses] = useState<Expense[]>(serverExpenses)
   const [showInstall, setShowInstall] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
 
   // Track online status
@@ -116,6 +117,54 @@ export function MobileShell({
       className="relative mx-auto flex min-h-dvh max-w-[430px] flex-col"
       style={{ background: "#FFFBF4" }}
     >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: "0.5px solid #E8E0D8", background: "#FFFBF4" }}
+      >
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold leading-tight" style={{ color: "#2C4A45" }}>
+            {trip.name}
+          </p>
+          {trip.destination && (
+            <p className="truncate text-[11px]" style={{ color: "#9BA8A6" }}>{trip.destination}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowMenu(true)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full active:bg-black/[0.06]"
+          aria-label="More options"
+          style={{ color: "#6D8F87" }}
+        >
+          <MoreVertical className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Dropdown menu overlay */}
+      {showMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-[90]"
+            onClick={() => setShowMenu(false)}
+          />
+          <div
+            className="fixed right-4 top-14 z-[91] min-w-[200px] rounded-2xl py-1 shadow-xl"
+            style={{ background: "#FDFAF6", border: "0.5px solid #D4C9BC" }}
+          >
+            <button
+              type="button"
+              onClick={() => { setShowMenu(false); setShowInstall(true) }}
+              className="flex w-full items-center gap-3 px-4 py-3 text-sm active:bg-black/[0.04]"
+              style={{ color: "#2C4A45" }}
+            >
+              <Smartphone className="h-4 w-4 shrink-0" style={{ color: "#6D8F87" }} />
+              Add to Home Screen
+            </button>
+          </div>
+        </>
+      )}
+
       {/* Offline banner */}
       {!isOnline && (
         <div

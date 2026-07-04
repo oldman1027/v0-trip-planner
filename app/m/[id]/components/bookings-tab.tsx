@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Plane, Building2, Package, MapPin, ExternalLink, Copy, Check } from "lucide-react"
-import type { Booking } from "@/lib/types"
+import { Plane, Building2, Package, MapPin, ExternalLink, Copy, Check, FileText, Download } from "lucide-react"
+import type { Booking, BookingAttachment } from "@/lib/types"
 
 function fmt(amount: number, currency: string) {
   try {
@@ -158,6 +158,36 @@ function BookingCard({ booking }: { booking: Booking }) {
           Open in Maps
           <ExternalLink className="h-3 w-3" />
         </a>
+      )}
+
+      {/* Attachments */}
+      {booking.booking_attachments && booking.booking_attachments.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "#E8E0D8" }}>
+          <p className="text-[10px] uppercase tracking-wide" style={{ color: "#9BA8A6" }}>
+            Attachments
+          </p>
+          {booking.booking_attachments.map((att: BookingAttachment) => {
+            const isPdf = att.file_type === "application/pdf" || att.file_name.toLowerCase().endsWith(".pdf")
+            return (
+              <a
+                key={att.id}
+                href={att.public_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 rounded-xl p-3 active:bg-black/[0.04]"
+                style={{ background: "#EDF5F2", minHeight: 44 }}
+              >
+                <span style={{ color: "#6D8F87", display: "flex", flexShrink: 0 }}>
+                  {isPdf ? <FileText className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-xs font-medium" style={{ color: "#2C4A45" }}>
+                  {att.file_name}
+                </span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" style={{ color: "#9BA8A6" }} />
+              </a>
+            )
+          })}
+        </div>
       )}
     </div>
   )
