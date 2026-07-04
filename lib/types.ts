@@ -120,12 +120,15 @@ export type ExpenseParticipant = {
   created_at: string
 }
 
+export type ExpenseStatus = "paid" | "estimated" | "pending"
+
 export type Expense = {
   id: string
   trip_id: string
   booking_id: string | null
   activity_id: string | null
   source_type: "manual" | "booking" | "activity"
+  status: ExpenseStatus
   amount: number
   currency: string
   category: ExpenseCategory

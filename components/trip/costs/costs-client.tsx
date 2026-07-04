@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { BudgetCards } from "./budget-cards"
 import { CashPlanningCard } from "./cash-planning-card"
 import { ExpenseList } from "./expense-list"
+import { StatusDashboard } from "./status-dashboard"
 import { AddExpenseDialog } from "./add-expense-dialog"
 import { ManageParticipantsDialog } from "./manage-participants-dialog"
 import { SettlementSummary } from "./settlement-summary"
@@ -20,6 +21,7 @@ import type {
   Booking,
   Expense,
   ExpenseCategory,
+  ExpenseStatus,
   ExpenseSplit,
   TripBudget,
   MemberWithProfile,
@@ -186,6 +188,7 @@ export function CostsClient({
   const [bookings, setBookings] = useState<Booking[]>(initialBookings)
   const [localActivities, setLocalActivities] = useState<Activity[]>(activities)
   const [catFilter, setCatFilter] = useState<"all" | ExpenseCategory>("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | ExpenseStatus>("all")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [manageMembersOpen, setManageMembersOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -408,6 +411,18 @@ export function CostsClient({
     }
   }
 
+  async function handleStatusChange(id: string, status: ExpenseStatus) {
+    const supabase = createClient()
+    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))
+    const { error } = await supabase.from("expenses").update({ status }).eq("id", id)
+    if (error) {
+      setExpenses(initialExpenses)
+      toast.error("Could not update status")
+    } else {
+      toast.success("Status updated", { duration: 1500 })
+    }
+  }
+
   async function handleMarkSplitPaid(splitId: string, paid: boolean) {
     const supabase = createClient()
     await supabase.from("expense_splits").update({ paid }).eq("id", splitId)
@@ -506,8 +521,14 @@ export function CostsClient({
 
   // ── Filtered view ─────────────────────────────────────────────────────────
 
-  const filtered =
-    catFilter === "all" ? expenses : expenses.filter((e) => e.category === catFilter)
+  const filtered = expenses.filter((e) => {
+    if (catFilter !== "all" && e.category !== catFilter) return false
+    if (statusFilter !== "all") {
+      const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+      if (s !== statusFilter) return false
+    }
+    return true
+  })
 
   // Jump from a Cash Needed date-range row down to its matching expenses below.
   function handleSelectDays(days: string[]) {
@@ -558,6 +579,9 @@ export function CostsClient({
         </div>
       )}
 
+      {/* Status dashboard */}
+      <StatusDashboard expenses={expenses} currency={currency} />
+
       {/* Summary toggle */}
       <div className="flex gap-2">
         {(["category", "cash"] as const).map((v) => (
@@ -596,7 +620,7 @@ export function CostsClient({
       )}
 
       {/* Filter bar + action buttons */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
           {ALL_CATEGORIES.map((cat) => (
             <button
@@ -614,6 +638,31 @@ export function CostsClient({
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2">
+          {([
+            { key: "all",       label: "All statuses" },
+            { key: "paid",      label: "✓ Paid" },
+            { key: "estimated", label: "~ Estimated" },
+            { key: "pending",   label: "? Pending" },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className={cn(
+                "rounded-full border px-4 py-1.5 text-xs font-medium transition-colors",
+                statusFilter === key
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div />
 
         <div className="flex items-center gap-2">
           <Button
@@ -649,6 +698,7 @@ export function CostsClient({
         }}
         onDelete={handleDeleteExpense}
         onMarkSplitPaid={handleMarkSplitPaid}
+        onStatusChange={handleStatusChange}
       />
 
       {/* Who owes whom — participant mode vs auth-user mode */}

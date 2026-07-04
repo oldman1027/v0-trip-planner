@@ -1,10 +1,93 @@
 "use client"
 
-import React, { useState } from "react"
-import { Trash2, Pencil, ChevronDown, ChevronUp, Hotel, Plane, UtensilsCrossed, Target, Package } from "lucide-react"
+import React, { useRef, useState } from "react"
+import { Trash2, Pencil, ChevronDown, ChevronUp, Hotel, Plane, UtensilsCrossed, Target, Package, Lock } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import type { Expense, ExpenseParticipant, MemberWithProfile } from "@/lib/types"
+import { createClient } from "@/lib/supabase/client"
+import { toast } from "sonner"
+import type { Expense, ExpenseParticipant, ExpenseStatus, MemberWithProfile } from "@/lib/types"
+
+const STATUS_META: Record<ExpenseStatus, { label: string; icon: string; bg: string; text: string }> = {
+  paid:      { label: "Paid",    icon: "✓", bg: "#DCFCE7", text: "#16A34A" },
+  estimated: { label: "Est.",    icon: "~", bg: "#FEF9C3", text: "#CA8A04" },
+  pending:   { label: "Pending", icon: "?", bg: "#F1F5F9", text: "#64748B" },
+}
+const STATUS_CYCLE: ExpenseStatus[] = ["paid", "estimated", "pending"]
+
+function StatusBadge({
+  expense,
+  onStatusChange,
+}: {
+  expense: Expense
+  onStatusChange: (id: string, status: ExpenseStatus) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const isLocked = !!expense.booking_id
+  const status: ExpenseStatus = expense.status ?? (isLocked ? "paid" : "estimated")
+  const meta = STATUS_META[status]
+
+  if (isLocked) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+        style={{ background: meta.bg, color: meta.text }}
+        title="Booking expenses are always paid"
+      >
+        <Lock className="h-2.5 w-2.5" />
+        {meta.label}
+      </span>
+    )
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o) }}
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-opacity hover:opacity-80"
+        style={{ background: meta.bg, color: meta.text }}
+      >
+        {meta.icon} {meta.label}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="absolute left-0 top-full z-50 mt-1 min-w-[120px] overflow-hidden rounded-xl py-1 shadow-xl"
+            style={{ background: "#FDFAF6", border: "0.5px solid #D4C9BC" }}
+          >
+            {STATUS_CYCLE.map((s) => {
+              const m = STATUS_META[s]
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onStatusChange(expense.id, s)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-[12px] transition-colors hover:bg-black/[0.04]"
+                  style={{ color: s === status ? m.text : "#6D8F87", fontWeight: s === status ? 600 : 400 }}
+                >
+                  <span
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
+                    style={{ background: m.bg, color: m.text }}
+                  >
+                    {m.icon}
+                  </span>
+                  {m.label === "Est." ? "Estimated" : m.label}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 const CATEGORY_META: Record<string, { icon: React.ReactNode; label: string }> = {
   accommodation: { icon: <Hotel className="h-5 w-5" />, label: "Accommodation" },
@@ -42,6 +125,7 @@ function ExpenseItem({
   onEdit,
   onDelete,
   onMarkSplitPaid,
+  onStatusChange,
 }: {
   expense: Expense
   members: MemberWithProfile[]
@@ -50,6 +134,7 @@ function ExpenseItem({
   onEdit: () => void
   onDelete: () => void
   onMarkSplitPaid: (splitId: string, paid: boolean) => void
+  onStatusChange: (id: string, status: ExpenseStatus) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -125,6 +210,9 @@ function ExpenseItem({
                 </span>
               </>
             )}
+          </div>
+          <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+            <StatusBadge expense={expense} onStatusChange={onStatusChange} />
           </div>
         </div>
 
@@ -235,6 +323,7 @@ export function ExpenseList({
   onEdit,
   onDelete,
   onMarkSplitPaid,
+  onStatusChange,
 }: {
   expenses: Expense[]
   members: MemberWithProfile[]
@@ -243,6 +332,7 @@ export function ExpenseList({
   onEdit: (expense: Expense) => void
   onDelete: (id: string) => void
   onMarkSplitPaid: (splitId: string, paid: boolean) => void
+  onStatusChange: (id: string, status: ExpenseStatus) => void
 }) {
   if (expenses.length === 0) {
     return (
@@ -314,6 +404,7 @@ export function ExpenseList({
                     onEdit={() => onEdit(e)}
                     onDelete={() => onDelete(e.id)}
                     onMarkSplitPaid={onMarkSplitPaid}
+                    onStatusChange={onStatusChange}
                   />
                 ))}
               </ul>
