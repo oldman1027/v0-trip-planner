@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   MapPin, Calendar, DollarSign, LayoutGrid, LayoutList, CalendarCheck,
-  Share2, FileDown, History, ChevronLeft,
+  Share2, FileDown, History, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen,
   Link as LinkIcon, MessageCircle, Send, Mail, Trash2,
 } from "lucide-react"
 import {
@@ -57,6 +57,7 @@ export function TripSidebarLayout({
 
   const [shareOpen, setShareOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [shareToken, setShareToken] = useState<string | null>(
     isTokenValid(trip) ? trip.share_token : null,
   )
@@ -180,7 +181,28 @@ export function TripSidebarLayout({
       <div className="flex h-svh overflow-hidden">
 
         {/* ── LEFT SIDEBAR — desktop only ──────────────────────────────── */}
-        <aside className="hidden md:flex flex-col w-[30%] max-w-xs overflow-y-auto flex-shrink-0 bg-[#F7F3EE]" style={{ borderRight: "0.5px solid #D4C9BC" }}>
+
+        {/* Collapsed rail */}
+        {!sidebarOpen && (
+          <div
+            className="hidden md:flex flex-col items-center py-3 gap-3 flex-shrink-0"
+            style={{ width: 44, borderRight: "0.5px solid #D4C9BC", background: "#F7F3EE" }}
+          >
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              title="Expand sidebar"
+              className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-black/[0.06] transition-colors"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        <aside className={cn(
+          "hidden md:flex flex-col overflow-y-auto flex-shrink-0 bg-[#F7F3EE] transition-all",
+          sidebarOpen ? "w-[30%] max-w-xs" : "w-0 overflow-hidden border-0 !p-0",
+        )} style={sidebarOpen ? { borderRight: "0.5px solid #D4C9BC" } : undefined}>
 
           {/* Hero image */}
           <div className="relative h-36 flex-shrink-0 overflow-hidden">
@@ -195,6 +217,14 @@ export function TripSidebarLayout({
                 All trips
               </Link>
             </div>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              title="Collapse sidebar"
+              className="absolute top-3 right-3 flex items-center justify-center rounded-md p-1 text-white/60 hover:text-white hover:bg-black/20 transition-colors"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
             <div className="absolute bottom-3 left-3 right-3">
               <p className="text-white font-bold text-base leading-tight truncate">{trip.name}</p>
             </div>
