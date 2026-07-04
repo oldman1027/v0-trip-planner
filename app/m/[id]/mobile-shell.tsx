@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { WifiOff, X, Download, MoreVertical, Smartphone } from "lucide-react"
+import { WifiOff, X, Download, MoreVertical, Smartphone, Share2 } from "lucide-react"
 import { BottomTabBar, type MobileTab } from "./components/bottom-tab-bar"
 import { TodayTab } from "./components/today-tab"
 import { AllDaysTab } from "./components/all-days-tab"
@@ -37,6 +37,8 @@ export function MobileShell({
   const [expenses, setExpenses] = useState<Expense[]>(serverExpenses)
   const [showInstall, setShowInstall] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
 
   // Track online status
@@ -79,30 +81,40 @@ export function MobileShell({
 
   // PWA install prompt
   useEffect(() => {
-    if (getInstallDismissed()) return
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    const standalone = window.matchMedia("(display-mode: standalone)").matches
+    setIsIOS(ios)
+    setIsInstalled(standalone)
+
+    // Always capture the beforeinstallprompt event regardless of dismissed state
     function onPrompt(e: Event) {
       e.preventDefault()
       deferredPrompt.current = e as BeforeInstallPromptEvent
-      setShowInstall(true)
+      // Only auto-show if not previously dismissed by user
+      if (!getInstallDismissed()) setShowInstall(true)
     }
     window.addEventListener("beforeinstallprompt", onPrompt)
-    // iOS Safari: show anyway if not installed
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches
-    if (isIOS && !isStandalone) {
+
+    // iOS auto-show (only if not installed and not dismissed)
+    if (ios && !standalone && !getInstallDismissed()) {
       setTimeout(() => setShowInstall(true), 2000)
     }
+
     return () => window.removeEventListener("beforeinstallprompt", onPrompt)
   }, [])
 
   async function handleInstall() {
     if (deferredPrompt.current) {
+      // Android / Chrome: trigger native prompt
       await deferredPrompt.current.prompt()
-      setInstallDismissed()
+      const { outcome } = await deferredPrompt.current.userChoice
+      deferredPrompt.current = null
+      if (outcome === "accepted") setInstallDismissed()
       setShowInstall(false)
-    } else {
-      // iOS — just dismiss, user must tap Share → Add to Home Screen
-      setInstallDismissed()
+    }
+    // iOS: sheet already shows the instructions — button says "Got it"
+    // Just close without marking dismissed so they can re-open from menu
+    else {
       setShowInstall(false)
     }
   }
@@ -216,19 +228,19 @@ export function MobileShell({
       <BottomTabBar active={tab} onChange={setTab} />
 
       {/* Install bottom sheet */}
-      {showInstall && (
+      {showInstall && !isInstalled && (
         <div
-          className="fixed inset-x-0 bottom-0 z-[100] mx-auto max-w-[430px] rounded-t-2xl px-5 pb-safe pt-4 shadow-xl"
+          className="fixed inset-x-0 bottom-0 z-[100] mx-auto max-w-[430px] rounded-t-2xl px-5 pt-4 shadow-xl"
           style={{
             background: "#FDFAF6",
             borderTop: "0.5px solid #D4C9BC",
-            paddingBottom: `calc(16px + env(safe-area-inset-bottom))`,
+            paddingBottom: `calc(20px + env(safe-area-inset-bottom))`,
           }}
         >
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold" style={{ color: "#2C4A45" }}>
-                Install Tripletto
+                Add to Home Screen
               </p>
               <p className="mt-0.5 text-xs" style={{ color: "#9BA8A6" }}>
                 Quick access during your trip — works offline too.
@@ -244,25 +256,53 @@ export function MobileShell({
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={handleInstall}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-white"
-              style={{ background: "#6D8F87" }}
-            >
-              <Download className="h-4 w-4" />
-              Add to Home Screen
-            </button>
-            <button
-              type="button"
-              onClick={dismissInstall}
-              className="rounded-xl px-4 py-3 text-sm font-medium"
-              style={{ color: "#9BA8A6", background: "#EDF5F2" }}
-            >
-              Not now
-            </button>
-          </div>
+
+          {isIOS ? (
+            // iOS: show step-by-step instructions (no native prompt available)
+            <>
+              <div className="mt-3 flex flex-col gap-2">
+                {[
+                  { icon: <Share2 className="h-4 w-4" />, text: 'Tap the Share icon at the bottom of Safari' },
+                  { icon: <Download className="h-4 w-4" />, text: 'Scroll down and tap "Add to Home Screen"' },
+                  { icon: <Smartphone className="h-4 w-4" />, text: 'Tap "Add" to confirm' },
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "#EDF5F2" }}>
+                    <span style={{ color: "#6D8F87" }}>{step.icon}</span>
+                    <span className="text-xs" style={{ color: "#2C4A45" }}>{step.text}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleInstall}
+                className="mt-3 w-full rounded-xl py-3 text-sm font-medium text-white"
+                style={{ background: "#6D8F87" }}
+              >
+                Got it
+              </button>
+            </>
+          ) : (
+            // Android / Chrome: trigger native install prompt
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={handleInstall}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-white"
+                style={{ background: "#6D8F87" }}
+              >
+                <Download className="h-4 w-4" />
+                Install app
+              </button>
+              <button
+                type="button"
+                onClick={dismissInstall}
+                className="rounded-xl px-4 py-3 text-sm font-medium"
+                style={{ color: "#9BA8A6", background: "#EDF5F2" }}
+              >
+                Not now
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
