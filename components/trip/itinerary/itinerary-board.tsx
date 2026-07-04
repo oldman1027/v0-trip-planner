@@ -16,7 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { Calendar, LayoutGrid, Map as MapIcon, MapPin, Plus, X } from "lucide-react"
+import { Calendar, LayoutGrid, Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen, Plus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DaySidebar } from "./day-sidebar"
@@ -193,6 +193,7 @@ export function ItineraryBoard({
   const [mapFilterDay, setMapFilterDay] = useState<string | null>(null)
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null)
   const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null)
+  const [kivPanelOpen, setKivPanelOpen] = useState(true)
 
   const effectiveCategories = activeCategories
 
@@ -1225,7 +1226,22 @@ export function ItineraryBoard({
             )}
 
             {/* View switcher — exact same 220px as KIV panel */}
-            <div className="flex flex-shrink-0 items-center justify-center px-3 py-2 md:w-[220px]">
+            <div className="flex flex-shrink-0 items-center justify-center gap-2 px-3 py-2 md:w-[220px]">
+              {/* KIV panel toggle — board view only, desktop only */}
+              {viewMode === "board" && !isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setKivPanelOpen(v => !v)}
+                  title={kivPanelOpen ? "Hide panel" : "Show panel"}
+                  className="flex items-center justify-center rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {kivPanelOpen ? (
+                    <PanelRightClose className="h-4 w-4" />
+                  ) : (
+                    <PanelRightOpen className="h-4 w-4" />
+                  )}
+                </button>
+              )}
               <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
                 {(
                   [
@@ -1358,7 +1374,7 @@ export function ItineraryBoard({
             </div>
 
             {/* KIV right panel — desktop only (conditionally mounted to avoid duplicate droppable id) */}
-            {!isMobile && (
+            {!isMobile && kivPanelOpen && (
               <aside className="sticky top-[51px] flex w-[220px] flex-shrink-0 h-[calc(100vh-51px)] flex-col overflow-hidden border-l border-border bg-muted/10">
                 <div className="min-h-0 flex-1 overflow-hidden pt-3">
                   <KIVPanel
