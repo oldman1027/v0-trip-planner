@@ -16,7 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { Calendar, LayoutGrid, Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen, Plus, X } from "lucide-react"
+import { Calendar, LayoutGrid, Map as MapIcon, MapPin, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DaySidebar } from "./day-sidebar"
@@ -194,6 +194,7 @@ export function ItineraryBoard({
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null)
   const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null)
   const [kivPanelOpen, setKivPanelOpen] = useState(true)
+  const [dayListOpen, setDayListOpen] = useState(true)
 
   const effectiveCategories = activeCategories
 
@@ -1154,6 +1155,22 @@ export function ItineraryBoard({
       <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:-mx-8 shadow-sm bg-[#FFFBF4]/95 backdrop-blur-sm">
         <div className="flex items-center border-b border-border px-4 sm:px-6 lg:px-8">
 
+            {/* Day list toggle — board view only, desktop only */}
+            {viewMode === "board" && !isMobile && (
+              <button
+                type="button"
+                onClick={() => setDayListOpen(v => !v)}
+                title={dayListOpen ? "Hide day list" : "Show day list"}
+                className="flex items-center justify-center rounded-md border border-border p-1.5 mr-1 flex-shrink-0 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {dayListOpen ? (
+                  <PanelLeftClose className="h-4 w-4" />
+                ) : (
+                  <PanelLeftOpen className="h-4 w-4" />
+                )}
+              </button>
+            )}
+
             {/* Filter chips — px-3 matches day-list p-3 so chips left-align with the Day 1 box */}
             <div className="flex flex-1 min-w-0 items-center gap-2 overflow-x-auto px-3 py-2">
               <button
@@ -1283,19 +1300,21 @@ export function ItineraryBoard({
           <div className="flex items-start">
 
             {/* Day list — left column */}
-            <aside className="sticky top-[51px] w-[280px] flex-shrink-0 h-[calc(100vh-51px)] overflow-y-auto border-r border-border bg-card/50">
-              <div className="p-3">
-                <DaySidebar
-                  days={days}
-                  counts={dayCounts}
-                  selected={selectedDay}
-                  onSelect={setSelectedDay}
-                  activeDragId={activeId}
-                  weatherByDay={weatherByDay}
-                  firstTitleByDay={firstTitleByDay}
-                />
-              </div>
-            </aside>
+            {dayListOpen && (
+              <aside className="sticky top-[51px] w-[280px] flex-shrink-0 h-[calc(100vh-51px)] overflow-y-auto border-r border-border bg-card/50">
+                <div className="p-3">
+                  <DaySidebar
+                    days={days}
+                    counts={dayCounts}
+                    selected={selectedDay}
+                    onSelect={setSelectedDay}
+                    activeDragId={activeId}
+                    weatherByDay={weatherByDay}
+                    firstTitleByDay={firstTitleByDay}
+                  />
+                </div>
+              </aside>
+            )}
 
             {/* Activity content — center column */}
             <div className="flex-1 min-w-0 flex flex-col gap-4 px-4 py-3">
