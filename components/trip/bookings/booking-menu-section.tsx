@@ -16,6 +16,42 @@ function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)
 }
 
+function QtyInput({
+  value,
+  onChange,
+  onBlur,
+}: {
+  value: number
+  onChange: (v: number) => void
+  onBlur: () => void
+}) {
+  const [local, setLocal] = useState(String(value))
+
+  // Keep in sync if parent resets (e.g. on load)
+  useEffect(() => { setLocal(String(value)) }, [value])
+
+  return (
+    <input
+      type="number"
+      min={1}
+      value={local}
+      onChange={e => {
+        setLocal(e.target.value)
+        const n = Number(e.target.value)
+        if (!isNaN(n) && n >= 1) onChange(n)
+      }}
+      onBlur={() => {
+        const n = Math.max(1, Number(local) || 1)
+        setLocal(String(n))
+        onChange(n)
+        onBlur()
+      }}
+      className="w-full bg-transparent text-center text-[13px] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      style={{ color: "#2C4A45", minHeight: 36 }}
+    />
+  )
+}
+
 function newRow(bookingId: string): MenuRow {
   return { id: crypto.randomUUID(), booking_id: bookingId, item_name: "", qty: 1, unit_price: 0 }
 }
@@ -219,14 +255,10 @@ export function BookingMenuSection({
                   />
 
                   {/* Qty */}
-                  <input
-                    type="number"
-                    min={1}
+                  <QtyInput
                     value={row.qty}
-                    onChange={e => updateRow(row.id, { qty: Math.max(1, Number(e.target.value) || 1) })}
+                    onChange={v => updateRow(row.id, { qty: v })}
                     onBlur={() => handleBlur(rows)}
-                    className="w-full bg-transparent text-center text-[13px] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    style={{ color: "#2C4A45", minHeight: 36 }}
                   />
 
                   {/* Unit price */}
