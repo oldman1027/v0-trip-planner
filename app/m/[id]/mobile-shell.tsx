@@ -191,6 +191,7 @@ export function MobileShell({
             expenses={expenses}
             members={members}
             weather={weather}
+            bookings={bookings}
           />
         )}
         {tab === "all" && (
@@ -198,6 +199,8 @@ export function MobileShell({
             trip={trip}
             activities={activities}
             weather={weather}
+            bookings={bookings}
+            members={members}
           />
         )}
         {tab === "bookings" && <BookingsTab bookings={bookings} tripId={trip.id} />}

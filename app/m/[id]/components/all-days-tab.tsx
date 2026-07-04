@@ -1,115 +1,34 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronRight, MapPin, Clock, ExternalLink } from "lucide-react"
-import type { Activity, Trip } from "@/lib/types"
+import { ChevronDown, ChevronRight } from "lucide-react"
+import type { Activity, Booking, MemberWithProfile, Trip } from "@/lib/types"
 import type { WeatherData } from "@/lib/weather"
 import { daysBetween } from "@/lib/dates"
+import { ActivityCardCompact } from "@/components/trip/mobile/activity-card"
 
-function fmt(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount)
-  } catch {
-    return `${currency} ${Math.round(amount)}`
-  }
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  accommodation: "#6D8F87",
-  transport:     "#D97706",
-  dining:        "#E85D75",
-  experiences:   "#7C3AED",
-  other:         "#94A3B8",
-}
-
-function ActivityRowCompact({
-  activity,
-  currency,
-}: {
-  activity: Activity
-  currency: string
-}) {
-  const [open, setOpen] = useState(false)
-  const dot = CATEGORY_COLORS[activity.category] ?? CATEGORY_COLORS.other
-  const mapsUrl = activity.location
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`
-    : null
-
-  return (
-    <div>
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-black/[0.03]"
-        style={{ minHeight: 48 }}
-        onClick={() => setOpen(v => !v)}
-        aria-expanded={open}
-      >
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium" style={{ color: "#2C4A45" }}>
-            {activity.title}
-          </p>
-          {activity.start_time && (
-            <p className="text-[11px]" style={{ color: "#9BA8A6" }}>
-              <Clock className="mr-0.5 inline h-2.5 w-2.5" />
-              {activity.start_time.slice(0, 5)}
-              {activity.end_time ? ` – ${activity.end_time.slice(0, 5)}` : ""}
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {activity.cost_amount && activity.cost_amount > 0 && (
-            <span className="text-xs tabular-nums" style={{ color: "#6D8F87" }}>
-              {fmt(activity.cost_amount, activity.cost_currency ?? currency)}
-            </span>
-          )}
-          {open ? (
-            <ChevronDown className="h-3.5 w-3.5" style={{ color: "#9BA8A6" }} />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" style={{ color: "#9BA8A6" }} />
-          )}
-        </div>
-      </button>
-
-      {open && (activity.location || activity.notes) && (
-        <div className="px-3 pb-3 pt-0" style={{ background: "#F5F0EA" }}>
-          {activity.location && (
-            <p className="text-xs" style={{ color: "#6D8F87" }}>
-              <MapPin className="mr-1 inline h-3 w-3" />
-              {activity.location}
-            </p>
-          )}
-          {activity.notes && (
-            <p className="mt-1 text-xs leading-relaxed" style={{ color: "#6D8F87" }}>
-              {activity.notes}
-            </p>
-          )}
-          {mapsUrl && (
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium"
-              style={{ color: "#6D8F87" }}
-            >
-              <ExternalLink className="h-3 w-3" />
-              Open in Maps
-            </a>
-          )}
-        </div>
-      )}
-    </div>
-  )
+function sortActivities(list: Activity[]): Activity[] {
+  return [...list].sort((a, b) => {
+    const blockOrder = { morning: 0, afternoon: 1, night: 2 }
+    const ba = blockOrder[a.time_block ?? "morning"] ?? 0
+    const bb = blockOrder[b.time_block ?? "morning"] ?? 0
+    if (ba !== bb) return ba - bb
+    return (a.start_time ?? "").localeCompare(b.start_time ?? "")
+  })
 }
 
 export function AllDaysTab({
   trip,
   activities,
   weather,
+  bookings = [],
+  members = [],
 }: {
   trip: Trip
   activities: Activity[]
   weather: WeatherData | null
+  bookings?: Booking[]
+  members?: MemberWithProfile[]
 }) {
   const currency = trip.default_currency ?? "USD"
   const tripDays = daysBetween(trip.start_date, trip.end_date)
@@ -128,15 +47,12 @@ export function AllDaysTab({
   return (
     <div className="flex flex-col gap-2 px-4 pb-4 pt-4">
       {tripDays.map((d, i) => {
-        const dayActivities = activities
-          .filter(a => a.day_date === d && !a.is_wishlist && !a.is_kiv)
-          .sort((a, b) => {
-            const blockOrder = { morning: 0, afternoon: 1, night: 2 }
-            const ba = blockOrder[a.time_block ?? "morning"] ?? 0
-            const bb = blockOrder[b.time_block ?? "morning"] ?? 0
-            if (ba !== bb) return ba - bb
-            return (a.start_time ?? "").localeCompare(b.start_time ?? "")
-          })
+        const dayActivities = sortActivities(
+          activities.filter(a => a.day_date === d && !a.is_wishlist && !a.is_kiv)
+        )
+        // Sequential numbers across full day (1..N)
+        const seqMap = new Map(dayActivities.map((a, idx) => [a.id, idx + 1]))
+
         const isOpen = openDays.has(d)
         const isToday = d === today
         const dateLabel = new Date(d + "T00:00:00").toLocaleDateString("en-US", {
@@ -191,7 +107,14 @@ export function AllDaysTab({
                   </p>
                 ) : (
                   dayActivities.map(a => (
-                    <ActivityRowCompact key={a.id} activity={a} currency={currency} />
+                    <ActivityCardCompact
+                      key={a.id}
+                      activity={a}
+                      seqNum={seqMap.get(a.id) ?? 0}
+                      currency={currency}
+                      bookings={bookings}
+                      members={members}
+                    />
                   ))
                 )}
               </div>

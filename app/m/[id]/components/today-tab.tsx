@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { MapPin, Clock, ChevronDown, ChevronUp, ExternalLink, DollarSign } from "lucide-react"
+import { DollarSign } from "lucide-react"
 import type { Activity, Booking, Expense, MemberWithProfile, Trip } from "@/lib/types"
 import type { WeatherData } from "@/lib/weather"
 import { daysBetween } from "@/lib/dates"
+import { ActivityCard } from "@/components/trip/mobile/activity-card"
 
 function fmt(amount: number, currency: string) {
   try {
@@ -14,131 +15,7 @@ function fmt(amount: number, currency: string) {
   }
 }
 
-function formatTime(t: string | null) {
-  if (!t) return null
-  return t.slice(0, 5)
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  accommodation: "#6D8F87",
-  transport:     "#D97706",
-  dining:        "#E85D75",
-  experiences:   "#7C3AED",
-  other:         "#94A3B8",
-}
-
 const TIME_BLOCK_ORDER = ["morning", "afternoon", "night"] as const
-
-function ActivityRow({
-  activity,
-  currency,
-  index,
-}: {
-  activity: Activity
-  currency: string
-  index: number
-}) {
-  const [open, setOpen] = useState(false)
-  const dot = CATEGORY_COLORS[activity.category] ?? CATEGORY_COLORS.other
-  const mapsUrl = activity.location
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`
-    : null
-
-  return (
-    <div className="overflow-hidden rounded-2xl border" style={{ borderColor: "#E8E0D8", background: "#FFFBF4" }}>
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-black/[0.03]"
-        style={{ minHeight: 64 }}
-        onClick={() => setOpen(v => !v)}
-        aria-expanded={open}
-      >
-        {/* index badge */}
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-          style={{ background: dot }}
-        >
-          {index + 1}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-            <p className="truncate text-sm font-semibold" style={{ color: "#2C4A45" }}>
-              {activity.title}
-            </p>
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "#9BA8A6" }}>
-            {(activity.start_time || activity.end_time) && (
-              <span className="flex items-center gap-0.5">
-                <Clock className="h-3 w-3" />
-                {formatTime(activity.start_time)}
-                {activity.end_time ? ` – ${formatTime(activity.end_time)}` : ""}
-              </span>
-            )}
-            {activity.location && (
-              <>
-                <span>·</span>
-                <span className="truncate">{activity.location.split(",")[0]}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {activity.cost_amount && activity.cost_amount > 0 && (
-            <span className="text-xs font-semibold tabular-nums" style={{ color: "#2C4A45" }}>
-              {fmt(activity.cost_amount, activity.cost_currency ?? currency)}
-            </span>
-          )}
-          {activity.photo_url && (
-            <img
-              src={activity.photo_url}
-              alt=""
-              className="h-12 w-12 rounded-xl object-cover"
-              loading="lazy"
-            />
-          )}
-          {open ? (
-            <ChevronUp className="h-4 w-4" style={{ color: "#9BA8A6" }} />
-          ) : (
-            <ChevronDown className="h-4 w-4" style={{ color: "#9BA8A6" }} />
-          )}
-        </div>
-      </button>
-
-      {open && (
-        <div className="border-t px-4 py-3" style={{ borderColor: "#E8E0D8", background: "#F5F0EA" }}>
-          {activity.location && (
-            <p className="text-xs" style={{ color: "#6D8F87" }}>
-              <MapPin className="mr-1 inline h-3 w-3" />
-              {activity.location}
-            </p>
-          )}
-          {activity.notes && (
-            <p className="mt-2 text-xs leading-relaxed" style={{ color: "#6D8F87" }}>
-              {activity.notes}
-            </p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {mapsUrl && (
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium text-white"
-                style={{ background: "#6D8F87", minHeight: 44 }}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open in Maps
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 export function TodayTab({
   trip,
@@ -146,21 +23,23 @@ export function TodayTab({
   expenses,
   members,
   weather,
+  bookings = [],
 }: {
   trip: Trip
   activities: Activity[]
   expenses: Expense[]
   members: MemberWithProfile[]
   weather: WeatherData | null
+  bookings?: Booking[]
 }) {
   const currency = trip.default_currency ?? "USD"
   const tripDays = daysBetween(trip.start_date, trip.end_date)
 
-  // Determine current active day (default to first trip day that is today or future)
   const today = new Date().toISOString().slice(0, 10)
   const defaultDay = tripDays.find(d => d >= today) ?? tripDays[0] ?? today
   const [selectedDay, setSelectedDay] = useState(defaultDay)
 
+  // Sort all activities for the day, then assign sequential numbers before grouping
   const dayActivities = useMemo(
     () =>
       activities
@@ -175,6 +54,12 @@ export function TodayTab({
     [activities, selectedDay],
   )
 
+  // Map id → global sequence number (1-based)
+  const seqMap = useMemo(
+    () => new Map(dayActivities.map((a, i) => [a.id, i + 1])),
+    [dayActivities],
+  )
+
   const dayExpenses = useMemo(
     () => expenses.filter(e => e.date === selectedDay),
     [expenses, selectedDay],
@@ -187,7 +72,6 @@ export function TodayTab({
     items: dayActivities.filter(a => (a.time_block ?? "morning") === block),
   })).filter(g => g.items.length > 0)
 
-  // Weather for selected day
   const weatherForDay = weather?.forecast?.find(f => f.date === selectedDay)
   const weatherLabel = weatherForDay
     ? `${weatherForDay.icon} ${Math.round((weatherForDay.high * 9) / 5 + 32)}°F · ${weatherForDay.description}`
@@ -213,7 +97,6 @@ export function TodayTab({
           </p>
         </div>
 
-        {/* Member avatars */}
         <div className="flex -space-x-2">
           {members.slice(0, 4).map(m => (
             <div
@@ -267,8 +150,15 @@ export function TodayTab({
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#9BA8A6" }}>
               {g.label}
             </p>
-            {g.items.map((a, i) => (
-              <ActivityRow key={a.id} activity={a} currency={currency} index={i} />
+            {g.items.map(a => (
+              <ActivityCard
+                key={a.id}
+                activity={a}
+                seqNum={seqMap.get(a.id) ?? 0}
+                currency={currency}
+                bookings={bookings}
+                members={members}
+              />
             ))}
           </div>
         ))
