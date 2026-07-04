@@ -11,9 +11,16 @@ import type {
   Expense,
   ExpenseCategory,
   ExpenseParticipant,
+  ExpenseStatus,
   Trip,
   MemberWithProfile,
 } from "@/lib/types"
+
+const STATUSES: { value: ExpenseStatus; label: string; icon: string; bg: string; text: string }[] = [
+  { value: "paid",      label: "Paid",      icon: "✓", bg: "#DCFCE7", text: "#16A34A" },
+  { value: "estimated", label: "Estimated", icon: "~", bg: "#FEF9C3", text: "#CA8A04" },
+  { value: "pending",   label: "Pending",   icon: "?", bg: "#F1F5F9", text: "#64748B" },
+]
 
 const CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: "accommodation", label: "Accommodation" },
@@ -61,6 +68,7 @@ export function AddExpenseDialog({
     amount: number
     currency: string
     category: ExpenseCategory
+    status: ExpenseStatus
     date: string
     paid_by_user_id: string | null
     paid_by_participant_id?: string | null
@@ -99,6 +107,7 @@ export function AddExpenseDialog({
   const [amount, setAmount] = useState("")
   const [category, setCategory] = useState<ExpenseCategory>("other")
   const [date, setDate] = useState(trip.start_date)
+  const [status, setStatus] = useState<ExpenseStatus>("estimated")
   const [splitMode, setSplitMode] = useState<SplitMode>("equal")
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -125,6 +134,7 @@ export function AddExpenseDialog({
       setDescription(expense.description)
       setAmount(String(expense.amount))
       setCategory(expense.category)
+      setStatus(expense.status ?? (expense.booking_id ? "paid" : "estimated"))
       setDate(expense.date)
 
       const splits = expense.splits ?? []
@@ -169,6 +179,7 @@ export function AddExpenseDialog({
       setDescription("")
       setAmount("")
       setCategory("other")
+      setStatus("estimated")
       setDate(trip.start_date)
       setPaidBy(currentUserId)
       setPaidByParticipantId(participants[0]?.id ?? "")
@@ -287,6 +298,7 @@ export function AddExpenseDialog({
         amount: totalAmt,
         currency,
         category,
+        status,
         date,
         paid_by_user_id:        usingParticipants ? null : paidBy,
         paid_by_participant_id: usingParticipants ? paidByParticipantId : null,
@@ -362,6 +374,42 @@ export function AddExpenseDialog({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Payment status */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Payment status</label>
+            {expense?.booking_id ? (
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium"
+                  style={{ background: "#DCFCE7", color: "#16A34A" }}
+                >
+                  ✓ Paid
+                </span>
+                <span className="text-xs text-muted-foreground">Booking expenses are always paid</span>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                {STATUSES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setStatus(s.value)}
+                    className="flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-all"
+                    style={
+                      status === s.value
+                        ? { background: s.bg, color: s.text, borderColor: s.text + "60" }
+                        : undefined
+                    }
+                    data-state={status === s.value ? "active" : "inactive"}
+                  >
+                    <span className={status === s.value ? "" : "opacity-50"}>{s.icon}</span>{" "}
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Date */}

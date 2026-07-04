@@ -296,6 +296,7 @@ export function CostsClient({
     amount: number
     currency: string
     category: ExpenseCategory
+    status: ExpenseStatus
     date: string
     paid_by_user_id: string | null
     paid_by_participant_id?: string | null
@@ -313,6 +314,7 @@ export function CostsClient({
           amount:                 input.amount,
           currency:               input.currency,
           category:               input.category,
+          status:                 input.status,
           date:                   input.date,
           paid_by_user_id:        input.paid_by_user_id ?? null,
           paid_by_participant_id: input.paid_by_participant_id ?? null,
@@ -359,6 +361,7 @@ export function CostsClient({
           amount:                 input.amount,
           currency:               input.currency,
           category:               input.category,
+          status:                 input.status,
           date:                   input.date,
           paid_by_user_id:        input.paid_by_user_id ?? null,
           paid_by_participant_id: input.paid_by_participant_id ?? null,
