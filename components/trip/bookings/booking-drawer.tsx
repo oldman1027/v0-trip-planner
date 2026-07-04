@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { LocationAutocomplete } from "@/components/trip/itinerary/location-autocomplete"
 import type { Booking, BookingAttachment } from "@/lib/types"
 import { BookingAttachments, PendingAttachments } from "./booking-attachments"
+import { BookingMenuSection } from "./booking-menu-section"
 import { uploadBookingAttachment } from "@/lib/supabase/booking-attachments"
 import { formatDayLabel } from "@/lib/dates"
 import { cn } from "@/lib/utils"
@@ -936,6 +937,16 @@ export function BookingDrawer({
                     className="rounded-xl"
                   />
                 </Field>
+              )}
+
+              {/* ── Pre-order Menu (dining only, existing bookings) ── */}
+              {isDining && booking?.id && (
+                <div className="space-y-2 border-t border-border pt-4">
+                  <BookingMenuSection
+                    bookingId={booking.id}
+                    partySize={partySize ? Number(partySize) : 0}
+                  />
+                </div>
               )}
 
               {/* ── Notes ── */}

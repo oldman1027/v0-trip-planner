@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Plane, Building2, Package, MapPin, ExternalLink, Copy, Check, FileText, Download } from "lucide-react"
+import { Plane, Building2, Package, MapPin, ExternalLink, Copy, Check, FileText, Download, UtensilsCrossed, ChevronDown, ChevronRight } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import type { Booking, BookingAttachment } from "@/lib/types"
+import type { MenuRow } from "@/components/trip/bookings/booking-menu-section"
 
 function fmt(amount: number, currency: string) {
   try {
@@ -31,6 +33,93 @@ function CopyButton({ text }: { text: string }) {
       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       {copied ? "Copied!" : "Copy"}
     </button>
+  )
+}
+
+function DiningMenuSummary({ bookingId }: { bookingId: string }) {
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<MenuRow[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function toggle() {
+    if (!open && items === null) {
+      setLoading(true)
+      const supabase = createClient()
+      const { data } = await supabase
+        .from("booking_menu_items")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: true })
+      setItems((data ?? []) as MenuRow[])
+      setLoading(false)
+    }
+    setOpen(o => !o)
+  }
+
+  const total = (items ?? []).reduce((s, r) => s + r.qty * r.unit_price, 0)
+  const count = (items ?? []).filter(r => r.item_name).length
+
+  function fmtAmt(n: number) {
+    return new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)
+  }
+
+  return (
+    <div className="mt-3 rounded-xl overflow-hidden" style={{ border: "0.5px solid #A9D6C5", background: "#EDF5F2" }}>
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex w-full items-center gap-2 px-3 py-2.5"
+        style={{ minHeight: 44 }}
+      >
+        <UtensilsCrossed className="h-3.5 w-3.5 shrink-0" style={{ color: "#6D8F87" }} />
+        <span className="flex-1 text-left text-xs font-medium" style={{ color: "#2C4A45" }}>
+          {loading
+            ? "Loading…"
+            : items === null
+            ? "Pre-order menu"
+            : count === 0
+            ? "No menu items"
+            : `Pre-order · ${count} item${count !== 1 ? "s" : ""} · THB ${fmtAmt(total)}`}
+        </span>
+        {open
+          ? <ChevronDown className="h-3.5 w-3.5 shrink-0" style={{ color: "#9BA8A6" }} />
+          : <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: "#9BA8A6" }} />}
+      </button>
+
+      {open && items && items.length > 0 && (
+        <div style={{ borderTop: "0.5px solid #A9D6C5" }}>
+          {items.filter(r => r.item_name).map((r, i) => (
+            <div
+              key={r.id}
+              className="flex items-center justify-between px-3 py-2"
+              style={{ borderTop: i > 0 ? "0.5px solid #D4E8E0" : undefined }}
+            >
+              <span className="text-[12px]" style={{ color: "#2C4A45" }}>
+                {r.item_name}{r.qty > 1 ? ` ×${r.qty}` : ""}
+              </span>
+              <span className="text-[12px] tabular-nums" style={{ color: "#6D8F87" }}>
+                THB {fmtAmt(r.qty * r.unit_price)}
+              </span>
+            </div>
+          ))}
+          <div
+            className="flex items-center justify-between px-3 py-2"
+            style={{ borderTop: "0.5px solid #A9D6C5", background: "#D4EEE6" }}
+          >
+            <span className="text-[12px] font-semibold" style={{ color: "#2C4A45" }}>Total</span>
+            <span className="text-[13px] font-semibold tabular-nums" style={{ color: "#2C4A45" }}>
+              THB {fmtAmt(total)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {open && items && items.length === 0 && (
+        <div className="px-3 py-3 text-center text-xs" style={{ color: "#9BA8A6", borderTop: "0.5px solid #A9D6C5" }}>
+          No menu items added yet
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -159,6 +248,9 @@ function BookingCard({ booking }: { booking: Booking }) {
           <ExternalLink className="h-3 w-3" />
         </a>
       )}
+
+      {/* Dining pre-order summary */}
+      {booking.type === "dining" && <DiningMenuSummary bookingId={booking.id} />}
 
       {/* Attachments */}
       {booking.booking_attachments && booking.booking_attachments.length > 0 && (
