@@ -182,19 +182,72 @@ export function TripSidebarLayout({
 
         {/* ── LEFT SIDEBAR — desktop only ──────────────────────────────── */}
 
-        {/* Collapsed rail */}
+        {/* Collapsed rail — icon-only nav */}
         {!sidebarOpen && (
           <div
-            className="hidden md:flex flex-col items-center py-3 gap-3 flex-shrink-0"
-            style={{ width: 44, borderRight: "0.5px solid #D4C9BC", background: "#F7F3EE" }}
+            className="hidden md:flex flex-col items-center pt-3 pb-4 gap-1 flex-shrink-0"
+            style={{ width: 52, borderRight: "0.5px solid #D4C9BC", background: "#F7F3EE" }}
           >
+            {/* Expand button */}
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
               title="Expand sidebar"
-              className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-black/[0.06] transition-colors"
+              className="flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-black/[0.06] transition-colors mb-2"
             >
               <PanelLeftOpen className="h-4 w-4" />
+            </button>
+
+            {/* Nav icons */}
+            {NAV_ITEMS.map((item) => {
+              const href = item.slug ? `${base}/${item.slug}` : base
+              const active = item.slug
+                ? pathname === href || pathname.startsWith(href + "/")
+                : pathname === base
+              return (
+                <Link
+                  key={item.label}
+                  href={href}
+                  title={item.label}
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                    active
+                      ? "bg-[#6D8F87] text-white"
+                      : "text-[#2C4A45] hover:bg-[#EDE8E0]",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                </Link>
+              )
+            })}
+
+            {/* Divider */}
+            <div className="my-2 w-6 border-t" style={{ borderColor: "#D4C9BC" }} />
+
+            {/* Bottom actions */}
+            <button
+              type="button"
+              title="Share"
+              onClick={() => setShareOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-[#EDE8E0] transition-colors"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Export Briefing PDF"
+              onClick={() => window.open(`/trips/${trip.id}/briefing`, "_blank", "noopener")}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-[#EDE8E0] transition-colors"
+            >
+              <FileDown className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="History"
+              onClick={() => setHistoryOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-[#EDE8E0] transition-colors"
+            >
+              <History className="h-4 w-4" />
             </button>
           </div>
         )}
