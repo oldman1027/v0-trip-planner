@@ -66,12 +66,21 @@ export function usePresence(tripId: string) {
               color,
               online_at: new Date().toISOString(),
             })
-            // Stamp last_activity_at so the collaborators list shows accurate activity
-            await supabase
-              .from("trip_members")
-              .update({ last_activity_at: new Date().toISOString() })
-              .eq("trip_id", tripId)
-              .eq("user_id", userId)
+
+            // Stamp last_activity_at immediately on join
+            async function stampActivity() {
+              await supabase
+                .from("trip_members")
+                .update({ last_activity_at: new Date().toISOString() })
+                .eq("trip_id", tripId)
+                .eq("user_id", userId)
+            }
+            await stampActivity()
+
+            // Re-stamp every 5 minutes while the page is open
+            const heartbeat = setInterval(stampActivity, 5 * 60 * 1000)
+            // Store interval id so cleanup can clear it
+            ;(channel as unknown as Record<string, unknown>).__heartbeat = heartbeat
           }
         })
     }
@@ -79,7 +88,11 @@ export function usePresence(tripId: string) {
     init()
 
     return () => {
-      if (channel) supabase.removeChannel(channel)
+      if (channel) {
+        const hb = (channel as unknown as Record<string, unknown>).__heartbeat
+        if (hb) clearInterval(hb as ReturnType<typeof setInterval>)
+        supabase.removeChannel(channel)
+      }
     }
   }, [tripId])
 

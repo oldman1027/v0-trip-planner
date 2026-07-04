@@ -134,7 +134,9 @@ export function CollaboratorsSection({
                       {isThisOwner && <Crown className="h-3.5 w-3.5 text-amber-500" aria-label="Owner" />}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {m.last_activity_at
+                      {allOnlineUserIds.has(m.user_id)
+                        ? "Online now"
+                        : m.last_activity_at
                         ? `Active ${formatDistanceToNow(new Date(m.last_activity_at), { addSuffix: true })}`
                         : `Joined ${new Date(m.joined_at).toLocaleDateString()}`}
                     </div>

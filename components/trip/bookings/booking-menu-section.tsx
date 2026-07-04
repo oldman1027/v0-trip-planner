@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Check, ChevronDown, ChevronRight, Plus, X } from "lucide-react"
+import { Check, ChevronDown, ChevronRight, GripVertical, Plus, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 export type MenuRow = {
@@ -71,6 +71,9 @@ export function BookingMenuSection({
   // track which ids exist in DB already
   const dbIds = useRef<Set<string>>(new Set())
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // drag state
+  const dragIdx = useRef<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
   // ── Load on mount ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -208,13 +211,14 @@ export function BookingMenuSection({
             <div
               className="grid text-[10px] font-semibold uppercase tracking-wide"
               style={{
-                gridTemplateColumns: "1fr 48px 80px 72px 28px",
+                gridTemplateColumns: "20px 1fr 48px 80px 72px 28px",
                 color: "#A9D6C5",
                 borderBottom: "0.5px solid #D4C9BC",
-                padding: "5px 8px",
+                padding: "5px 8px 5px 4px",
                 background: "#FDFAF6",
               }}
             >
+              <span />
               <span>Item</span>
               <span className="text-center">Qty</span>
               <span className="text-right">Unit Price</span>
@@ -225,18 +229,45 @@ export function BookingMenuSection({
             {/* Data rows */}
             {rows.map((row, idx) => {
               const subtotal = row.qty * row.unit_price
+              const isDragTarget = dragOver === idx && dragIdx.current !== idx
               return (
                 <div
                   key={row.id}
+                  draggable
+                  onDragStart={() => { dragIdx.current = idx }}
+                  onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
+                  onDragLeave={() => setDragOver(null)}
+                  onDrop={() => {
+                    const from = dragIdx.current
+                    if (from === null || from === idx) { setDragOver(null); return }
+                    setRows(prev => {
+                      const next = [...prev]
+                      const [moved] = next.splice(from, 1)
+                      next.splice(idx, 0, moved)
+                      return next
+                    })
+                    dragIdx.current = null
+                    setDragOver(null)
+                  }}
+                  onDragEnd={() => { dragIdx.current = null; setDragOver(null) }}
                   className="group grid items-center"
                   style={{
-                    gridTemplateColumns: "1fr 48px 80px 72px 28px",
+                    gridTemplateColumns: "20px 1fr 48px 80px 72px 28px",
                     borderBottom: idx < rows.length - 1 ? "0.5px solid #EDE8E0" : "none",
+                    borderTop: isDragTarget ? "2px solid #A9D6C5" : undefined,
                     minHeight: 36,
-                    padding: "0 8px",
-                    background: "#FFFBF4",
+                    padding: "0 8px 0 4px",
+                    background: isDragTarget ? "#EDF5F2" : "#FFFBF4",
+                    cursor: "grab",
+                    transition: "background 0.1s",
                   }}
                 >
+                  {/* Drag handle */}
+                  <GripVertical
+                    className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity"
+                    style={{ color: "#9BA8A6" }}
+                  />
+
                   {/* Item name */}
                   <input
                     type="text"
@@ -251,7 +282,7 @@ export function BookingMenuSection({
                       }
                     }}
                     className="w-full bg-transparent text-[13px] outline-none placeholder:text-[#D4C9BC]"
-                    style={{ color: "#2C4A45", minHeight: 36 }}
+                    style={{ color: "#2C4A45", minHeight: 36, cursor: "text" }}
                   />
 
                   {/* Qty */}
