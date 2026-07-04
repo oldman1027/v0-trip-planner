@@ -172,7 +172,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 const TYPE_ORDER = ["transport", "accommodation", "dining", "activities", "other"]
 
-export function BookingsTab({ bookings }: { bookings: Booking[] }) {
+export function BookingsTab({ bookings, tripId }: { bookings: Booking[]; tripId: string }) {
   const grouped = TYPE_ORDER.map(type => ({
     type,
     label: TYPE_LABELS[type] ?? type,
@@ -190,6 +190,18 @@ export function BookingsTab({ bookings }: { bookings: Booking[] }) {
 
   return (
     <div className="flex flex-col gap-6 px-4 pb-4 pt-4">
+      {/* Export PDF button */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => window.open(`/trips/${tripId}/briefing`, "_blank", "noopener")}
+          className="flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium"
+          style={{ color: "#6D8F87", borderColor: "#A9D6C5", background: "white", minHeight: 36 }}
+        >
+          📄 Export PDF
+        </button>
+      </div>
+
       {grouped.map(g => (
         <div key={g.type} className="flex flex-col gap-3">
           <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#9BA8A6" }}>

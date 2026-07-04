@@ -325,12 +325,12 @@ export function TripSidebarLayout({
             </DropdownMenu>
 
             <button
-              disabled
-              title="Coming soon"
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground/50 cursor-not-allowed"
+              type="button"
+              onClick={() => window.open(`/trips/${trip.id}/briefing`, "_blank", "noopener")}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
               <FileDown className="w-4 h-4 flex-shrink-0" />
-              Export
+              Export Briefing PDF
             </button>
 
             <button

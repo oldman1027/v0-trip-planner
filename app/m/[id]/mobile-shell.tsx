@@ -151,7 +151,7 @@ export function MobileShell({
             weather={weather}
           />
         )}
-        {tab === "bookings" && <BookingsTab bookings={bookings} />}
+        {tab === "bookings" && <BookingsTab bookings={bookings} tripId={trip.id} />}
         {tab === "costs" && (
           <CostsTab trip={trip} expenses={expenses} bookings={bookings} />
         )}
