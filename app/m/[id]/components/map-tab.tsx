@@ -22,14 +22,13 @@ export function MapTab({
       return (blockOrder[a.time_block ?? "morning"] ?? 0) - (blockOrder[b.time_block ?? "morning"] ?? 0)
     })
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-  // Build a multi-marker iframe URL using the first activity as center
-  const firstLocation = todayActivities[0]?.location ?? trip.destination ?? ""
-  const mapSrc = apiKey
-    ? `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=${encodeURIComponent(
-        todayActivities.map(a => a.location!).join("|") || (trip.destination ?? ""),
-      )}&zoom=13`
+  // No-key Google Maps embed — uses the legacy ?output=embed format which doesn't
+  // require the Maps Embed API to be activated in Google Cloud Console.
+  const mapQuery = todayActivities.length > 0
+    ? todayActivities.map(a => a.location!).join(", ")
+    : (trip.destination ?? "")
+  const mapSrc = mapQuery
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed&z=13`
     : null
 
   const allLocationsQuery = todayActivities
