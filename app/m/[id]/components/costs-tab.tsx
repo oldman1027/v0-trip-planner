@@ -85,6 +85,7 @@ export function CostsTab({
   const today = new Date().toISOString().slice(0, 10)
   const [view, setView] = useState<"category" | "day">("category")
   const [openDays, setOpenDays] = useState<Set<string>>(() => new Set([today]))
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "estimated" | "pending">("all")
 
   const total = expenses.reduce((s, e) => s + e.amount, 0)
 
@@ -108,7 +109,12 @@ export function CostsTab({
   const tripDays = daysBetween(trip.start_date, trip.end_date)
   const expensesByDay = tripDays.map((d, i) => {
     const dayExpenses = [...expenses]
-      .filter(e => e.date === d)
+      .filter(e => {
+        if (e.date !== d) return false
+        if (statusFilter === "all") return true
+        const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+        return s === statusFilter
+      })
       .sort((a, b) => a.description.localeCompare(b.description))
     const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0)
     const dateLabel = new Date(d + "T00:00:00").toLocaleDateString("en-US", {
@@ -273,6 +279,41 @@ export function CostsTab({
 
       {/* ── By Day view ── */}
       {view === "day" && (
+        <div className="flex flex-col gap-3">
+        {/* Status filter chips */}
+        <div className="flex gap-2">
+          {([
+            { key: "all",       label: "All" },
+            { key: "paid",      label: "✓ Paid" },
+            { key: "estimated", label: "~ Est." },
+            { key: "pending",   label: "? Pending" },
+          ] as const).map(({ key, label }) => {
+            const active = statusFilter === key
+            const colors: Record<string, { bg: string; text: string; border: string }> = {
+              all:       { bg: "#2C4A45", text: "#fff",     border: "#2C4A45" },
+              paid:      { bg: "#DCFCE7", text: "#16A34A",  border: "#86EFAC" },
+              estimated: { bg: "#FEF9C3", text: "#CA8A04",  border: "#FDE047" },
+              pending:   { bg: "#F1F5F9", text: "#64748B",  border: "#CBD5E1" },
+            }
+            const c = colors[key]
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                className="flex-1 rounded-full py-1.5 text-[11px] font-medium transition-all"
+                style={
+                  active
+                    ? { background: c.bg, color: c.text, border: `1px solid ${c.border}` }
+                    : { background: "#FFFBF4", color: "#9BA8A6", border: "0.5px solid #D4C9BC" }
+                }
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+
         <div className="flex flex-col gap-2">
           {expensesByDay.map(({ date, dayNum, dateLabel, expenses: dayExp, total: dayTotal }) => {
             const isOpen = openDays.has(date)
@@ -341,6 +382,7 @@ export function CostsTab({
               </div>
             )
           })}
+        </div>
         </div>
       )}
     </div>
