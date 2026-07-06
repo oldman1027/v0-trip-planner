@@ -2,7 +2,7 @@
   "name": "Tripletto",
   "short_name": "Tripletto",
   "description": "Your group trip, planned together.",
-  "start_url": "/",
+  "start_url": "/pwa",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#FFFBF4",

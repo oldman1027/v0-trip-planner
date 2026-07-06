@@ -41,6 +41,11 @@ export function MobileShell({
   const [isInstalled, setIsInstalled] = useState(false)
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
 
+  // Remember this trip so the PWA start page can deep-link back here
+  useEffect(() => {
+    localStorage.setItem("pwa_last_trip", trip.id)
+  }, [trip.id])
+
   // Track online status
   useEffect(() => {
     function onOnline() { setIsOnline(true) }
