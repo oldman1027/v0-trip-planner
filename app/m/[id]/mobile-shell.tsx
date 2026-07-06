@@ -86,6 +86,11 @@ export function MobileShell({
     setIsIOS(ios)
     setIsInstalled(standalone)
 
+    // Register service worker — required for Chrome to fire beforeinstallprompt
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {})
+    }
+
     // Always capture the beforeinstallprompt event regardless of dismissed state
     function onPrompt(e: Event) {
       e.preventDefault()
@@ -105,16 +110,13 @@ export function MobileShell({
 
   async function handleInstall() {
     if (deferredPrompt.current) {
-      // Android / Chrome: trigger native prompt
       await deferredPrompt.current.prompt()
       const { outcome } = await deferredPrompt.current.userChoice
       deferredPrompt.current = null
       if (outcome === "accepted") setInstallDismissed()
       setShowInstall(false)
-    }
-    // iOS: sheet already shows the instructions — button says "Got it"
-    // Just close without marking dismissed so they can re-open from menu
-    else {
+    } else {
+      // iOS or Android where prompt isn't ready yet — sheet shows manual instructions
       setShowInstall(false)
     }
   }
@@ -258,7 +260,7 @@ export function MobileShell({
           </div>
 
           {isIOS ? (
-            // iOS: show step-by-step instructions (no native prompt available)
+            // iOS Safari: manual Share → Add to Home Screen flow
             <>
               <div className="mt-3 flex flex-col gap-2">
                 {[
@@ -281,8 +283,8 @@ export function MobileShell({
                 Got it
               </button>
             </>
-          ) : (
-            // Android / Chrome: trigger native install prompt
+          ) : deferredPrompt.current ? (
+            // Android Chrome: native install prompt available
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
@@ -302,6 +304,30 @@ export function MobileShell({
                 Not now
               </button>
             </div>
+          ) : (
+            // Android: prompt not ready yet — show manual instructions
+            <>
+              <div className="mt-3 flex flex-col gap-2">
+                {[
+                  { icon: <span className="text-base">⋮</span>, text: 'Tap the menu (⋮) in the top-right of Chrome' },
+                  { icon: <Download className="h-4 w-4" />, text: 'Tap "Add to Home screen"' },
+                  { icon: <Smartphone className="h-4 w-4" />, text: 'Tap "Add" to confirm' },
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "#EDF5F2" }}>
+                    <span style={{ color: "#6D8F87" }}>{step.icon}</span>
+                    <span className="text-xs" style={{ color: "#2C4A45" }}>{step.text}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInstall(false)}
+                className="mt-3 w-full rounded-xl py-3 text-sm font-medium text-white"
+                style={{ background: "#6D8F87" }}
+              >
+                Got it
+              </button>
+            </>
           )}
         </div>
       )}
