@@ -32,7 +32,7 @@ export function BottomTabBar({
         right: 0,
         background: "#FDFAF6",
         borderTop: "0.5px solid #D4C9BC",
-        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 10px)",
         zIndex: 50,
       }}
     >
