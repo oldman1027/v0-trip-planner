@@ -87,7 +87,7 @@ export function AllDaysTab({
                 </div>
                 <p className="mt-0.5 text-xs" style={{ color: "#9BA8A6" }}>
                   {dateLabel}
-                  {weatherDay ? ` · ${weatherDay.icon} ${Math.round((weatherDay.high * 9) / 5 + 32)}°F` : ""}
+                  {weatherDay ? ` · ${weatherDay.icon} ${Math.round(weatherDay.high)}°C` : ""}
                   {" · "}
                   {dayActivities.length} {dayActivities.length === 1 ? "activity" : "activities"}
                 </p>

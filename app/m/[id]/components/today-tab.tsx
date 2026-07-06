@@ -74,9 +74,9 @@ export function TodayTab({
 
   const weatherForDay = weather?.forecast?.find(f => f.date === selectedDay)
   const weatherLabel = weatherForDay
-    ? `${weatherForDay.icon} ${Math.round((weatherForDay.high * 9) / 5 + 32)}°F · ${weatherForDay.description}`
+    ? `${weatherForDay.icon} ${Math.round(weatherForDay.high)}°C · ${weatherForDay.description}`
     : weather?.current
-    ? `${weather.current.icon} ${weather.current.temperature}°F`
+    ? `${weather.current.icon} ${weather.current.temperature}°C`
     : null
 
   return (
