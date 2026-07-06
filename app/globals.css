@@ -154,6 +154,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* Eliminate the 300ms tap delay on all interactive elements */
+  a, button, input, select, textarea, [role="button"], [tabindex] {
+    touch-action: manipulation;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'cv11', 'ss01';
