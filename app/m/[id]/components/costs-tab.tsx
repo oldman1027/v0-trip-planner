@@ -37,7 +37,7 @@ const STATUS_BADGE: Record<string, { icon: string; label: string; bg: string; te
 }
 
 function ExpenseRow({ e, currency, partySize }: { e: Expense; currency: string; partySize: number }) {
-  const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+  const s = e.status ?? (e.source_type === "booking" ? "pending" : "estimated")
   const badge = STATUS_BADGE[s] ?? STATUS_BADGE.estimated
   return (
     <div
@@ -104,7 +104,7 @@ export function CostsTab({
 
   // Status totals
   const statusTotals = expenses.reduce((acc, e) => {
-    const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+    const s = e.status ?? (e.source_type === "booking" ? "pending" : "estimated")
     acc[s] = (acc[s] ?? 0) + groupTotal(e, partySize)
     return acc
   }, { paid: 0, estimated: 0, pending: 0 } as Record<string, number>)
@@ -125,7 +125,7 @@ export function CostsTab({
       .filter(e => {
         if (e.date !== d) return false
         if (statusFilter === "all") return true
-        const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+        const s = e.status ?? (e.source_type === "booking" ? "pending" : "estimated")
         return s === statusFilter
       })
       .sort((a, b) => a.description.localeCompare(b.description))

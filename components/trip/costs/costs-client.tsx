@@ -39,6 +39,15 @@ const BOOKING_TO_CATEGORY: Record<string, ExpenseCategory> = {
   other:      "other",
 }
 
+function bookingStatusToExpenseStatus(paymentStatus: string | null | undefined): ExpenseStatus {
+  switch (paymentStatus) {
+    case "paid":
+    case "confirmed": return "paid"
+    case "partial":   return "estimated"
+    default:          return "pending"
+  }
+}
+
 const ACTIVITY_CATEGORY_TO_EXPENSE_CATEGORY: Record<string, ExpenseCategory> = {
   accommodation: "accommodation",
   transport:     "transport",
@@ -228,6 +237,7 @@ export function CostsClient({
         trip_id:         trip.id,
         booking_id:      b.id,
         source_type:     "booking",
+        status:          bookingStatusToExpenseStatus(b.payment_status),
         amount:          b.amount!,
         currency:        b.currency ?? currency,
         category:        BOOKING_TO_CATEGORY[b.type] ?? "other",

@@ -28,7 +28,7 @@ export function StatusDashboard({
 }) {
   const totals: Record<ExpenseStatus, number> = { paid: 0, estimated: 0, pending: 0 }
   for (const e of expenses) {
-    const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+    const s = e.status ?? (e.source_type === "booking" ? "pending" : "estimated")
     totals[s] = (totals[s] ?? 0) + groupTotal(e, partySize)
   }
 

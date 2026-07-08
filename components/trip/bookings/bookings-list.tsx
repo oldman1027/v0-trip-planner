@@ -415,8 +415,13 @@ export function BookingsList({
         }
       }
 
-      // Keep the linked expense in sync when booking amount/date changes
+      // Keep the linked expense in sync when booking amount/date/status changes
       if (bookingData.amount) {
+        const payStatus = bookingData.payment_status
+        const expenseStatus =
+          payStatus === "paid" || payStatus === "confirmed" ? "paid"
+          : payStatus === "partial" ? "estimated"
+          : "pending"
         await supabase
           .from("expenses")
           .update({
@@ -425,6 +430,7 @@ export function BookingsList({
             description: bookingData.title,
             date: bookingData.booking_date ?? new Date().toISOString().slice(0, 10),
             category: EXPENSE_CATEGORY_MAP[bookingData.type as keyof typeof EXPENSE_CATEGORY_MAP] ?? "other",
+            status: expenseStatus,
           })
           .eq("booking_id", bookingData.id!)
           .eq("source_type", "booking")

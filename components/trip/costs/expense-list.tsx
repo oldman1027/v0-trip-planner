@@ -27,7 +27,7 @@ function StatusBadge({
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const isLocked = !!expense.booking_id
-  const status: ExpenseStatus = expense.status ?? (isLocked ? "paid" : "estimated")
+  const status: ExpenseStatus = expense.status ?? (isLocked ? "pending" : "estimated")
   const meta = STATUS_META[status]
 
   if (isLocked) {
@@ -35,7 +35,7 @@ function StatusBadge({
       <span
         className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
         style={{ background: meta.bg, color: meta.text }}
-        title="Booking expenses are always paid"
+        title="Status synced from booking payment status"
       >
         <Lock className="h-2.5 w-2.5" />
         {meta.label}
