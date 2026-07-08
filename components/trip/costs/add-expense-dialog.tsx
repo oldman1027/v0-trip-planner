@@ -51,6 +51,7 @@ export function AddExpenseDialog({
   members,
   participants,
   currentUserId,
+  partySize,
   onClose,
   onSave,
   onOpenMembers,
@@ -61,6 +62,7 @@ export function AddExpenseDialog({
   members: MemberWithProfile[]
   participants: ExpenseParticipant[]
   currentUserId: string
+  partySize: number
   onClose: () => void
   onSave: (input: {
     id?: string
@@ -74,6 +76,8 @@ export function AddExpenseDialog({
     paid_by_participant_id?: string | null
     splits: { user_id: string; amount: number }[]
     participant_splits?: { participant_id: string; amount: number }[]
+    is_per_pax: boolean
+    pax_count: number | null
   }) => Promise<void>
   onOpenMembers?: () => void
 }) {
@@ -111,6 +115,7 @@ export function AddExpenseDialog({
   const [splitMode, setSplitMode] = useState<SplitMode>("equal")
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [isPerPax, setIsPerPax] = useState(false)
 
   // ── Auth-user mode state ──────────────────────────────────────────────────
   const [paidBy, setPaidBy] = useState(currentUserId)
@@ -133,6 +138,7 @@ export function AddExpenseDialog({
     if (expense) {
       setDescription(expense.description)
       setAmount(String(expense.amount))
+      setIsPerPax(expense.is_per_pax ?? false)
       setCategory(expense.category)
       setStatus(expense.status ?? (expense.booking_id ? "paid" : "estimated"))
       setDate(expense.date)
@@ -187,6 +193,7 @@ export function AddExpenseDialog({
       setSelectedMembers(new Set(uniqueMembers.map((m) => m.user_id)))
       setSelectedParticipants(new Set(participants.map((p) => p.id)))
       setCustomAmounts({})
+      setIsPerPax(false)
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -304,6 +311,8 @@ export function AddExpenseDialog({
         paid_by_participant_id: usingParticipants ? paidByParticipantId : null,
         splits:                 usingParticipants ? [] : computeMemberSplits(),
         participant_splits:     usingParticipants ? computeParticipantSplits() : undefined,
+        is_per_pax: isPerPax,
+        pax_count:  isPerPax ? partySize : null,
       })
     } catch {
       toast.error("Could not save expense")
@@ -344,14 +353,47 @@ export function AddExpenseDialog({
           {/* Amount */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Amount ({currency})</label>
-            <Input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-            />
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="flex-1"
+              />
+              {!isSynced && partySize > 1 && (
+                <div
+                  className="flex shrink-0 rounded-xl p-0.5"
+                  style={{ background: "#EDE8E0" }}
+                >
+                  {(["Total", "Per pax"] as const).map((label) => {
+                    const active = label === "Per pax" ? isPerPax : !isPerPax
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setIsPerPax(label === "Per pax")}
+                        className="rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all"
+                        style={
+                          active
+                            ? { background: "#FDFAF6", color: "#2C4A45", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
+                            : { color: "#9BA8A6" }
+                        }
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            {isPerPax && totalAmt > 0 && partySize > 1 && (
+              <p className="text-[11px]" style={{ color: "#6D8F87" }}>
+                × {partySize} pax = {currency} {Math.round(totalAmt * partySize).toLocaleString()}
+              </p>
+            )}
           </div>
 
           {/* Category */}

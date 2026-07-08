@@ -1,11 +1,12 @@
 "use client"
 
-import React, { useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { Trash2, Pencil, ChevronDown, ChevronUp, Hotel, Plane, UtensilsCrossed, Target, Package, Lock } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { groupTotal } from "@/lib/expense-utils"
 import type { Expense, ExpenseParticipant, ExpenseStatus, MemberWithProfile } from "@/lib/types"
 
 const STATUS_META: Record<ExpenseStatus, { label: string; icon: string; bg: string; text: string }> = {
@@ -14,6 +15,7 @@ const STATUS_META: Record<ExpenseStatus, { label: string; icon: string; bg: stri
   pending:   { label: "Pending", icon: "?", bg: "#F1F5F9", text: "#64748B" },
 }
 const STATUS_CYCLE: ExpenseStatus[] = ["paid", "estimated", "pending"]
+const STATUS_ORDER: ExpenseStatus[] = ["paid", "estimated", "pending"]
 
 function StatusBadge({
   expense,
@@ -122,6 +124,7 @@ function ExpenseItem({
   members,
   participants,
   currency,
+  partySize,
   onEdit,
   onDelete,
   onMarkSplitPaid,
@@ -131,6 +134,7 @@ function ExpenseItem({
   members: MemberWithProfile[]
   participants: ExpenseParticipant[]
   currency: string
+  partySize: number
   onEdit: () => void
   onDelete: () => void
   onMarkSplitPaid: (splitId: string, paid: boolean) => void
@@ -152,6 +156,8 @@ function ExpenseItem({
   const meta = CATEGORY_META[expense.category] ?? CATEGORY_META.other
 
   const displayCurrency = expense.currency !== currency ? expense.currency : currency
+  const total = groupTotal(expense, partySize)
+  const pax = expense.pax_count ?? partySize
 
   return (
     <li className="overflow-hidden">
@@ -218,9 +224,16 @@ function ExpenseItem({
 
         {/* Amount + controls */}
         <div className="flex shrink-0 items-center gap-2">
-          <span className="tabular-nums text-sm font-semibold">
-            {fmt(expense.amount, displayCurrency)}
-          </span>
+          <div className="text-right">
+            <span className="tabular-nums text-sm font-semibold">
+              {fmt(total, displayCurrency)}
+            </span>
+            {expense.is_per_pax && (
+              <p className="text-[10px] tabular-nums" style={{ color: "#A9D6C5" }}>
+                {fmt(expense.amount, displayCurrency)}/pax × {pax}
+              </p>
+            )}
+          </div>
 
           {hasSplits && (
             <button
@@ -315,11 +328,85 @@ function ExpenseItem({
   )
 }
 
+// ── Group-by helpers ───────────────────────────────────────────────────────
+
+type GroupBy = "day" | "category" | "status"
+
+const CAT_LABELS: Record<string, string> = {
+  accommodation: "Accommodation",
+  transport:     "Transport",
+  food:          "Dining",
+  activities:    "Activities",
+  other:         "Other",
+}
+
+function buildGroups(
+  expenses: Expense[],
+  groupBy: GroupBy,
+  currency: string,
+  partySize: number,
+): Array<{ key: string; label: string; expenses: Expense[]; total: number }> {
+  if (groupBy === "day") {
+    const map = new Map<string, Expense[]>()
+    for (const e of expenses) {
+      const arr = map.get(e.date) ?? []
+      arr.push(e)
+      map.set(e.date, arr)
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, items]) => ({
+        key: date,
+        label: formatDateLabel(date),
+        expenses: items,
+        total: items.reduce((s, e) => s + groupTotal(e, partySize), 0),
+      }))
+  }
+
+  if (groupBy === "category") {
+    const map = new Map<string, Expense[]>()
+    for (const e of expenses) {
+      const arr = map.get(e.category) ?? []
+      arr.push(e)
+      map.set(e.category, arr)
+    }
+    return [...map.entries()]
+      .map(([cat, items]) => ({
+        key: cat,
+        label: CAT_LABELS[cat] ?? cat,
+        expenses: items,
+        total: items.reduce((s, e) => s + groupTotal(e, partySize), 0),
+      }))
+      .sort((a, b) => b.total - a.total)
+  }
+
+  // status
+  const map = new Map<string, Expense[]>()
+  for (const e of expenses) {
+    const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+    const arr = map.get(s) ?? []
+    arr.push(e)
+    map.set(s, arr)
+  }
+  return STATUS_ORDER
+    .filter((s) => map.has(s))
+    .map((s) => ({
+      key: s,
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+      expenses: map.get(s)!,
+      total: (map.get(s) ?? []).reduce((acc, e) => acc + groupTotal(e, partySize), 0),
+    }))
+}
+
+// ── Public component ───────────────────────────────────────────────────────
+
 export function ExpenseList({
   expenses,
   members,
   participants,
   currency,
+  partySize,
+  tripId,
   onEdit,
   onDelete,
   onMarkSplitPaid,
@@ -329,11 +416,27 @@ export function ExpenseList({
   members: MemberWithProfile[]
   participants: ExpenseParticipant[]
   currency: string
+  partySize: number
+  tripId: string
   onEdit: (expense: Expense) => void
   onDelete: (id: string) => void
   onMarkSplitPaid: (splitId: string, paid: boolean) => void
   onStatusChange: (id: string, status: ExpenseStatus) => void
 }) {
+  const storageKey = `costs_group_by_${tripId}`
+  const [groupBy, setGroupBy] = useState<GroupBy>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(storageKey)
+      if (saved === "day" || saved === "category" || saved === "status") return saved
+    }
+    return "day"
+  })
+
+  function changeGroupBy(v: GroupBy) {
+    setGroupBy(v)
+    if (typeof window !== "undefined") localStorage.setItem(storageKey, v)
+  }
+
   if (expenses.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
@@ -348,50 +451,87 @@ export function ExpenseList({
     )
   }
 
-  const totalsByCurrency = expenses.reduce((acc, e) => {
-    const cur = e.currency || currency
-    acc[cur] = (acc[cur] ?? 0) + e.amount
-    return acc
-  }, {} as Record<string, number>)
-  const totalEntries = Object.entries(totalsByCurrency).filter(([, v]) => v > 0)
+  const grandTotal = expenses.reduce((s, e) => s + groupTotal(e, partySize), 0)
 
-  const dateGroups = Array.from(
-    expenses.reduce((acc, e) => {
-      const arr = acc.get(e.date) ?? []
-      arr.push(e)
-      acc.set(e.date, arr)
-      return acc
-    }, new Map<string, Expense[]>()),
-  )
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, items]) => ({ date, expenses: items }))
+  function fmtTotal(amount: number) {
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount)
+    } catch {
+      return `${currency} ${Math.round(amount)}`
+    }
+  }
+
+  const groups = buildGroups(expenses, groupBy, currency, partySize)
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between px-0.5">
+      {/* Header row: count + total + group-by switcher */}
+      <div className="flex items-center justify-between gap-3 px-0.5">
         <span className="text-sm text-muted-foreground">
           {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
+          {" · "}
+          <span className="font-semibold tabular-nums text-foreground">{fmtTotal(grandTotal)}</span>
         </span>
-        <span className="tabular-nums text-sm font-semibold">
-          {totalEntries.map(([cur, amt], i) => (
-            <span key={cur}>
-              {i > 0 && <span className="mx-1.5 text-muted-foreground">·</span>}
-              {fmt(amt, cur)}
-            </span>
-          ))}
-        </span>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground">Group by:</span>
+          <div
+            className="flex rounded-lg p-0.5"
+            style={{ background: "#EDE8E0" }}
+          >
+            {(["day", "category", "status"] as GroupBy[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => changeGroupBy(v)}
+                className="rounded-md px-2.5 py-1 text-[11px] font-medium transition-all"
+                style={
+                  groupBy === v
+                    ? { background: "#FDFAF6", color: "#2C4A45", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
+                    : { color: "#9BA8A6" }
+                }
+              >
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-6">
-        {dateGroups.map((group) => (
+        {groups.map((group) => (
           <section
-            key={group.date}
-            id={`expense-group-${group.date}`}
+            key={group.key}
+            id={`expense-group-${group.key}`}
             className="rounded-2xl transition-shadow"
           >
-            <h3 className="mb-2 text-sm font-semibold text-foreground">
-              {formatDateLabel(group.date)}
-            </h3>
+            {/* Group header */}
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                {groupBy === "status" ? (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    style={{
+                      background: STATUS_META[group.key as ExpenseStatus]?.bg ?? "#F1F5F9",
+                      color: STATUS_META[group.key as ExpenseStatus]?.text ?? "#64748B",
+                    }}
+                  >
+                    {STATUS_META[group.key as ExpenseStatus]?.icon} {group.label}
+                  </span>
+                ) : (
+                  group.label
+                )}
+              </h3>
+              <div className="flex items-center gap-1.5 text-right">
+                <span className="tabular-nums text-[12px] font-medium" style={{ color: "#2C4A45" }}>
+                  {fmtTotal(group.total)}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  · {group.expenses.length}
+                </span>
+              </div>
+            </div>
+
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
               <ul className="divide-y divide-border">
                 {group.expenses.map((e) => (
@@ -401,6 +541,7 @@ export function ExpenseList({
                     members={members}
                     participants={participants}
                     currency={currency}
+                    partySize={partySize}
                     onEdit={() => onEdit(e)}
                     onDelete={() => onDelete(e.id)}
                     onMarkSplitPaid={onMarkSplitPaid}

@@ -1,5 +1,6 @@
 "use client"
 
+import { groupTotal } from "@/lib/expense-utils"
 import type { Expense, ExpenseStatus } from "@/lib/types"
 
 const STATUS_META: Record<ExpenseStatus, { label: string; icon: string; color: string; bg: string; text: string }> = {
@@ -19,14 +20,16 @@ function fmt(amount: number, currency: string) {
 export function StatusDashboard({
   expenses,
   currency,
+  partySize,
 }: {
   expenses: Expense[]
   currency: string
+  partySize: number
 }) {
   const totals: Record<ExpenseStatus, number> = { paid: 0, estimated: 0, pending: 0 }
   for (const e of expenses) {
     const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
-    totals[s] = (totals[s] ?? 0) + e.amount
+    totals[s] = (totals[s] ?? 0) + groupTotal(e, partySize)
   }
 
   const grand = totals.paid + totals.estimated + totals.pending
@@ -49,7 +52,6 @@ export function StatusDashboard({
 
         {grand > 0 && (
           <>
-            {/* Segmented progress bar */}
             <div className="mt-4 flex h-2 overflow-hidden rounded-full" style={{ background: "#E8E0D8" }}>
               {(["paid", "estimated", "pending"] as ExpenseStatus[]).map((s) => {
                 const w = pct(totals[s])
@@ -64,10 +66,8 @@ export function StatusDashboard({
               })}
             </div>
 
-            {/* Divider */}
             <div className="my-3" style={{ borderTop: "0.5px solid #E8E0D8" }} />
 
-            {/* Stat rows */}
             <div className="flex flex-col gap-2">
               {(["paid", "estimated", "pending"] as ExpenseStatus[]).map((s) => {
                 const meta = STATUS_META[s]

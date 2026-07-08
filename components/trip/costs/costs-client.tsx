@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Plus, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { BudgetCards } from "./budget-cards"
+import { groupTotal } from "@/lib/expense-utils"
 import { CashPlanningCard } from "./cash-planning-card"
 import { ExpenseList } from "./expense-list"
 import { StatusDashboard } from "./status-dashboard"
@@ -23,7 +23,6 @@ import type {
   ExpenseCategory,
   ExpenseStatus,
   ExpenseSplit,
-  TripBudget,
   MemberWithProfile,
   ExpenseParticipant,
   Activity,
@@ -166,7 +165,6 @@ function OweSummary({
 export function CostsClient({
   trip,
   initialExpenses,
-  initialBudgets,
   members,
   initialBookings,
   currentUserId,
@@ -175,7 +173,6 @@ export function CostsClient({
 }: {
   trip: Trip
   initialExpenses: Expense[]
-  initialBudgets: TripBudget[]
   members: MemberWithProfile[]
   initialBookings: Booking[]
   currentUserId: string
@@ -183,7 +180,6 @@ export function CostsClient({
   activities: Activity[]
 }) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
-  const [budgets, setBudgets] = useState<TripBudget[]>(initialBudgets)
   const [participants, setParticipants] = useState<ExpenseParticipant[]>(initialParticipants)
   const [bookings, setBookings] = useState<Booking[]>(initialBookings)
   const [localActivities, setLocalActivities] = useState<Activity[]>(activities)
@@ -192,7 +188,7 @@ export function CostsClient({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [manageMembersOpen, setManageMembersOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
-  const [summaryView, setSummaryView] = useState<"category" | "cash">("category")
+  const partySize = members.length || 1
   const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   const [dismissedPairKeys, setDismissedPairKeys] = useState<Set<string>>(new Set())
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -302,6 +298,8 @@ export function CostsClient({
     paid_by_participant_id?: string | null
     splits: { user_id: string; amount: number }[]
     participant_splits?: { participant_id: string; amount: number }[]
+    is_per_pax: boolean
+    pax_count: number | null
   }) {
     const supabase = createClient()
     const hasParticipantSplits = (input.participant_splits?.length ?? 0) > 0
@@ -318,6 +316,8 @@ export function CostsClient({
           date:                   input.date,
           paid_by_user_id:        input.paid_by_user_id ?? null,
           paid_by_participant_id: input.paid_by_participant_id ?? null,
+          is_per_pax:             input.is_per_pax,
+          pax_count:              input.pax_count,
         })
         .eq("id", input.id)
       if (error) throw error
@@ -365,6 +365,8 @@ export function CostsClient({
           date:                   input.date,
           paid_by_user_id:        input.paid_by_user_id ?? null,
           paid_by_participant_id: input.paid_by_participant_id ?? null,
+          is_per_pax:             input.is_per_pax,
+          pax_count:              input.pax_count,
         })
         .select()
         .single()
@@ -496,32 +498,6 @@ export function CostsClient({
     setDismissedPairKeys((prev) => new Set(prev).add(`${pair.activity.id}:${pair.booking.id}`))
   }
 
-  // ── Budget CRUD ───────────────────────────────────────────────────────────
-
-  async function handleSetBudget(category: ExpenseCategory, amount: number) {
-    const supabase = createClient()
-    const existing = budgets.find((b) => b.category === category)
-
-    if (existing) {
-      const { error } = await supabase
-        .from("trip_budgets")
-        .update({ budget_amount: amount })
-        .eq("id", existing.id)
-      if (error) throw error
-      setBudgets((prev) =>
-        prev.map((b) => (b.category === category ? { ...b, budget_amount: amount } : b)),
-      )
-    } else {
-      const { data, error } = await supabase
-        .from("trip_budgets")
-        .insert({ trip_id: trip.id, category, budget_amount: amount })
-        .select()
-        .single()
-      if (error || !data) throw error ?? new Error("Insert failed")
-      setBudgets((prev) => [...prev, data as TripBudget])
-    }
-  }
-
   // ── Filtered view ─────────────────────────────────────────────────────────
 
   const filtered = expenses.filter((e) => {
@@ -583,63 +559,62 @@ export function CostsClient({
       )}
 
       {/* Status dashboard */}
-      <StatusDashboard expenses={expenses} currency={currency} />
+      <StatusDashboard expenses={expenses} currency={currency} partySize={partySize} />
 
-      {/* Summary toggle */}
-      <div className="flex gap-2">
-        {(["category", "cash"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setSummaryView(v)}
-            className={cn(
-              "rounded-full border px-4 py-1.5 text-xs font-medium transition-colors",
-              summaryView === v
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {v === "category" ? "By Category" : "Cash Needed"}
-          </button>
-        ))}
-      </div>
-
-      {/* Budget cards / cash planning */}
-      {summaryView === "category" ? (
-        <BudgetCards
-          expenses={expenses}
-          budgets={budgets}
-          currency={currency}
-          onSetBudget={handleSetBudget}
-        />
-      ) : (
-        <CashPlanningCard
-          trip={trip}
-          expenses={expenses}
-          activities={localActivities}
-          bookings={bookings}
-          onSelectDays={handleSelectDays}
-        />
-      )}
+      {/* Cash planning — always visible */}
+      <CashPlanningCard
+        trip={trip}
+        expenses={expenses}
+        activities={localActivities}
+        bookings={bookings}
+        partySize={partySize}
+        onSelectDays={handleSelectDays}
+      />
 
       {/* Filter bar + action buttons */}
       <div className="flex flex-col gap-2">
+        {/* Category chips with live totals */}
         <div className="flex flex-wrap gap-2">
-          {ALL_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setCatFilter(cat)}
-              className={cn(
-                "rounded-full border px-4 py-1.5 text-xs font-medium transition-colors",
-                catFilter === cat
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {CAT_LABELS[cat]}
-            </button>
-          ))}
+          {ALL_CATEGORIES.map((cat) => {
+            // Totals respect the active status filter
+            const catExpenses = expenses.filter((e) => {
+              if (cat !== "all" && e.category !== cat) return false
+              if (statusFilter !== "all") {
+                const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
+                if (s !== statusFilter) return false
+              }
+              return true
+            })
+            const catTotal = catExpenses.reduce((s, e) => s + groupTotal(e, partySize), 0)
+            const isActive = catFilter === cat
+            const hasTotal = catTotal > 0
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCatFilter(cat)}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all"
+                style={
+                  isActive
+                    ? { background: "#6D8F87", color: "#fff", border: "1px solid #6D8F87" }
+                    : { background: "#fff", color: "#6D8F87", border: "0.5px solid #A9D6C5", opacity: hasTotal ? 1 : 0.5 }
+                }
+              >
+                <span>{CAT_LABELS[cat]}</span>
+                {hasTotal && (
+                  <>
+                    <span
+                      className="h-2.5 w-px"
+                      style={{ background: isActive ? "rgba(255,255,255,0.4)" : "#D4C9BC" }}
+                    />
+                    <span className="tabular-nums" style={{ fontWeight: 500 }}>
+                      {fmt(catTotal, currency)}
+                    </span>
+                  </>
+                )}
+              </button>
+            )
+          })}
         </div>
         <div className="flex flex-wrap gap-2">
           {([
@@ -695,6 +670,8 @@ export function CostsClient({
         members={members}
         participants={participants}
         currency={currency}
+        partySize={partySize}
+        tripId={trip.id}
         onEdit={(e) => {
           setEditingExpense(e)
           setDialogOpen(true)
@@ -723,6 +700,7 @@ export function CostsClient({
         members={members}
         participants={participants}
         currentUserId={currentUserId}
+        partySize={partySize}
         onClose={() => {
           setDialogOpen(false)
           setEditingExpense(null)

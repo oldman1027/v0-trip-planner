@@ -11,3 +11,15 @@ export function PrintTrigger() {
   }, [])
   return null
 }
+
+export function PrintButton({ style }: { style?: React.CSSProperties }) {
+  return (
+    <button
+      type="button"
+      onClick={() => window.print()}
+      style={style}
+    >
+      Save as PDF / Print
+    </button>
+  )
+}

@@ -3,6 +3,7 @@
 import { daysBetween, parseDateOnly } from "@/lib/dates"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { groupTotal } from "@/lib/expense-utils"
 import type { Activity, Booking, Expense, Trip } from "@/lib/types"
 
 function fmt(amount: number, currency: string) {
@@ -27,11 +28,11 @@ function isPrepaid(expense: Expense): boolean {
   return expense.source_type === "booking" && (expense.category === "accommodation" || expense.category === "transport")
 }
 
-function sumByCurrency(expenses: Expense[], fallbackCurrency: string): Array<[string, number]> {
+function sumByCurrency(expenses: Expense[], fallbackCurrency: string, partySize: number): Array<[string, number]> {
   const totals = new Map<string, number>()
   for (const e of expenses) {
     const cur = e.currency || fallbackCurrency
-    totals.set(cur, (totals.get(cur) ?? 0) + e.amount)
+    totals.set(cur, (totals.get(cur) ?? 0) + groupTotal(e, partySize))
   }
   return [...totals.entries()].filter(([, v]) => v > 0)
 }
@@ -77,12 +78,14 @@ export function CashPlanningCard({
   expenses,
   activities,
   bookings,
+  partySize,
   onSelectDays,
 }: {
   trip: Trip
   expenses: Expense[]
   activities: Activity[]
   bookings: Booking[]
+  partySize: number
   onSelectDays?: (days: string[]) => void
 }) {
   const currency = trip.default_currency ?? "USD"
@@ -109,11 +112,11 @@ export function CashPlanningCard({
   const sections = cityRanges
     .map((range) => {
       const rangeExpenses = range.days.flatMap((d) => cashByDate.get(d) ?? [])
-      return { label: range.label, entries: sumByCurrency(rangeExpenses, currency), days: range.days }
+      return { label: range.label, entries: sumByCurrency(rangeExpenses, currency, partySize), days: range.days }
     })
     .filter((s) => s.entries.length > 0)
 
-  const grandTotal = sumByCurrency(cashExpenses, currency)
+  const grandTotal = sumByCurrency(cashExpenses, currency, partySize)
 
   if (cashExpenses.length === 0 && sections.length === 0) {
     const allPrepaid = unpaidExpenses.length === 0 && expenses.length > 0

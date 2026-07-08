@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { CostsClient } from "@/components/trip/costs/costs-client"
 import { normalizeMembers } from "@/lib/types"
-import type { Trip, Booking, Expense, TripBudget, ExpenseParticipant, Activity } from "@/lib/types"
+import type { Trip, Booking, Expense, ExpenseParticipant, Activity } from "@/lib/types"
 
 export default async function CostsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -13,7 +13,6 @@ export default async function CostsPage({ params }: { params: Promise<{ id: stri
   const [
     { data: trip },
     { data: expensesRaw },
-    { data: budgetsRaw },
     { data: membersRaw },
     { data: bookings },
     { data: participantsRaw },
@@ -25,7 +24,6 @@ export default async function CostsPage({ params }: { params: Promise<{ id: stri
       .select("*, splits:expense_splits(*)")
       .eq("trip_id", id)
       .order("date", { ascending: false }),
-    supabase.from("trip_budgets").select("*").eq("trip_id", id),
     supabase
       .from("trip_members")
       .select("trip_id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, created_at)")
@@ -45,7 +43,6 @@ export default async function CostsPage({ params }: { params: Promise<{ id: stri
     <CostsClient
       trip={trip}
       initialExpenses={(expensesRaw ?? []) as Expense[]}
-      initialBudgets={(budgetsRaw ?? []) as TripBudget[]}
       members={normalizeMembers(membersRaw)}
       initialBookings={(bookings ?? []) as Booking[]}
       currentUserId={user?.id ?? ""}

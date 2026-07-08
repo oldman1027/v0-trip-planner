@@ -224,7 +224,7 @@ export function MobileShell({
         )}
         {tab === "bookings" && <BookingsTab bookings={bookings} tripId={trip.id} />}
         {tab === "costs" && (
-          <CostsTab trip={trip} expenses={expenses} bookings={bookings} />
+          <CostsTab trip={trip} expenses={expenses} bookings={bookings} members={members} />
         )}
         {tab === "map" && (
           <MapTab trip={trip} activities={activities} />

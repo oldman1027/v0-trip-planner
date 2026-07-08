@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { ChevronDown, ChevronRight, Hotel, Plane, UtensilsCrossed, Target, Package } from "lucide-react"
-import type { Booking, Expense, Trip } from "@/lib/types"
+import type { Booking, Expense, MemberWithProfile, Trip } from "@/lib/types"
+import { groupTotal } from "@/lib/expense-utils"
 import { daysBetween } from "@/lib/dates"
 
 function fmt(amount: number, currency: string) {
@@ -35,14 +36,16 @@ const STATUS_BADGE: Record<string, { icon: string; label: string; bg: string; te
   pending:   { icon: "?", label: "Pending", bg: "#F1F5F9", text: "#64748B" },
 }
 
-function ExpenseRow({ e, currency }: { e: Expense; currency: string }) {
+function ExpenseRow({ e, currency, partySize }: { e: Expense; currency: string; partySize: number }) {
   const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
   const badge = STATUS_BADGE[s] ?? STATUS_BADGE.estimated
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3"
-      style={{ borderTop: "0.5px solid #EDE8E0" }}
+      className="flex items-center gap-3 py-3 pr-4"
+      style={{ borderTop: "0.5px solid #EDE8E0", paddingLeft: "14px" }}
     >
+      {/* Left accent strip */}
+      <div className="w-0.5 self-stretch rounded-full shrink-0" style={{ background: "#D4E8E0" }} />
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
         style={{ background: "#EDF5F2", color: "#6D8F87" }}
@@ -65,9 +68,16 @@ function ExpenseRow({ e, currency }: { e: Expense; currency: string }) {
           </span>
         </div>
       </div>
-      <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: "#2C4A45" }}>
-        {fmt(e.amount, e.currency)}
-      </span>
+      <div className="shrink-0 text-right">
+        <span className="text-sm font-semibold tabular-nums" style={{ color: "#2C4A45" }}>
+          {fmt(groupTotal(e, partySize), e.currency)}
+        </span>
+        {e.is_per_pax && (
+          <p className="text-[9px] tabular-nums" style={{ color: "#A9D6C5" }}>
+            {fmt(e.amount, e.currency)}/pax × {e.pax_count ?? partySize}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
@@ -76,23 +86,26 @@ export function CostsTab({
   trip,
   expenses,
   bookings,
+  members,
 }: {
   trip: Trip
   expenses: Expense[]
   bookings: Booking[]
+  members: MemberWithProfile[]
 }) {
   const currency = trip.default_currency ?? "USD"
+  const partySize = members.length || 1
   const today = new Date().toISOString().slice(0, 10)
   const [view, setView] = useState<"category" | "day">("category")
   const [openDays, setOpenDays] = useState<Set<string>>(() => new Set([today]))
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "estimated" | "pending">("all")
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0)
+  const total = expenses.reduce((s, e) => s + groupTotal(e, partySize), 0)
 
   // Status totals
   const statusTotals = expenses.reduce((acc, e) => {
     const s = e.status ?? (e.source_type === "booking" ? "paid" : "estimated")
-    acc[s] = (acc[s] ?? 0) + e.amount
+    acc[s] = (acc[s] ?? 0) + groupTotal(e, partySize)
     return acc
   }, { paid: 0, estimated: 0, pending: 0 } as Record<string, number>)
   const stillNeeded = (statusTotals.estimated ?? 0) + (statusTotals.pending ?? 0)
@@ -100,7 +113,7 @@ export function CostsTab({
   // By category
   const byCategory = Object.entries(
     expenses.reduce((acc, e) => {
-      acc[e.category] = (acc[e.category] ?? 0) + e.amount
+      acc[e.category] = (acc[e.category] ?? 0) + groupTotal(e, partySize)
       return acc
     }, {} as Record<string, number>),
   ).sort(([, a], [, b]) => b - a)
@@ -116,7 +129,7 @@ export function CostsTab({
         return s === statusFilter
       })
       .sort((a, b) => a.description.localeCompare(b.description))
-    const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0)
+    const dayTotal = dayExpenses.reduce((s, e) => s + groupTotal(e, partySize), 0)
     const dateLabel = new Date(d + "T00:00:00").toLocaleDateString("en-US", {
       weekday: "short", month: "short", day: "numeric",
     })
@@ -270,7 +283,7 @@ export function CostsTab({
               <div className="overflow-hidden rounded-2xl" style={{ border: "0.5px solid #E8E0D8", background: "#FFFBF4" }}>
                 {[...expenses]
                   .sort((a, b) => b.date.localeCompare(a.date))
-                  .map(e => <ExpenseRow key={e.id} e={e} currency={currency} />)}
+                  .map(e => <ExpenseRow key={e.id} e={e} currency={currency} partySize={partySize} />)}
               </div>
             )}
           </div>
@@ -314,7 +327,7 @@ export function CostsTab({
           })}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           {expensesByDay.map(({ date, dayNum, dateLabel, expenses: dayExp, total: dayTotal }) => {
             const isOpen = openDays.has(date)
             const isToday = date === today
@@ -322,23 +335,27 @@ export function CostsTab({
               <div
                 key={date}
                 className="overflow-hidden rounded-2xl"
-                style={{ border: `0.5px solid ${isToday ? "#A9D6C5" : "#E8E0D8"}` }}
+                style={{ border: `1px solid ${isToday ? "#A9D6C5" : isOpen ? "#C8DDD8" : "#E8E0D8"}` }}
               >
                 {/* Day header — always visible, tap to expand */}
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-4 py-3 text-left"
-                  style={{ background: isToday ? "#EDF5F2" : "#FFFBF4", minHeight: 52 }}
+                  style={{
+                    background: isToday ? "#EDF5F2" : isOpen ? "#F2F7F5" : "#FDFAF6",
+                    minHeight: 52,
+                    borderBottom: isOpen ? `0.5px solid ${isToday ? "#A9D6C5" : "#D4E4DF"}` : "none",
+                  }}
                   onClick={() => toggleDay(date)}
                 >
                   <span
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                    style={{ background: isToday ? "#6D8F87" : "#B5C4C1" }}
+                    style={{ background: isToday ? "#6D8F87" : isOpen ? "#8BADA6" : "#C4D3D0" }}
                   >
                     {dayNum}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-tight" style={{ color: "#2C4A45" }}>
+                    <p className="text-sm font-semibold leading-tight" style={{ color: isOpen ? "#2C4A45" : "#4A6A65" }}>
                       {dateLabel}
                       {isToday && (
                         <span className="ml-1.5 text-[10px] font-semibold" style={{ color: "#6D8F87" }}>
@@ -359,8 +376,8 @@ export function CostsTab({
                       </span>
                     )}
                     {isOpen
-                      ? <ChevronDown className="h-4 w-4 shrink-0" style={{ color: "#9BA8A6" }} />
-                      : <ChevronRight className="h-4 w-4 shrink-0" style={{ color: "#9BA8A6" }} />}
+                      ? <ChevronDown className="h-4 w-4 shrink-0" style={{ color: "#6D8F87" }} />
+                      : <ChevronRight className="h-4 w-4 shrink-0" style={{ color: "#C4D3D0" }} />}
                   </div>
                 </button>
 
@@ -368,14 +385,19 @@ export function CostsTab({
                 {isOpen && (
                   dayExp.length === 0 ? (
                     <p
-                      className="px-4 py-3 text-xs"
-                      style={{ borderTop: "0.5px solid #EDE8E0", color: "#B5C4C1" }}
+                      className="px-4 py-3 text-xs italic"
+                      style={{ background: "#FDFAF6", color: "#B5C4C1" }}
                     >
                       No expenses on this day
                     </p>
                   ) : (
-                    <div style={{ background: "#FFFBF4" }}>
-                      {dayExp.map(e => <ExpenseRow key={e.id} e={e} currency={currency} />)}
+                    <div style={{ background: "#FDFAF6" }}>
+                      {dayExp.map(e => <ExpenseRow key={e.id} e={e} currency={currency} partySize={partySize} />)}
+                      {/* Bottom cap — clearly marks end of this day */}
+                      <div
+                        className="mx-4 my-2 h-0.5 rounded-full"
+                        style={{ background: isToday ? "#A9D6C5" : "#D4E4DF" }}
+                      />
                     </div>
                   )
                 )}

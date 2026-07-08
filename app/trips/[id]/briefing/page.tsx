@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server"
 import { normalizeMembers } from "@/lib/types"
 import { fmtCurrency, fmtDate, fmtDateShort, fmtTime, tripDays, CATEGORY_COLORS, C } from "@/lib/pdf/pdf-helpers"
 import { geocodeDestination, fetchWeatherForecast } from "@/lib/weather"
+import { groupTotal } from "@/lib/expense-utils"
 import type { Activity, Booking, Expense, MemberWithProfile, Trip } from "@/lib/types"
-import { PrintTrigger } from "./print-trigger"
+import { PrintTrigger, PrintButton } from "./print-trigger"
 
 export const dynamic = "force-dynamic"
 
@@ -65,6 +66,7 @@ export default async function BriefingPage({
   const bookings = (bookingsRaw ?? []) as Booking[]
   const expenses = (expensesRaw ?? []) as Expense[]
   const members = normalizeMembers(membersRaw)
+  const partySize = members.length || 1
   const currency = t.default_currency ?? "USD"
   const days = tripDays(t.start_date, t.end_date)
 
@@ -81,16 +83,16 @@ export default async function BriefingPage({
 
   // Expenses by category
   const expensesByCategory = expenses.reduce((acc, e) => {
-    acc[e.category] = (acc[e.category] ?? 0) + e.amount
+    acc[e.category] = (acc[e.category] ?? 0) + groupTotal(e, partySize)
     return acc
   }, {} as Record<string, number>)
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalExpenses = expenses.reduce((s, e) => s + groupTotal(e, partySize), 0)
 
   // Cash planning
   const paidBookingIds = new Set(bookings.filter(b => b.payment_status === "paid").map(b => b.id))
   const cashExpenses = expenses.filter(e => !isPrepaid(e) && !(e.booking_id && paidBookingIds.has(e.booking_id)))
-  const cashTotal = cashExpenses.reduce((s, e) => s + e.amount, 0)
-  const prepaidTotal = expenses.filter(e => isPrepaid(e)).reduce((s, e) => s + e.amount, 0)
+  const cashTotal = cashExpenses.reduce((s, e) => s + groupTotal(e, partySize), 0)
+  const prepaidTotal = expenses.filter(e => isPrepaid(e)).reduce((s, e) => s + groupTotal(e, partySize), 0)
 
   const generatedDate = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -138,15 +140,12 @@ export default async function BriefingPage({
             >
               ← Back
             </a>
-            <button
-              onClick={() => window.print()}
+            <PrintButton
               style={{
                 background: "white", color: C.teal, border: "none", borderRadius: 8,
                 padding: "6px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
-            >
-              Save as PDF / Print
-            </button>
+            />
           </div>
         </div>
 
@@ -295,10 +294,10 @@ export default async function BriefingPage({
               })
 
             const dayExpenses = expenses.filter(e => e.date === day)
-            const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0)
+            const dayTotal = dayExpenses.reduce((s, e) => s + groupTotal(e, partySize), 0)
             const dayCash = dayExpenses
               .filter(e => !isPrepaid(e) && !(e.booking_id && paidBookingIds.has(e.booking_id)))
-              .reduce((s, e) => s + e.amount, 0)
+              .reduce((s, e) => s + groupTotal(e, partySize), 0)
 
             const hotelToday = hotels.find(h =>
               h.booking_date === day ||

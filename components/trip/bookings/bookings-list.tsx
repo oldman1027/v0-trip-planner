@@ -415,6 +415,21 @@ export function BookingsList({
         }
       }
 
+      // Keep the linked expense in sync when booking amount/date changes
+      if (bookingData.amount) {
+        await supabase
+          .from("expenses")
+          .update({
+            amount: bookingData.amount,
+            currency: bookingData.currency ?? currency,
+            description: bookingData.title,
+            date: bookingData.booking_date ?? new Date().toISOString().slice(0, 10),
+            category: EXPENSE_CATEGORY_MAP[bookingData.type as keyof typeof EXPENSE_CATEGORY_MAP] ?? "other",
+          })
+          .eq("booking_id", bookingData.id!)
+          .eq("source_type", "booking")
+      }
+
       setBookings((prev) =>
         prev.map((b) =>
           b.id === bookingData.id ? ({ ...b, ...bookingData, id: bookingData.id! } as Booking) : b,

@@ -137,6 +137,8 @@ export type Expense = {
   paid_by_user_id: string | null
   paid_by_participant_id: string | null
   created_at: string
+  is_per_pax: boolean
+  pax_count: number | null
   splits?: ExpenseSplit[]
 }
 
