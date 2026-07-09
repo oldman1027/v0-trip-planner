@@ -313,12 +313,20 @@ export function ItineraryBoard({
   // Map activity_id → booking for cross-referencing the "Booked" badge
   const activityBookingMap = useMemo(() => {
     const m = new Map<string, Booking>()
+    // Legacy link: booking.details.activity_id → activity
     for (const b of bookings) {
       const aid = (b.details as Record<string, unknown> | null)?.activity_id
       if (typeof aid === "string") m.set(aid, b)
     }
+    // Newer link: activity.linked_booking_id → booking
+    const bookingById = new Map(bookings.map((b) => [b.id, b]))
+    for (const a of activities) {
+      if (a.linked_booking_id && bookingById.has(a.linked_booking_id) && !m.has(a.id)) {
+        m.set(a.id, bookingById.get(a.linked_booking_id)!)
+      }
+    }
     return m
-  }, [bookings])
+  }, [bookings, activities])
 
   // Bookings not yet linked to any activity — candidates for manually linking
   // an itinerary item that already has its own independently-created booking.
